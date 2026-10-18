@@ -1,0 +1,26 @@
+{
+  "name": "elite-champions-league",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Elite Champions League — plataforma oficial de torneios de Standoff 2",
+  "workspaces": [
+    "Frontend",
+    "Backend"
+  ],
+  "scripts": {
+    "dev:frontend": "npm run dev --workspace Frontend",
+    "dev:backend": "npm run start:dev --workspace Backend",
+    "build:frontend": "npm run build --workspace Frontend",
+    "build:backend": "npm run build --workspace Backend",
+    "build": "npm run build:frontend && npm run build:backend",
+    "lint": "npm run lint --workspaces --if-present",
+    "typecheck": "npm run typecheck --workspaces --if-present",
+    "test": "npm run test --workspaces --if-present",
+    "db:migrate": "npm run prisma:migrate --workspace Backend",
+    "db:seed": "npm run prisma:seed --workspace Backend",
+    "db:studio": "npm run prisma:studio --workspace Backend"
+  },
+  "engines": {
+    "node": ">=20.0.0"
+  }
+}

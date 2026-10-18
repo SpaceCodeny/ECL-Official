@@ -1,0 +1,27 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: ecl-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-ecl}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-ecl_dev}
+      POSTGRES_DB: ${POSTGRES_DB:-ecl}
+    ports:
+      - "${POSTGRES_PORT:-5432}:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-ecl} -d ${POSTGRES_DB:-ecl}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - ecl-network
+
+networks:
+  ecl-network:
+    driver: bridge
+
+volumes:
+  postgres_data:

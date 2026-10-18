@@ -1,0 +1,52 @@
+# Dependencies
+node_modules/
+.pnp/
+.pnp.js
+
+# Next.js
+Frontend/.next/
+Frontend/out/
+Frontend/build/
+Frontend/*.tsbuildinfo
+Frontend/next-env.d.ts
+
+# NestJS
+Backend/dist/
+Backend/*.tsbuildinfo
+
+# Prisma
+Backend/prisma/migrations/dev.db*
+Backend/prisma/*.db
+Backend/prisma/*.db-journal
+
+# Environment
+.env
+.env.local
+.env.*.local
+*.env
+!.env.example
+
+# Logs
+logs/
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Editor / OS
+.DS_Store
+.idea/
+.vscode/
+*.swp
+*.swo
+Thumbs.db
+
+# Testing / coverage
+coverage/
+.nyc_output/
+Frontend/playwright-report/
+Frontend/test-results/
+Frontend/playwright/.cache/
+
+# Docker
+docker-data/
