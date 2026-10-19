@@ -41,3 +41,12 @@ export class AppError extends Error {
     return new AppError(message, 500, "InternalServerError");
   }
 }
+
+/**
+ * Extrai um único valor de string de req.params[key].
+ * Express pode retornar string | string[] dependendo da rota.
+ */
+export function getParam(params: Record<string, any>, key: string): string {
+  const value = params[key];
+  return Array.isArray(value) ? value[0] : value;
+}
