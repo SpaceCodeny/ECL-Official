@@ -6,8 +6,15 @@
  */
 
 // ① Registrar path aliases ANTES de qualquer import que use @/
+// A Vercel executa a função a partir da raiz do projeto,
+// então o tsconfig.json da raiz do Backend é encontrado automaticamente.
 // eslint-disable-next-line @typescript-eslint/no-require-imports
-require("tsconfig-paths/register");
+const tsconfigPaths = require("tsconfig-paths") as typeof import("tsconfig-paths");
+const tsconfigJson = require("../tsconfig.json") as { compilerOptions: { baseUrl?: string; paths?: Record<string, string[]> } };
+tsconfigPaths.register({
+  baseUrl: require("path").resolve(__dirname, ".."),
+  paths: tsconfigJson.compilerOptions.paths ?? {},
+});
 
 // ② Sinalizar modo serverless
 process.env.SERVERLESS = "true";
