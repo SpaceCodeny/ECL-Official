@@ -2,14 +2,14 @@
   "version": 2,
   "builds": [
     {
-      "src": "api/index.js",
+      "src": "api/index.ts",
       "use": "@vercel/node",
       "config": {
+        "maxLambdaSize": "50mb",
         "includeFiles": [
-          "dist/**",
-          "node_modules/.prisma/**",
-          "node_modules/@prisma/client/**",
-          "prisma/schema.prisma"
+          "src/**",
+          "prisma/schema.prisma",
+          "tsconfig.json"
         ]
       }
     }
@@ -17,7 +17,7 @@
   "routes": [
     {
       "src": "/(.*)",
-      "dest": "/api/index.js"
+      "dest": "/api/index.ts"
     }
   ],
   "env": {
