@@ -10,7 +10,7 @@ let app = null;
 
 module.exports = (req, res) => {
   if (!app) {
-    const { createApp } = require("../dist/src/app");
+    const { createApp } = require("../dist/app");
     app = createApp();
   }
   app(req, res);

@@ -1,12 +1,8 @@
 # Ignorar arquivos desnecessários no deploy da Vercel
 
-node_modules
 .env
 .env.*
 !.env.example
-
-# Código fonte (só o compilado é necessário)
-src/
 
 # Development
 uploads/
