@@ -102,7 +102,10 @@ export function createApp(): Express {
       },
       security: [{ bearerAuth: [] }],
     },
-    apis: ["./src/routes/*.ts", "./dist/routes/*.js"],
+    // Em produção, usa arquivos compilados; em dev, usa TypeScript
+    apis: config.NODE_ENV === "production" 
+      ? ["./dist/routes/*.js"]
+      : ["./src/routes/*.ts"],
   };
   const swaggerSpec = swaggerJsdoc(swaggerOptions);
   
