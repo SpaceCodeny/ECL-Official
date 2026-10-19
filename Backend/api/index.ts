@@ -79,8 +79,16 @@ export default async function handler(
     const fn = await getHandler();
     fn(req, res);
   } catch (err) {
-    console.error("[Vercel] Bootstrap error:", err);
+    const message = err instanceof Error ? err.message : String(err);
+    const stack = err instanceof Error ? err.stack : undefined;
+    console.error("[Vercel] Bootstrap error:", message, stack);
     res.writeHead(500, { "Content-Type": "application/json" });
-    res.end(JSON.stringify({ statusCode: 500, message: "Internal Server Error" }));
+    res.end(JSON.stringify({
+      statusCode: 500,
+      message: "Bootstrap failed",
+      // Exposto temporariamente para diagnóstico — remover após estabilizar
+      error: process.env.NODE_ENV !== "production" ? message : "Internal Server Error",
+      detail: process.env.NODE_ENV !== "production" ? stack : undefined,
+    }));
   }
 }
