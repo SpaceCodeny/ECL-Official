@@ -2,12 +2,14 @@
 
 import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { Gamepad2 } from "lucide-react";
+import { Gamepad2, Plus } from "lucide-react";
 import { Avatar } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { EmptyState } from "@/components/ui/empty-state";
+import { Modal } from "@/components/ui/modal";
+import { CreateMatchForm } from "./create-match-form";
 import { ErrorState } from "@/components/ui/error-state";
 import { api } from "@/lib/api-client";
 import { formatDateTime, cn } from "@/lib/utils";
@@ -25,6 +27,7 @@ interface MatchListItem {
 
 export function AdminMatchesClient() {
   const [filter, setFilter] = useState("SCHEDULED,AWAITING_RESULT");
+  const [showCreate, setShowCreate] = useState(false);
   const queryClient = useQueryClient();
 
   const { data, isLoading, isError, refetch } = useQuery({
@@ -47,9 +50,14 @@ export function AdminMatchesClient() {
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="font-display text-3xl font-bold uppercase tracking-tight text-paper">Partidas</h1>
-        <p className="mt-1 text-sm text-muted">Gerencie partidas e registre resultados.</p>
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="font-display text-3xl font-bold uppercase tracking-tight text-paper">Partidas</h1>
+          <p className="mt-1 text-sm text-muted">Crie partidas e registre resultados.</p>
+        </div>
+        <Button variant="primary" size="md" onClick={() => setShowCreate(true)}>
+          <Plus className="h-4 w-4" /> Nova partida
+        </Button>
       </div>
 
       <div className="flex flex-wrap gap-2">
@@ -111,6 +119,20 @@ export function AdminMatchesClient() {
           ))}
         </div>
       )}
+
+      {/* Modal de criação de partida */}
+      <Modal
+        open={showCreate}
+        onClose={() => setShowCreate(false)}
+        title="Nova partida"
+        description="Configure o confronto entre duas equipes."
+        size="lg"
+      >
+        <CreateMatchForm
+          onSuccess={() => setShowCreate(false)}
+          onCancel={() => setShowCreate(false)}
+        />
+      </Modal>
     </div>
   );
 }

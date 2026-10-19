@@ -145,6 +145,45 @@ export class AdminService {
     return { data: users, total, page, pageSize, totalPages: Math.ceil(total / pageSize) };
   }
 
+  /**
+   * Igual a listUsers mas inclui playerProfile.id para uso na criação de equipes.
+   * Permite ao frontend saber se um usuário já tem perfil de jogador.
+   */
+  async listUsersWithProfile(params: { page?: number; pageSize?: number; search?: string; role?: string; status?: string }) {
+    const { page = 1, pageSize = 20, search, role, status } = params;
+    const skip = (page - 1) * pageSize;
+
+    const where = {
+      deletedAt: null,
+      ...(search
+        ? {
+            OR: [
+              { username: { contains: search, mode: "insensitive" as const } },
+              { email: { contains: search, mode: "insensitive" as const } },
+              { displayName: { contains: search, mode: "insensitive" as const } },
+            ],
+          }
+        : {}),
+      ...(role ? { role: role as UserRole } : {}),
+      ...(status ? { status: status as UserStatus } : {}),
+    };
+
+    const [users, total] = await this.prisma.$transaction([
+      this.prisma.user.findMany({
+        where, skip, take: pageSize,
+        orderBy: { createdAt: "desc" },
+        select: {
+          id: true, username: true, email: true, displayName: true,
+          avatarUrl: true, role: true, status: true, createdAt: true,
+          playerProfile: { select: { id: true } },
+        },
+      }),
+      this.prisma.user.count({ where }),
+    ]);
+
+    return { data: users, total, page, pageSize, totalPages: Math.ceil(total / pageSize) };
+  }
+
   async updateUserRole(userId: string, newRole: UserRole, actor: JwtPayload) {
     this.assertAdmin(actor);
 

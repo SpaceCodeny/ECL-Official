@@ -5,7 +5,7 @@ import { usePathname, useRouter } from "next/navigation";
 import { useState } from "react";
 import {
   LayoutDashboard, Trophy, Users, Gamepad2, ShieldAlert,
-  ClipboardList, LogOut, Menu, X, Home,
+  ClipboardList, LogOut, Menu, X, Home, Shield,
 } from "lucide-react";
 import { Logo } from "@/components/brand/logo";
 import { useAuthStore } from "@/stores/auth.store";
@@ -15,7 +15,9 @@ import { cn } from "@/lib/utils";
 const NAV_ITEMS = [
   { href: "/admin", label: "Dashboard", icon: LayoutDashboard },
   { href: "/admin/tournaments", label: "Campeonatos", icon: Trophy },
-  { href: "/admin/users", label: "Usuários", icon: Users },
+  { href: "/admin/teams", label: "Equipes", icon: Users },
+  { href: "/admin/players", label: "Jogadores", icon: Gamepad2 },
+  { href: "/admin/users", label: "Usuários", icon: Shield },
   { href: "/admin/registrations", label: "Inscrições", icon: ClipboardList },
   { href: "/admin/matches", label: "Partidas", icon: Gamepad2 },
   { href: "/admin/audit", label: "Auditoria", icon: ShieldAlert },

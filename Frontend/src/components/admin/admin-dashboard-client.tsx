@@ -1,9 +1,10 @@
 "use client";
 
+import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import {
   Users, Trophy, ClipboardList, Gamepad2,
-  Clock, ShieldAlert, CheckCircle2,
+  Clock, ShieldAlert, CheckCircle2, Megaphone, Plus,
 } from "lucide-react";
 import {
   Area, AreaChart, Bar, BarChart, CartesianGrid,
@@ -12,11 +13,16 @@ import {
 import { StatCard } from "@/components/ui/stat-card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { Modal } from "@/components/ui/modal";
+import { CreateAnnouncementForm } from "./create-announcement-form";
 import { adminService } from "@/services/admin.service";
 import { tournamentStatusLabel } from "@/lib/labels";
 import { formatDateTime } from "@/lib/utils";
 
 export function AdminDashboardClient() {
+  const [showAnnouncement, setShowAnnouncement] = useState(false);
+
   const { data, isLoading } = useQuery({
     queryKey: ["admin-dashboard"],
     queryFn: adminService.dashboard,
@@ -38,9 +44,14 @@ export function AdminDashboardClient() {
 
   return (
     <div className="space-y-8">
-      <div>
-        <h1 className="font-display text-3xl font-bold uppercase tracking-tight text-paper">Dashboard</h1>
-        <p className="mt-1 text-sm text-muted">Visão geral da plataforma Elite Champions League.</p>
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="font-display text-3xl font-bold uppercase tracking-tight text-paper">Dashboard</h1>
+          <p className="mt-1 text-sm text-muted">Visão geral da plataforma Elite Champions League.</p>
+        </div>
+        <Button variant="secondary" size="md" onClick={() => setShowAnnouncement(true)}>
+          <Megaphone className="h-4 w-4" /> Novo comunicado
+        </Button>
       </div>
 
       {/* Indicadores */}
@@ -119,6 +130,19 @@ export function AdminDashboardClient() {
           </div>
         )}
       </div>
+
+      {/* Modal comunicado */}
+      <Modal
+        open={showAnnouncement}
+        onClose={() => setShowAnnouncement(false)}
+        title="Novo comunicado"
+        description="Publique um anúncio visível na homepage e na página de comunicados."
+      >
+        <CreateAnnouncementForm
+          onSuccess={() => setShowAnnouncement(false)}
+          onCancel={() => setShowAnnouncement(false)}
+        />
+      </Modal>
     </div>
   );
 }

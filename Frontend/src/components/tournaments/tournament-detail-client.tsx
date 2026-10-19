@@ -196,7 +196,7 @@ export function TournamentDetailClient({ slug }: { slug: string }) {
         )}
 
         {activeTab === "bracket" && (
-          <BracketView stages={bracket as never} />
+          <BracketView stages={bracket as Parameters<typeof BracketView>[0]["stages"]} />
         )}
 
         {activeTab === "rules" && (

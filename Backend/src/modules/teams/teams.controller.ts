@@ -38,6 +38,38 @@ export class TeamsController {
     return this.svc.create(body as never, user);
   }
 
+  @Post("admin")
+  @ApiBearerAuth()
+  @HttpCode(HttpStatus.CREATED)
+  @ApiOperation({ summary: "Cria equipe com capitão e membros designados pelo admin" })
+  adminCreate(@Body() body: unknown, @CurrentUser() user: JwtPayload) {
+    return this.svc.adminCreateTeam(body as never, user);
+  }
+
+  @Post(":id/members")
+  @ApiBearerAuth()
+  @HttpCode(HttpStatus.CREATED)
+  @ApiOperation({ summary: "Admin adiciona um usuário à equipe" })
+  adminAddMember(
+    @Param("id") teamId: string,
+    @Body() body: { userId: string; role?: "PLAYER" | "SUBSTITUTE" },
+    @CurrentUser() user: JwtPayload,
+  ) {
+    return this.svc.adminAddMember(teamId, body.userId, body.role ?? "PLAYER", user);
+  }
+
+  @Delete(":id/members/:membershipId")
+  @ApiBearerAuth()
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({ summary: "Admin remove membro da equipe pelo membershipId" })
+  adminRemoveMember(
+    @Param("id") teamId: string,
+    @Param("membershipId") membershipId: string,
+    @CurrentUser() user: JwtPayload,
+  ) {
+    return this.svc.adminRemoveMember(teamId, membershipId, user);
+  }
+
   @Patch(":id")
   @ApiBearerAuth()
   @ApiOperation({ summary: "Atualiza dados da equipe" })

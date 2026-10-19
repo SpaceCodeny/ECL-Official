@@ -1,5 +1,5 @@
-import Link from "next/link";
-import { CalendarDays, Map as MapIcon } from "lucide-react";
+  import Link from "next/link";
+import { CalendarDays } from "lucide-react";
 import { Card } from "@/components/ui/card";
 import { Avatar } from "@/components/ui/avatar";
 import { MatchStatusBadge } from "./match-status-badge";
@@ -22,15 +22,23 @@ function TeamRow({ team, alignRight, highlight }: { team: MatchTeam; alignRight?
 }
 
 export function MatchCard({ match }: { match: Match }) {
-  const hasScore = match.aggregateScoreA !== null && match.aggregateScoreB !== null;
-  const winnerA = match.winnerTeamId === match.teamA.id;
-  const winnerB = match.winnerTeamId === match.teamB.id;
+  // O backend retorna scoreA/scoreB
+  const scoreA = match.scoreA ?? null;
+  const scoreB = match.scoreB ?? null;
+  const hasScore = scoreA !== null && scoreB !== null;
+  const winnerA = Boolean(match.winnerTeamId && match.winnerTeamId === match.teamA.id);
+  const winnerB = Boolean(match.winnerTeamId && match.winnerTeamId === match.teamB.id);
+
+  // O backend retorna stage como objeto { name, tournament }
+  const stageName = typeof match.stage === "string" ? match.stage : (match.stage?.name ?? "");
+  const tournamentName =
+    typeof match.stage === "object" ? (match.stage?.tournament?.name ?? "") : "";
 
   return (
     <Link href={`/matches/${match.id}`} className="group block">
       <Card className="h-full transition-colors group-hover:border-gold/40">
         <div className="flex items-center justify-between border-b border-border bg-ink/40 px-4 py-2.5">
-          <span className="truncate text-xs uppercase tracking-widest text-muted">{match.tournamentName}</span>
+          <span className="truncate text-xs uppercase tracking-widest text-muted">{tournamentName}</span>
           <MatchStatusBadge status={match.status} />
         </div>
         <div className="flex items-center gap-2 p-4">
@@ -38,9 +46,9 @@ export function MatchCard({ match }: { match: Match }) {
           <div className="flex shrink-0 flex-col items-center gap-1 px-2">
             {hasScore ? (
               <span className="font-display text-xl font-bold text-paper">
-                {match.aggregateScoreA}
+                {scoreA}
                 <span className="px-1 text-muted">:</span>
-                {match.aggregateScoreB}
+                {scoreB}
               </span>
             ) : (
               <span className="font-display text-xs uppercase tracking-widest text-muted">VS</span>
@@ -57,13 +65,7 @@ export function MatchCard({ match }: { match: Match }) {
             {match.scheduledAt ? formatDateTime(match.scheduledAt) : "Horário a definir"}
           </span>
           <div className="flex items-center justify-between">
-            <span className="text-muted/80">{match.stage}{match.round ? ` · ${match.round}` : ""}</span>
-            {match.map ? (
-              <span className="flex items-center gap-1.5">
-                <MapIcon className="h-3.5 w-3.5 text-gold/70" aria-hidden />
-                {match.map}
-              </span>
-            ) : null}
+            <span className="text-muted/80">{stageName}{match.round ? ` · ${match.round}` : ""}</span>
           </div>
         </div>
       </Card>

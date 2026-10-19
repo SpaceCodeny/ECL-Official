@@ -2,7 +2,6 @@
 
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { Eye, EyeOff, LogIn } from "lucide-react";
 import { useState } from "react";
@@ -14,7 +13,6 @@ import { FetchError } from "@/lib/api-client";
 
 export function LoginForm() {
   const { login, status, error, clearError } = useAuthStore();
-  const router = useRouter();
   const [showPassword, setShowPassword] = useState(false);
 
   const {
@@ -29,8 +27,8 @@ export function LoginForm() {
     clearError();
     try {
       await login(data);
-      router.push("/dashboard");
-      router.refresh();
+      // Usa window.location para garantir que o proxy enxerga o cookie ecl_session
+      window.location.href = "/dashboard";
     } catch {
       // Erro já está no store via `error`.
     }

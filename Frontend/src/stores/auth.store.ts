@@ -32,6 +32,7 @@ interface AuthState {
 
 const ACCESS_KEY = "ecl_at";
 const REFRESH_KEY = "ecl_rt";
+const SESSION_COOKIE = "ecl_session";
 
 function getStorage(): Storage | null {
   if (typeof window === "undefined") return null;
@@ -43,6 +44,9 @@ function saveTokens(access: string, refresh: string) {
   if (!s) return;
   s.setItem(ACCESS_KEY, access);
   s.setItem(REFRESH_KEY, refresh);
+  // Cookie indicador de sessão (não HttpOnly — apenas para o proxy de rotas).
+  // Não contém o token em si; apenas sinaliza que há uma sessão ativa.
+  document.cookie = `${SESSION_COOKIE}=1; path=/; SameSite=Lax`;
 }
 
 function clearTokens() {
@@ -50,6 +54,8 @@ function clearTokens() {
   if (!s) return;
   s.removeItem(ACCESS_KEY);
   s.removeItem(REFRESH_KEY);
+  // Remove o cookie de sessão
+  document.cookie = `${SESSION_COOKIE}=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT; SameSite=Lax`;
 }
 
 export function getAccessToken(): string | null {
@@ -73,6 +79,8 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     }
     // Token presente — tenta validar via /auth/me.
     set({ status: "loading" });
+    // Garante que o cookie de sessão existe (caso tenha sido perdido num reload).
+    document.cookie = `${SESSION_COOKIE}=1; path=/; SameSite=Lax`;
     authService
       .me(token)
       .then((user) => set({ user, status: "authenticated" }))

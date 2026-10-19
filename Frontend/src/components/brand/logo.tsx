@@ -1,18 +1,24 @@
+import Image from "next/image";
 import { cn } from "@/lib/utils";
 
 interface LogoProps {
-  /** "full" = marca + wordmark; "mark" = somente o escudo. */
+  /**
+   * "full" = logo ECL + texto "Elite Champions League"
+   * "mark" = apenas a logo ECL (sem texto ao lado)
+   */
   variant?: "full" | "mark";
   size?: "sm" | "md" | "lg";
   className?: string;
 }
 
-const markSize = {
-  sm: "h-7 w-7",
-  md: "h-9 w-9",
-  lg: "h-12 w-12",
+// Tamanho da imagem da logo em px
+const imgSize = {
+  sm: { w: 28, h: 28 },
+  md: { w: 36, h: 36 },
+  lg: { w: 52, h: 52 },
 };
 
+// Tamanho do texto ao lado
 const wordSize = {
   sm: "text-sm",
   md: "text-base",
@@ -20,47 +26,34 @@ const wordSize = {
 };
 
 /**
- * Marca visual da Elite Champions League — identidade própria.
- * Escudo dourado com caminho ascendente (the road to glory) e estrela de campeão.
+ * Marca visual oficial da Elite Champions League.
+ *
+ * A logo PNG tem fundo branco — usamos mix-blend-mode: screen para
+ * tornar o branco transparente sobre fundos escuros, deixando as
+ * letras metálicas visíveis naturalmente.
  */
 export function Logo({ variant = "full", size = "md", className }: LogoProps) {
+  const { w, h } = imgSize[size];
+
   return (
-    <span className={cn("inline-flex items-center gap-2.5", className)}>
-      <svg
-        viewBox="0 0 48 48"
-        className={cn(markSize[size])}
-        fill="none"
-        role="img"
-        aria-label="Elite Champions League"
+    <span className={cn("inline-flex items-center gap-2", className)}>
+      {/* Logo oficial — blend screen elimina o fundo branco sobre escuro */}
+      <span
+        className="relative shrink-0 overflow-hidden"
+        style={{ width: w, height: h, mixBlendMode: "screen" }}
       >
-        <defs>
-          <linearGradient id="ecl-gold" x1="0" y1="0" x2="0" y2="48" gradientUnits="userSpaceOnUse">
-            <stop stopColor="#E8C97F" />
-            <stop offset="1" stopColor="#B8923F" />
-          </linearGradient>
-        </defs>
-        {/* Escudo */}
-        <path
-          d="M24 3L6 9v13.5C6 31.6 13.8 39.3 24 45c10.2-5.7 18-13.4 18-22.5V9L24 3z"
-          stroke="url(#ecl-gold)"
-          strokeWidth="2.5"
-          fill="#0B1426"
+        <Image
+          src="/images/logo.png"
+          alt="Elite Champions League"
+          width={w}
+          height={h}
+          className="object-contain"
+          priority
         />
-        {/* Caminho ascendente (road to glory) */}
-        <path
-          d="M13 30l7-9 5 5 10-12"
-          stroke="url(#ecl-gold)"
-          strokeWidth="2.5"
-          strokeLinecap="round"
-          strokeLinejoin="round"
-        />
-        {/* Estrela de campeão no topo do caminho */}
-        <path
-          d="M33 13.5l1.1 2.4 2.6.3-1.9 1.8.5 2.6-2.3-1.2-2.3 1.2.5-2.6-1.9-1.8 2.6-.3 1.1-2.4z"
-          fill="url(#ecl-gold)"
-        />
-      </svg>
-      {variant === "full" ? (
+      </span>
+
+      {/* Wordmark ao lado — apenas no variant "full" */}
+      {variant === "full" && (
         <span className={cn("flex flex-col leading-none", wordSize[size])}>
           <span className="font-display font-bold uppercase tracking-tight text-paper">
             Elite Champions
@@ -69,7 +62,7 @@ export function Logo({ variant = "full", size = "md", className }: LogoProps) {
             League
           </span>
         </span>
-      ) : null}
+      )}
     </span>
   );
 }

@@ -23,7 +23,7 @@ export class AdminController {
   }
 
   @Get("users")
-  @ApiOperation({ summary: "Lista usuários com filtros" })
+  @ApiOperation({ summary: "Lista usuários com filtros (inclui playerProfile.id)" })
   listUsers(
     @Query("page") page?: string,
     @Query("pageSize") pageSize?: string,
@@ -31,7 +31,7 @@ export class AdminController {
     @Query("role") role?: string,
     @Query("status") status?: string,
   ) {
-    return this.svc.listUsers({ page: Number(page ?? 1), pageSize: Number(pageSize ?? 20), search, role, status });
+    return this.svc.listUsersWithProfile({ page: Number(page ?? 1), pageSize: Number(pageSize ?? 20), search, role, status });
   }
 
   @Patch("users/:userId/role")

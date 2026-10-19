@@ -18,6 +18,16 @@ export interface CreateTeamDto {
   logoUrl?: string;
 }
 
+/** DTO para criação de times pelo admin — designa capitão e membros por userId */
+export interface AdminCreateTeamDto {
+  name: string;
+  tag?: string;
+  description?: string;
+  logoUrl?: string;
+  captainUserId: string;
+  memberUserIds?: string[];
+}
+
 export interface UpdateTeamDto {
   name?: string;
   tag?: string;
@@ -28,6 +38,8 @@ export interface UpdateTeamDto {
 @Injectable()
 export class TeamsService {
   constructor(private readonly prisma: PrismaService) {}
+
+  // ─── Listagem ────────────────────────────────────────────────────────────────
 
   async list(params: { page?: number; pageSize?: number; search?: string; active?: boolean }) {
     const { page = 1, pageSize = 20, search, active = true } = params;
@@ -70,7 +82,13 @@ export class TeamsService {
       include: {
         memberships: {
           where: { leftAt: null },
-          include: { player: { include: { user: { select: { id: true, displayName: true, avatarUrl: true, username: true } } } } },
+          include: {
+            player: {
+              include: {
+                user: { select: { id: true, displayName: true, avatarUrl: true, username: true } },
+              },
+            },
+          },
         },
       },
     });
@@ -78,8 +96,9 @@ export class TeamsService {
     return team;
   }
 
+  // ─── Criação por usuário comum (legado) ──────────────────────────────────────
+
   async create(dto: CreateTeamDto, actor: JwtPayload) {
-    // Verifica se o usuário já tem um PlayerProfile
     const profile = await this.prisma.playerProfile.findUnique({
       where: { userId: actor.sub },
     });
@@ -91,19 +110,12 @@ export class TeamsService {
 
     const team = await this.prisma.team.create({
       data: {
-        name: dto.name,
-        slug,
-        tag: dto.tag,
-        description: dto.description,
-        logoUrl: dto.logoUrl,
-        captainId: profile.id,
-        memberships: {
-          create: { playerId: profile.id, role: "CAPTAIN" },
-        },
+        name: dto.name, slug, tag: dto.tag, description: dto.description,
+        logoUrl: dto.logoUrl, captainId: profile.id,
+        memberships: { create: { playerId: profile.id, role: "CAPTAIN" } },
       },
     });
 
-    // Atualiza o papel do usuário para TEAM_CAPTAIN
     if (hasAnyRole(actor.role, UserRole.VISITOR, UserRole.PLAYER)) {
       await this.prisma.user.update({
         where: { id: actor.sub },
@@ -114,16 +126,136 @@ export class TeamsService {
     return team;
   }
 
+  // ─── Criação pelo admin — designa capitão e membros por userId ────────────────
+
+  async adminCreateTeam(dto: AdminCreateTeamDto, actor: JwtPayload) {
+    this.assertAdminRole(actor);
+
+    const slug = slugify(dto.name);
+    const existing = await this.prisma.team.findFirst({
+      where: { OR: [{ name: dto.name }, { slug }] },
+    });
+    if (existing) throw new ConflictException("Já existe uma equipe com este nome");
+
+    // Garante PlayerProfile para o capitão
+    const captainProfile = await this.ensurePlayerProfile(dto.captainUserId);
+
+    // Garante PlayerProfile para os demais membros
+    const extraIds = (dto.memberUserIds ?? []).filter((id) => id !== dto.captainUserId);
+    const memberProfiles = await Promise.all(
+      extraIds.map((userId) => this.ensurePlayerProfile(userId)),
+    );
+
+    const team = await this.prisma.$transaction(async (tx) => {
+      const newTeam = await tx.team.create({
+        data: {
+          name: dto.name, slug, tag: dto.tag, description: dto.description,
+          logoUrl: dto.logoUrl,
+          captainId: captainProfile.id,
+          memberships: {
+            create: [
+              { playerId: captainProfile.id, role: "CAPTAIN" },
+              ...memberProfiles.map((p) => ({ playerId: p.id, role: "PLAYER" })),
+            ],
+          },
+        },
+        include: {
+          memberships: {
+            include: {
+              player: {
+                include: {
+                  user: { select: { id: true, displayName: true, username: true, avatarUrl: true } },
+                },
+              },
+            },
+          },
+        },
+      });
+
+      // Promove capitão
+      await tx.user.update({
+        where: { id: dto.captainUserId },
+        data: { role: UserRole.TEAM_CAPTAIN },
+      });
+
+      // Promove membros VISITOR → PLAYER
+      if (extraIds.length > 0) {
+        await tx.user.updateMany({
+          where: { id: { in: extraIds }, role: UserRole.VISITOR },
+          data: { role: UserRole.PLAYER },
+        });
+      }
+
+      return newTeam;
+    });
+
+    return team;
+  }
+
+  // ─── Admin adiciona membro a uma equipe existente ─────────────────────────────
+
+  async adminAddMember(
+    teamId: string,
+    userId: string,
+    role: "PLAYER" | "SUBSTITUTE",
+    actor: JwtPayload,
+  ) {
+    this.assertAdminRole(actor);
+
+    await this.getTeamOrThrow(teamId);
+    const profile = await this.ensurePlayerProfile(userId);
+
+    const existing = await this.prisma.teamMembership.findFirst({
+      where: { teamId, playerId: profile.id, leftAt: null },
+    });
+    if (existing) throw new ConflictException("Usuário já é membro desta equipe");
+
+    return this.prisma.$transaction(async (tx) => {
+      const membership = await tx.teamMembership.create({
+        data: { teamId, playerId: profile.id, role },
+      });
+
+      const user = await tx.user.findUnique({
+        where: { id: userId },
+        select: { role: true },
+      });
+      if (user?.role === UserRole.VISITOR) {
+        await tx.user.update({ where: { id: userId }, data: { role: UserRole.PLAYER } });
+      }
+
+      return membership;
+    });
+  }
+
+  // ─── Admin remove membro de uma equipe ───────────────────────────────────────
+
+  async adminRemoveMember(teamId: string, membershipId: string, actor: JwtPayload) {
+    this.assertAdminRole(actor);
+
+    const membership = await this.prisma.teamMembership.findFirst({
+      where: { id: membershipId, teamId, leftAt: null },
+    });
+    if (!membership) throw new NotFoundException("Membro não encontrado na equipe");
+    if (membership.role === "CAPTAIN") throw new BadRequestException("Não é possível remover o capitão. Transfira a liderança primeiro.");
+
+    return this.prisma.teamMembership.update({
+      where: { id: membershipId },
+      data: { leftAt: new Date() },
+    });
+  }
+
+  // ─── Atualização ─────────────────────────────────────────────────────────────
+
   async update(id: string, dto: UpdateTeamDto, actor: JwtPayload) {
     const team = await this.getTeamOrThrow(id);
     await this.assertCaptainOrAdmin(team.captainId, actor);
 
     const data: Record<string, unknown> = { ...dto };
     if (dto.name) {
-      const slug = slugify(dto.name);
-      const conflict = await this.prisma.team.findFirst({ where: { slug, NOT: { id } } });
+      const newSlug = slugify(dto.name);
+      const conflict = await this.prisma.team.findFirst({ where: { slug: newSlug, NOT: { id } } });
       if (conflict) throw new ConflictException("Nome já em uso por outra equipe");
-      data.slug = slug;
+      data.slug = newSlug;
     }
 
     return this.prisma.team.update({ where: { id }, data });
@@ -138,9 +270,11 @@ export class TeamsService {
     });
     if (existing) throw new ConflictException("Convite já enviado para este e-mail");
 
-    const expiresAt = new Date(Date.now() + 7 * 86400000);
     return this.prisma.teamInvitation.create({
-      data: { teamId, invitedById: actor.sub, email, expiresAt },
+      data: {
+        teamId, invitedById: actor.sub, email,
+        expiresAt: new Date(Date.now() + 7 * 86400000),
+      },
     });
   }
 
@@ -161,7 +295,20 @@ export class TeamsService {
     return { message: "Jogador removido da equipe" };
   }
 
-  // ─── Utils privados ──────────────────────────────────────────────────────────
+  // ─── Helpers privados ─────────────────────────────────────────────────────────
+
+  /** Garante que o usuário tem PlayerProfile, criando um se não existir. */
+  async ensurePlayerProfile(userId: string) {
+    const user = await this.prisma.user.findFirst({
+      where: { id: userId, deletedAt: null },
+    });
+    if (!user) throw new NotFoundException(`Usuário ${userId} não encontrado`);
+
+    const existing = await this.prisma.playerProfile.findUnique({ where: { userId } });
+    if (existing) return existing;
+
+    return this.prisma.playerProfile.create({ data: { userId } });
+  }
 
   private async getTeamOrThrow(id: string) {
     const team = await this.prisma.team.findFirst({ where: { id, deletedAt: null } });
@@ -173,5 +320,11 @@ export class TeamsService {
     const isAdmin = hasAnyRole(actor.role, UserRole.ADMINISTRATOR, UserRole.SUPER_ADMIN);
     const isCaptain = actor.sub === captainId;
     if (!isAdmin && !isCaptain) throw new ForbiddenException("Apenas o capitão ou administrador pode executar esta ação");
+  }
+
+  private assertAdminRole(actor: JwtPayload) {
+    if (!hasAnyRole(actor.role, UserRole.ADMINISTRATOR, UserRole.SUPER_ADMIN)) {
+      throw new ForbiddenException("Apenas administradores podem executar esta ação");
+    }
   }
 }
