@@ -7,8 +7,11 @@ generator client {
 }
 
 datasource db {
-  provider = "postgresql"
-  url      = env("DATABASE_URL")
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  // DIRECT_URL: conexão direta sem pgBouncer — obrigatória para migrations no Supabase.
+  // Em dev local, pode ser a mesma que DATABASE_URL.
+  directUrl = env("DIRECT_URL")
 }
 
 // ─────────────────────────────────────────────
@@ -168,19 +171,48 @@ model EmailVerificationToken {
 // Jogadores
 // ─────────────────────────────────────────────
 
+/// Status do jogador na liga.
+/// ACTIVE = em um time; BENCH = livre/sem time.
+enum PlayerStatus {
+  ACTIVE
+  BENCH
+}
+
 model PlayerProfile {
-  id            String   @id @default(uuid())
-  userId        String   @unique
+  id            String       @id @default(uuid())
+  userId        String       @unique
   standoffId    String?
   bio           String?
   country       String?
-  createdAt     DateTime @default(now())
-  updatedAt     DateTime @updatedAt
+  status        PlayerStatus @default(BENCH)
+  createdAt     DateTime     @default(now())
+  updatedAt     DateTime     @updatedAt
 
-  user        User             @relation(fields: [userId], references: [id], onDelete: Cascade)
-  memberships TeamMembership[]
+  user             User                    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  memberships      TeamMembership[]
+  transferHistory  PlayerTransferHistory[]
 
   @@index([standoffId])
+  @@index([status])
+}
+
+/// Histórico imutável de transferências e movimentações do jogador.
+model PlayerTransferHistory {
+  id            String   @id @default(uuid())
+  playerId      String
+  fromTeamId    String?
+  fromTeamName  String?
+  toTeamId      String?
+  toTeamName    String?
+  /// Descrição legível: "Apex Force moveu João para o banco." / "João transferido para Phantom Squad."
+  description   String
+  transferredBy String           // userId do admin
+  createdAt     DateTime @default(now())
+
+  player PlayerProfile @relation(fields: [playerId], references: [id], onDelete: Cascade)
+
+  @@index([playerId])
+  @@index([createdAt])
 }
 
 // ─────────────────────────────────────────────
@@ -218,16 +250,19 @@ model TeamMembership {
   id        String   @id @default(uuid())
   teamId    String
   playerId  String
-  role      String   @default("PLAYER") // CAPTAIN | PLAYER | SUBSTITUTE
+  /// CAPTAIN | PLAYER | SUBSTITUTE
+  role      String   @default("PLAYER")
   joinedAt  DateTime @default(now())
   leftAt    DateTime?
 
   team   Team          @relation(fields: [teamId], references: [id], onDelete: Cascade)
   player PlayerProfile @relation(fields: [playerId], references: [id], onDelete: Cascade)
 
-  @@unique([teamId, playerId])
+  // Removido @@unique([teamId, playerId]) — permite histórico de re-admissão ao mesmo time.
+  // A unicidade ativa é garantida por query (leftAt: null) no código.
   @@index([teamId])
   @@index([playerId])
+  @@index([leftAt])
 }
 
 model TeamInvitation {

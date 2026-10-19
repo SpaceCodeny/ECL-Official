@@ -25,6 +25,8 @@ Backend/prisma/*.db-journal
 .env.*.local
 *.env
 !.env.example
+.env.supabase
+.env.vercel
 
 # Logs
 logs/

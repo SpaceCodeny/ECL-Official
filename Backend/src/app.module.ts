@@ -21,7 +21,18 @@ import { AnnouncementsModule } from "./modules/announcements/announcements.modul
 import { StatsModule } from "./modules/stats/stats.module";
 import { AdminModule } from "./modules/admin/admin.module";
 import { NotificationsModule } from "./modules/notifications/notifications.module";
-import { RealtimeModule } from "./modules/realtime/realtime.module";
+import { UploadsModule } from "./modules/uploads/uploads.module";
+import { PlayersModule } from "./modules/players/players.module";
+
+// RealtimeModule usa Socket.IO — incompatível com serverless (Vercel).
+// Importado condicionalmente via variável SERVERLESS=true.
+const conditionalModules = process.env.SERVERLESS === "true"
+  ? []
+  : (() => {
+      // eslint-disable-next-line @typescript-eslint/no-require-imports
+      const { RealtimeModule } = require("./modules/realtime/realtime.module") as { RealtimeModule: unknown };
+      return [RealtimeModule as never];
+    })();
 
 @Module({
   imports: [
@@ -52,7 +63,9 @@ import { RealtimeModule } from "./modules/realtime/realtime.module";
     StatsModule,
     AdminModule,
     NotificationsModule,
-    RealtimeModule,
+    ...conditionalModules,
+    UploadsModule,
+    PlayersModule,
   ],
   controllers: [],
   providers: [

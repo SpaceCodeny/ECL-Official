@@ -3,6 +3,7 @@ import { ConfigService } from "@nestjs/config";
 import { NestFactory } from "@nestjs/core";
 import type { NestExpressApplication } from "@nestjs/platform-express";
 import { DocumentBuilder, SwaggerModule } from "@nestjs/swagger";
+import { join } from "path";
 import { AppModule } from "./app.module";
 import type { EnvConfig } from "./config/configuration";
 
@@ -26,6 +27,13 @@ async function bootstrap(): Promise<void> {
   });
 
   app.useBodyParser("json", { limit: "1mb" });
+
+  // Serve arquivos estáticos de upload somente quando UPLOAD_PROVIDER=local
+  // (em produção com Supabase Storage, os arquivos ficam no CDN do Supabase)
+  if (process.env.UPLOAD_PROVIDER !== "supabase") {
+    const uploadDir = config.get("UPLOAD_DIR", { infer: true });
+    app.useStaticAssets(join(process.cwd(), uploadDir), { prefix: "/uploads" });
+  }
 
   // Prefixo versionado da API; health permanece acessível na raiz.
   app.setGlobalPrefix("api/v1", {

@@ -1,0 +1,23 @@
+# Ignorar arquivos desnecessários no deploy da Vercel
+
+# Desenvolvimento
+.env
+.env.*
+!.env.example
+
+# Testes
+test/
+coverage/
+*.spec.ts
+*.e2e-spec.ts
+
+# Fontes TypeScript (só dist/ vai)
+src/
+
+# Arquivos locais
+uploads/
+*.log
+Procfile
+
+# Prisma (só schema e migrations vão)
+prisma/seed.ts

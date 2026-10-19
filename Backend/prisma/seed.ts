@@ -194,9 +194,64 @@ async function seedDemoTournament(organizerId: string, teamIds: string[]) {
     }
 
     console.log(`[seed] Campeonato de demo criado: ${tournament.name}`);
+
+    // Cria fase de Playoffs (bracket eliminatório)
+    await seedPlayoffStages(tournament.id, teamIds);
+
   } else {
     console.log(`[seed] Campeonato de demo já existe — pulando.`);
   }
+}
+
+async function seedPlayoffStages(tournamentId: string, teamIds: string[]) {
+  // Já existe fase de playoffs?
+  const existing = await prisma.tournamentStage.findFirst({
+    where: { tournamentId, type: "BRACKET" },
+  });
+  if (existing) return;
+
+  // Usamos as 4 primeiras equipes como classificadas para o bracket demo
+  const [t0, t1, t2, t3, t4, t5] = teamIds;
+  if (!t0 || !t1 || !t2 || !t3) return;
+
+  // ── Oitavas de final (4 confrontos com 8 equipes fictícias — usamos as 6 existentes + TBD)
+  const oitavas = await prisma.tournamentStage.create({
+    data: { tournamentId, name: "Oitavas de Final", order: 2, type: "BRACKET", seriesFormat: SeriesFormat.BO3 },
+  });
+
+  const oitavaMatches = await Promise.all([
+    prisma.match.create({ data: { tournamentId, stageId: oitavas.id, teamAId: t0, teamBId: t1, scheduledAt: new Date(Date.now() - 6 * 86400000), status: MatchStatus.COMPLETED, seriesFormat: SeriesFormat.BO3, scoreA: 2, scoreB: 0, winnerTeamId: t0 } }),
+    prisma.match.create({ data: { tournamentId, stageId: oitavas.id, teamAId: t2, teamBId: t3, scheduledAt: new Date(Date.now() - 6 * 86400000), status: MatchStatus.COMPLETED, seriesFormat: SeriesFormat.BO3, scoreA: 1, scoreB: 2, winnerTeamId: t3 } }),
+    prisma.match.create({ data: { tournamentId, stageId: oitavas.id, teamAId: t4 ?? t0, teamBId: t5 ?? t1, scheduledAt: new Date(Date.now() - 5 * 86400000), status: MatchStatus.COMPLETED, seriesFormat: SeriesFormat.BO3, scoreA: 2, scoreB: 1, winnerTeamId: t4 ?? t0 } }),
+    prisma.match.create({ data: { tournamentId, stageId: oitavas.id, teamAId: t5 ?? t2, teamBId: t0, scheduledAt: new Date(Date.now() - 5 * 86400000), status: MatchStatus.COMPLETED, seriesFormat: SeriesFormat.BO3, scoreA: 0, scoreB: 2, winnerTeamId: t0 } }),
+  ]);
+
+  // ── Quartas de final (2 confrontos — vencedores das oitavas)
+  const quartas = await prisma.tournamentStage.create({
+    data: { tournamentId, name: "Quartas de Final", order: 3, type: "BRACKET", seriesFormat: SeriesFormat.BO3 },
+  });
+
+  const quartasMatches = await Promise.all([
+    prisma.match.create({ data: { tournamentId, stageId: quartas.id, teamAId: t0, teamBId: t3, scheduledAt: new Date(Date.now() - 3 * 86400000), status: MatchStatus.COMPLETED, seriesFormat: SeriesFormat.BO3, scoreA: 2, scoreB: 1, winnerTeamId: t0 } }),
+    prisma.match.create({ data: { tournamentId, stageId: quartas.id, teamAId: t4 ?? t2, teamBId: t1, scheduledAt: new Date(Date.now() - 3 * 86400000), status: MatchStatus.COMPLETED, seriesFormat: SeriesFormat.BO3, scoreA: 1, scoreB: 2, winnerTeamId: t1 } }),
+  ]);
+
+  // ── Semifinal (1 confronto)
+  const semi = await prisma.tournamentStage.create({
+    data: { tournamentId, name: "Semifinal", order: 4, type: "BRACKET", seriesFormat: SeriesFormat.BO3 },
+  });
+
+  await prisma.match.create({ data: { tournamentId, stageId: semi.id, teamAId: t0, teamBId: t1, scheduledAt: new Date(Date.now() + 1 * 86400000), status: MatchStatus.SCHEDULED, seriesFormat: SeriesFormat.BO3 } });
+  await prisma.match.create({ data: { tournamentId, stageId: semi.id, teamAId: t2 ?? t3, teamBId: t5 ?? t4 ?? t3, scheduledAt: new Date(Date.now() + 1 * 86400000), status: MatchStatus.SCHEDULED, seriesFormat: SeriesFormat.BO3 } });
+
+  // ── Grande Final (1 confronto — TBD)
+  const final_ = await prisma.tournamentStage.create({
+    data: { tournamentId, name: "Grande Final", order: 5, type: "BRACKET", seriesFormat: SeriesFormat.BO5 },
+  });
+
+  await prisma.match.create({ data: { tournamentId, stageId: final_.id, teamAId: t0, teamBId: t1, scheduledAt: new Date(Date.now() + 4 * 86400000), status: MatchStatus.SCHEDULED, seriesFormat: SeriesFormat.BO5 } });
+
+  console.log("[seed] Fases de playoffs criadas: Oitavas → Quartas → Semi → Final.");
 }
 
 async function seedAnnouncements(organizerId: string) {
@@ -206,7 +261,7 @@ async function seedAnnouncements(organizerId: string) {
   await prisma.announcement.createMany({
     data: [
       { title: "Bem-vindo à ECL!", summary: "A plataforma oficial de torneios de Standoff 2 foi lançada.", type: AnnouncementType.ANNOUNCEMENT },
-      { title: "ECL Demo Season 1 em andamento", summary: "O primeiro campeonato de demonstração já está em andamento. Confira as partidas e classificações.", type: AnnouncementType.GENERAL },
+      { title: "ECL Season 1 em andamento", summary: "O primeiro campeonato de demonstração já está em andamento. Confira as partidas e classificações.", type: AnnouncementType.GENERAL },
       { title: "Inscrições abertas para a próxima temporada", summary: "Em breve abriremos inscrições para a Temporada 2. Prepare sua equipe!", type: AnnouncementType.REGISTRATION_OPEN },
     ],
   });
@@ -219,6 +274,11 @@ async function main() {
   const players = await seedDemoPlayers();
   const teamIds = await seedDemoTeams(players);
   await seedDemoTournament(admin.id, teamIds);
+
+  // Garante playoffs mesmo em seeds incrementais
+  const tournament = await prisma.tournament.findUnique({ where: { slug: "ecl-demo-season-1" } });
+  if (tournament) await seedPlayoffStages(tournament.id, teamIds);
+
   await seedAnnouncements(admin.id);
   console.log("[seed] Concluído.");
 }
