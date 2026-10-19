@@ -129,13 +129,13 @@ uploadsRouter.post(
  *             type: object
  *             required:
  *               - file
- *               - teamId
  *             properties:
  *               file:
  *                 type: string
  *                 format: binary
  *               teamId:
  *                 type: string
+ *                 description: Opcional ao criar nova equipe; obrigatório ao atualizar
  *     responses:
  *       200:
  *         description: Logo enviado com sucesso
@@ -148,16 +148,24 @@ uploadsRouter.post(
     try {
       if (!req.file) throw AppError.badRequest("Nenhum arquivo enviado");
       const { teamId } = req.body as { teamId?: string };
-      if (!teamId) throw AppError.badRequest("teamId é obrigatório");
 
-      const team = await prisma.team.findFirst({
-        where: { id: teamId, deletedAt: null },
-      });
-      if (!team) throw AppError.notFound("Time não encontrado");
+      // Se teamId fornecido, validar permissões
+      if (teamId) {
+        const team = await prisma.team.findFirst({
+          where: { id: teamId, deletedAt: null },
+        });
+        if (!team) throw AppError.notFound("Time não encontrado");
 
-      const isAdmin = (req.user!.role === UserRole.SUPER_ADMIN || req.user!.role === UserRole.ADMINISTRATOR);
-      if (team.captainId !== req.user!.sub && !isAdmin) {
-        throw AppError.forbidden("Apenas o capitão pode alterar o logo");
+        const isAdmin = (req.user!.role === UserRole.SUPER_ADMIN || req.user!.role === UserRole.ADMINISTRATOR);
+        if (team.captainId !== req.user!.sub && !isAdmin) {
+          throw AppError.forbidden("Apenas o capitão pode alterar o logo");
+        }
+      } else {
+        // Se não tem teamId, apenas admin pode fazer upload (para criação de equipe)
+        const isAdmin = (req.user!.role === UserRole.SUPER_ADMIN || req.user!.role === UserRole.ADMINISTRATOR);
+        if (!isAdmin) {
+          throw AppError.forbidden("Apenas administradores podem fazer upload sem teamId");
+        }
       }
 
       let url: string;
@@ -168,10 +176,13 @@ uploadsRouter.post(
         url = `/uploads/teams/${req.file.filename}`;
       }
 
-      await prisma.team.update({
-        where: { id: teamId },
-        data: { logoUrl: url },
-      });
+      // Se teamId fornecido, atualizar o team
+      if (teamId) {
+        await prisma.team.update({
+          where: { id: teamId },
+          data: { logoUrl: url },
+        });
+      }
 
       res.json({ url });
     } catch (error) {
