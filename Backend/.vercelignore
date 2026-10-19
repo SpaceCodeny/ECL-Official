@@ -1,20 +1,24 @@
-# Variáveis de ambiente locais — nunca subir para a Vercel
-.env
-.env.local
-.env.supabase
-.env.vercel
+# Ignorar arquivos desnecessários no deploy da Vercel
 
-# Testes — não necessários em produção
+node_modules
+.env
+.env.*
+!.env.example
+
+# Código fonte (só o compilado é necessário)
+src/
+
+# Development
+uploads/
+*.log
+.DS_Store
+
+# Testes
 test/
 coverage/
-**/*.spec.ts
-**/*.e2e-spec.ts
+*.spec.ts
+*.test.ts
 
-# Desenvolvimento local
-*.log
-Procfile
-docker-compose.yml
-prisma/seed.ts
-
-# uploads locais (em produção usa Supabase Storage)
-uploads/
+# Documentação de desenvolvimento
+MIGRATION.md
+CLEANUP.md

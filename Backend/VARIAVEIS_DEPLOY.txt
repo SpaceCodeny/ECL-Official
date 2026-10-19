@@ -1,0 +1,159 @@
+═══════════════════════════════════════════════════════════════════════
+  VARIÁVEIS DE AMBIENTE OBRIGATÓRIAS PARA DEPLOY NA VERCEL
+═══════════════════════════════════════════════════════════════════════
+
+📋 COPIE E CONFIGURE NO DASHBOARD DA VERCEL:
+   Settings → Environment Variables → Add
+
+─────────────────────────────────────────────────────────────────────
+
+🔴 OBRIGATÓRIAS (Deploy falhará sem elas):
+
+DATABASE_URL=postgresql://user:password@host.supabase.co:6543/postgres?pgbouncer=true
+DIRECT_URL=postgresql://user:password@host.supabase.co:5432/postgres
+JWT_ACCESS_SECRET=seu-secret-super-seguro-minimo-16-caracteres
+JWT_REFRESH_SECRET=seu-refresh-secret-super-seguro-minimo-16-caracteres
+
+─────────────────────────────────────────────────────────────────────
+
+🟡 RECOMENDADAS (Use estes valores):
+
+NODE_ENV=production
+APP_NAME=Elite Champions League
+APP_URL=https://seu-projeto.vercel.app
+CORS_ORIGINS=https://seu-frontend.vercel.app
+JWT_ACCESS_TTL=15m
+JWT_REFRESH_TTL=7d
+THROTTLE_TTL=60
+THROTTLE_LIMIT=60
+
+─────────────────────────────────────────────────────────────────────
+
+🟢 OPCIONAIS (Funcionalidades extras):
+
+UPLOAD_PROVIDER=supabase
+SUPABASE_URL=https://seu-projeto.supabase.co
+SUPABASE_SERVICE_ROLE_KEY=seu-service-role-key
+SUPABASE_STORAGE_BUCKET=ecl-assets
+UPLOAD_MAX_SIZE_MB=5
+MAIL_PROVIDER=none
+MAIL_FROM=noreply@ecl.com
+ADMIN_BOOTSTRAP_EMAIL=admin@ecl.com
+ADMIN_BOOTSTRAP_USERNAME=admin
+ADMIN_BOOTSTRAP_PASSWORD=SenhaSegura@123
+
+─────────────────────────────────────────────────────────────────────
+
+🔧 BUILD SETTINGS NA VERCEL:
+
+Framework Preset:     Other
+Build Command:        npm run vercel-build
+Output Directory:     .
+Install Command:      npm install
+Root Directory:       Backend
+
+─────────────────────────────────────────────────────────────────────
+
+📊 COMO OBTER DATABASE_URL (Supabase):
+
+1. Acesse https://supabase.com
+2. Abra seu projeto
+3. Settings → Database → Connection string
+4. Copie "Connection pooling" (porta 6543) para DATABASE_URL
+5. Copie "Connection string" (porta 5432) para DIRECT_URL
+6. Substitua [PASSWORD] pela senha real do projeto!
+
+Exemplo:
+DATABASE_URL=postgresql://postgres.abc123:[SUA_SENHA]@aws-0-sa-east-1.pooler.supabase.com:6543/postgres?pgbouncer=true
+DIRECT_URL=postgresql://postgres.abc123:[SUA_SENHA]@aws-0-sa-east-1.pooler.supabase.com:5432/postgres
+
+─────────────────────────────────────────────────────────────────────
+
+🔐 GERAR JWT SECRETS SEGUROS:
+
+Use um dos métodos abaixo para gerar secrets aleatórios:
+
+# Método 1: OpenSSL (Linux/Mac/Windows com Git Bash)
+openssl rand -base64 32
+
+# Método 2: Node.js
+node -e "console.log(require('crypto').randomBytes(32).toString('base64'))"
+
+# Método 3: PowerShell (Windows)
+[Convert]::ToBase64String((1..32 | ForEach-Object { Get-Random -Minimum 0 -Maximum 256 }))
+
+# Método 4: Site online (https://www.random.org/strings/)
+Length: 32, Digits, Upper, Lower, Generate
+
+Gere 2 secrets diferentes (um para ACCESS, outro para REFRESH)!
+
+─────────────────────────────────────────────────────────────────────
+
+✅ CHECKLIST DE DEPLOY:
+
+[ ] Conta na Vercel criada
+[ ] Repositório conectado à Vercel
+[ ] Root Directory configurado como "Backend"
+[ ] DATABASE_URL configurada (Supabase)
+[ ] DIRECT_URL configurada (Supabase)
+[ ] JWT_ACCESS_SECRET configurado (32+ caracteres)
+[ ] JWT_REFRESH_SECRET configurado (32+ caracteres)
+[ ] CORS_ORIGINS configurado com domínio do frontend
+[ ] APP_URL configurado com domínio da Vercel
+[ ] Build Command: npm run vercel-build
+[ ] Migrations do Prisma executadas
+[ ] Deploy realizado
+[ ] Health check testado (https://seu-projeto.vercel.app/health)
+[ ] Documentação acessível (https://seu-projeto.vercel.app/docs)
+[ ] Auth testada (registro + login)
+
+─────────────────────────────────────────────────────────────────────
+
+🚀 COMANDOS DE DEPLOY:
+
+# Via Git (Recomendado - Deploy automático)
+git add .
+git commit -m "feat: deploy backend Express"
+git push origin main
+
+# Via CLI da Vercel
+cd Backend
+vercel --prod
+
+─────────────────────────────────────────────────────────────────────
+
+🧪 TESTAR APÓS DEPLOY:
+
+# Health Check
+curl https://seu-projeto.vercel.app/health
+
+# Ping
+curl https://seu-projeto.vercel.app/ping
+
+# Docs (abrir no navegador)
+https://seu-projeto.vercel.app/docs
+
+# Registro de usuário
+curl -X POST https://seu-projeto.vercel.app/api/v1/auth/register \
+  -H "Content-Type: application/json" \
+  -d '{"email":"teste@example.com","username":"teste","password":"Senha@123","displayName":"Teste"}'
+
+# Login
+curl -X POST https://seu-projeto.vercel.app/api/v1/auth/login \
+  -H "Content-Type: application/json" \
+  -d '{"email":"teste@example.com","password":"Senha@123"}'
+
+─────────────────────────────────────────────────────────────────────
+
+📝 NOTAS IMPORTANTES:
+
+• DATABASE_URL deve usar porta 6543 (connection pooling)
+• DIRECT_URL deve usar porta 5432 (migrations)
+• JWT secrets devem ter no mínimo 16 caracteres (recomendado: 32+)
+• CORS_ORIGINS deve incluir o domínio do frontend (separados por vírgula)
+• Supabase permite conexões de qualquer IP por padrão
+• Deploy automático acontece a cada push para main
+• Cold start pode levar 2-5 segundos na primeira requisição
+• Logs em tempo real: vercel logs --follow
+
+═══════════════════════════════════════════════════════════════════════

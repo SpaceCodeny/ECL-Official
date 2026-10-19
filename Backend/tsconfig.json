@@ -3,8 +3,6 @@
     "module": "commonjs",
     "declaration": true,
     "removeComments": true,
-    "emitDecoratorMetadata": true,
-    "experimentalDecorators": true,
     "allowSyntheticDefaultImports": true,
     "esModuleInterop": true,
     "target": "ES2022",
@@ -20,9 +18,8 @@
     "strictPropertyInitialization": true,
     "noImplicitAny": true,
     "noFallthroughCasesInSwitch": true,
-    "paths": {
-      "@/*": ["src/*"]
-    }
+    "resolveJsonModule": true,
+    "moduleResolution": "node"
   },
   "include": ["src/**/*", "prisma/**/*.ts"],
   "exclude": ["node_modules", "test", "dist"]
