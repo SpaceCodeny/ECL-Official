@@ -30,11 +30,11 @@ export function HeroSection() {
           Elite Champions League · Standoff 2
         </span>
 
-        <h1 className="font-display text-5xl font-bold uppercase leading-[1.05] tracking-tight text-paper sm:text-7xl lg:text-8xl">
+        <h1 className="font-display text-4xl font-bold uppercase leading-[1.05] tracking-tight text-paper sm:text-6xl lg:text-8xl">
           The Road to <span className="text-gradient-gold">Glory</span>
         </h1>
 
-        <p className="mt-6 max-w-2xl text-base text-muted sm:text-lg">
+        <p className="mt-6 max-w-2xl text-sm leading-relaxed text-muted sm:text-base lg:text-lg">
           A plataforma oficial de torneios competitivos de Standoff 2. Campeonatos, equipes,
           partidas e rankings reunidos em um só ecossistema de esports.
         </p>
