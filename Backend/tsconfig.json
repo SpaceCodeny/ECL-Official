@@ -19,7 +19,8 @@
     "noImplicitAny": true,
     "noFallthroughCasesInSwitch": true,
     "resolveJsonModule": true,
-    "moduleResolution": "node"
+    "moduleResolution": "node",
+    "types": ["node"]
   },
   "include": ["src/**/*", "prisma/**/*.ts"],
   "exclude": ["node_modules", "test", "dist"]
