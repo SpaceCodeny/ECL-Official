@@ -3,5 +3,5 @@ import type { OrganizationStats } from "@/types/domain";
 
 /** Estatísticas gerais da organização (calculadas no backend). */
 export async function getOrganizationStats(): Promise<OrganizationStats> {
-  return api.get<OrganizationStats>("/stats");
+  return api.get<OrganizationStats>("/stats/overview");
 }

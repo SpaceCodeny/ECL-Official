@@ -3,5 +3,6 @@ import type { RankingEntry } from "@/types/domain";
 
 /** Ranking de equipes para a homepage. */
 export async function getTeamRanking(limit = 5): Promise<RankingEntry[]> {
-  return api.get<RankingEntry[]>("/rankings/teams", { limit });
+  const response = await api.get<{ data: RankingEntry[]; season: string | null }>("/rankings", { limit });
+  return response.data || [];
 }
