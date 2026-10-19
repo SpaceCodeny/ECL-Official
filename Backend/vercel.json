@@ -1,32 +1,19 @@
 {
   "version": 2,
-  "builds": [
-    {
-      "src": "api/ping.ts",
-      "use": "@vercel/node"
+  "buildCommand": "npm run vercel-build",
+  "outputDirectory": ".",
+  "functions": {
+    "api/index.js": {
+      "maxDuration": 30,
+      "memory": 3008
     },
-    {
-      "src": "api/index.ts",
-      "use": "@vercel/node",
-      "config": {
-        "maxLambdaSize": "50mb",
-        "includeFiles": [
-          "src/**",
-          "prisma/schema.prisma",
-          "tsconfig.json"
-        ]
-      }
+    "api/ping.js": {
+      "maxDuration": 10
     }
-  ],
-  "routes": [
-    {
-      "src": "/ping",
-      "dest": "/api/ping.ts"
-    },
-    {
-      "src": "/(.*)",
-      "dest": "/api/index.ts"
-    }
+  },
+  "rewrites": [
+    { "source": "/ping", "destination": "/api/ping" },
+    { "source": "/(.*)", "destination": "/api/index" }
   ],
   "env": {
     "SERVERLESS": "true"
