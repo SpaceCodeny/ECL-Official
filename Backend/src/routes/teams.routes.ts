@@ -451,3 +451,102 @@ teamsRouter.delete(
     }
   }
 );
+
+/**
+ * @openapi
+ * /api/v1/teams/admin:
+ *   post:
+ *     tags:
+ *       - Teams
+ *     summary: Criar time (admin) com múltiplos membros
+ *     security:
+ *       - bearerAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - name
+ *               - captainUserId
+ *             properties:
+ *               name:
+ *                 type: string
+ *               tag:
+ *                 type: string
+ *               description:
+ *                 type: string
+ *               logoUrl:
+ *                 type: string
+ *               captainUserId:
+ *                 type: string
+ *               memberUserIds:
+ *                 type: array
+ *                 items:
+ *                   type: string
+ *     responses:
+ *       201:
+ *         description: Time criado
+ */
+teamsRouter.post(
+  "/admin",
+  authenticate,
+  authorize(UserRole.SUPER_ADMIN, UserRole.ADMINISTRATOR),
+  async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const { name, tag, description, logoUrl, captainUserId, memberUserIds = [] } = req.body;
+
+      if (!name || !captainUserId) {
+        throw AppError.badRequest("name e captainUserId são obrigatórios");
+      }
+
+      const slug = slugify(name);
+
+      const existing = await prisma.team.findFirst({
+        where: { OR: [{ name }, { slug }], deletedAt: null },
+      });
+      if (existing) throw AppError.conflict("Nome de time já está em uso");
+
+      // Buscar ou criar perfis de jogador para capitão e membros
+      const allUserIds = [captainUserId, ...memberUserIds];
+      const playerProfiles = await Promise.all(
+        allUserIds.map(async (userId) => {
+          let profile = await prisma.playerProfile.findUnique({ where: { userId } });
+          if (!profile) {
+            profile = await prisma.playerProfile.create({ data: { userId } });
+          }
+          return { userId, profileId: profile.id };
+        })
+      );
+
+      const team = await prisma.$transaction(async (tx) => {
+        const created = await tx.team.create({
+          data: { name, slug, tag, description, logoUrl, captainId: captainUserId },
+        });
+
+        // Adicionar capitão
+        const captainProfile = playerProfiles.find(p => p.userId === captainUserId);
+        await tx.teamMembership.create({
+          data: { teamId: created.id, playerId: captainProfile!.profileId, role: "CAPTAIN" },
+        });
+
+        // Adicionar membros
+        for (const userId of memberUserIds) {
+          const memberProfile = playerProfiles.find(p => p.userId === userId);
+          if (memberProfile) {
+            await tx.teamMembership.create({
+              data: { teamId: created.id, playerId: memberProfile.profileId, role: "PLAYER" },
+            });
+          }
+        }
+
+        return created;
+      });
+
+      res.status(201).json(team);
+    } catch (error) {
+      next(error);
+    }
+  }
+);

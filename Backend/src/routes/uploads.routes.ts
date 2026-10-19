@@ -173,7 +173,9 @@ uploadsRouter.post(
       if (config.UPLOAD_PROVIDER === "supabase") {
         url = await uploadToSupabase(req.file, config.SUPABASE_STORAGE_BUCKET, "logos");
       } else {
-        url = `/uploads/teams/${req.file.filename}`;
+        // Em ambiente local, retornar caminho relativo
+        const filename = req.file.filename || `${crypto.randomUUID()}${path.extname(req.file.originalname)}`;
+        url = `/uploads/teams/${filename}`;
       }
 
       // Se teamId fornecido, atualizar o team
