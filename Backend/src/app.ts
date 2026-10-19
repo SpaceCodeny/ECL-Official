@@ -77,37 +77,46 @@ export function createApp(): Express {
   }
 
   // ─── Swagger/OpenAPI documentation ──────────────────────────────────────────
-  const swaggerOptions: swaggerJsdoc.Options = {
-    definition: {
-      openapi: "3.0.0",
-      info: {
-        title: config.APP_NAME,
-        version: "1.0.0",
-        description: "API REST da Elite Champions League — torneios de Standoff 2",
-      },
-      servers: [
-        {
-          url: config.APP_URL,
-          description: `${config.NODE_ENV} server`,
+  let swaggerSpec;
+  
+  if (config.NODE_ENV === "production") {
+    // Em produção, carrega o spec pré-gerado
+    try {
+      swaggerSpec = require("../dist/swagger.json");
+    } catch {
+      swaggerSpec = { openapi: "3.0.0", info: { title: "API", version: "1.0.0" }, paths: {} };
+    }
+  } else {
+    // Em desenvolvimento, gera dinamicamente
+    const swaggerOptions: swaggerJsdoc.Options = {
+      definition: {
+        openapi: "3.0.0",
+        info: {
+          title: config.APP_NAME,
+          version: "1.0.0",
+          description: "API REST da Elite Champions League — torneios de Standoff 2",
         },
-      ],
-      components: {
-        securitySchemes: {
-          bearerAuth: {
-            type: "http",
-            scheme: "bearer",
-            bearerFormat: "JWT",
+        servers: [
+          {
+            url: config.APP_URL,
+            description: `${config.NODE_ENV} server`,
+          },
+        ],
+        components: {
+          securitySchemes: {
+            bearerAuth: {
+              type: "http",
+              scheme: "bearer",
+              bearerFormat: "JWT",
+            },
           },
         },
+        security: [{ bearerAuth: [] }],
       },
-      security: [{ bearerAuth: [] }],
-    },
-    // Em produção, usa arquivos compilados; em dev, usa TypeScript
-    apis: config.NODE_ENV === "production" 
-      ? ["./dist/routes/*.js"]
-      : ["./src/routes/*.ts"],
-  };
-  const swaggerSpec = swaggerJsdoc(swaggerOptions);
+      apis: ["./src/routes/*.ts"],
+    };
+    swaggerSpec = swaggerJsdoc(swaggerOptions);
+  }
   
   // Configuração do Swagger UI com CDN para funcionar em serverless
   const swaggerUiOptions = {
