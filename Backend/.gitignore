@@ -44,3 +44,4 @@ uploads/
 
 # Prisma
 prisma/migrations/**/migration.sql.bak
+.
