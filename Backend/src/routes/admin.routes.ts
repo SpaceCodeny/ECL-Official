@@ -449,8 +449,10 @@ adminRouter.post(
   async (req: Request, res: Response, next: NextFunction) => {
     try {
       const { username, email, password, displayName, standoffId, bio, country } = req.body;
-      const bcrypt = require("bcrypt");
-      const hashedPassword = await bcrypt.hash(password, 10);
+      
+      // Usar argon2 para hash de senha (mesmo método usado em auth)
+      const argon2 = await import("argon2");
+      const hashedPassword = await argon2.hash(password);
       
       const user = await prisma.user.create({
         data: {
@@ -459,12 +461,12 @@ adminRouter.post(
           passwordHash: hashedPassword,
           displayName,
           role: UserRole.PLAYER,
-          status: "ACTIVE",
+          status: UserStatus.ACTIVE,
           playerProfile: {
             create: {
-              standoffId,
-              bio,
-              country,
+              standoffId: standoffId || null,
+              bio: bio || null,
+              country: country || null,
               status: "BENCH",
             },
           },
@@ -479,6 +481,7 @@ adminRouter.post(
             select: {
               standoffId: true,
               country: true,
+              status: true,
             },
           },
         },
