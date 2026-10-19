@@ -34,7 +34,14 @@ export function createApp(): Express {
 
   // ─── Segurança e performance ────────────────────────────────────────────────
   app.use(helmet({
-    contentSecurityPolicy: false, // Desabilitado para permitir Swagger UI
+    contentSecurityPolicy: config.NODE_ENV === "production" ? {
+      directives: {
+        defaultSrc: ["'self'"],
+        styleSrc: ["'self'", "'unsafe-inline'", "https://cdn.jsdelivr.net"],
+        scriptSrc: ["'self'", "'unsafe-inline'", "https://cdn.jsdelivr.net"],
+        imgSrc: ["'self'", "data:", "https:"],
+      },
+    } : false,
     crossOriginEmbedderPolicy: false,
   }));
   app.use(compression());
@@ -98,7 +105,17 @@ export function createApp(): Express {
     apis: ["./src/routes/*.ts", "./dist/routes/*.js"],
   };
   const swaggerSpec = swaggerJsdoc(swaggerOptions);
-  app.use("/docs", swaggerUi.serve, swaggerUi.setup(swaggerSpec));
+  
+  // Configuração do Swagger UI com CDN para funcionar em serverless
+  const swaggerUiOptions = {
+    customCssUrl: "https://cdn.jsdelivr.net/npm/swagger-ui-dist@5/swagger-ui.css",
+    customJs: [
+      "https://cdn.jsdelivr.net/npm/swagger-ui-dist@5/swagger-ui-bundle.js",
+      "https://cdn.jsdelivr.net/npm/swagger-ui-dist@5/swagger-ui-standalone-preset.js",
+    ],
+  };
+  
+  app.use("/docs", swaggerUi.serve, swaggerUi.setup(swaggerSpec, swaggerUiOptions));
 
   // ─── Health check (sem prefixo) ─────────────────────────────────────────────
   app.use("/health", healthRouter);
