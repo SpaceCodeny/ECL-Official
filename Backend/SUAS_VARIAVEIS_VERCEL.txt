@@ -1,0 +1,167 @@
+═══════════════════════════════════════════════════════════════════════
+  SUAS VARIÁVEIS DE AMBIENTE - CONFIGURE NA VERCEL
+═══════════════════════════════════════════════════════════════════════
+
+📋 Acesse: Settings → Environment Variables → Add
+   No projeto: https://vercel.com/[seu-usuario]/[projeto]/settings/environment-variables
+
+─────────────────────────────────────────────────────────────────────
+
+🔴 OBRIGATÓRIAS - BANCO DE DADOS:
+
+Name: DATABASE_URL
+Value: postgresql://postgres.xkypvykdbnaqqchnlwmd:ElitechapionsLeague@aws-1-us-west-2.pooler.supabase.com:6543/postgres?pgbouncer=true
+
+Name: DIRECT_URL
+Value: postgresql://postgres.xkypvykdbnaqqchnlwmd:ElitechapionsLeague@aws-1-us-west-2.pooler.supabase.com:5432/postgres
+
+─────────────────────────────────────────────────────────────────────
+
+🔴 OBRIGATÓRIAS - JWT:
+
+Name: JWT_ACCESS_SECRET
+Value: vNECeqGKkP03rnAFswArmDZswWqImSrPCszYJiIUdt0ksXuyZFvEV+cbeoYR6ZNSsqtPflde/bHBFMkK5tlKDw==
+
+Name: JWT_REFRESH_SECRET
+Value: 3rqgfYBHwxnQbzix2dcdJZ6KxP/iIRy5WApyphJUx18oAMdsUSUNi+1QtC+k+FuN3B0Pt6pBjU+BbgZaN9/bEQ==
+
+Name: JWT_ACCESS_TTL
+Value: 15m
+
+Name: JWT_REFRESH_TTL
+Value: 7d
+
+─────────────────────────────────────────────────────────────────────
+
+🟡 RECOMENDADAS - APLICAÇÃO:
+
+Name: NODE_ENV
+Value: production
+
+Name: APP_NAME
+Value: Elite Champions League
+
+Name: APP_URL
+Value: https://seu-projeto.vercel.app
+(⚠️ IMPORTANTE: Substitua pelo seu domínio real da Vercel!)
+
+Name: CORS_ORIGINS
+Value: https://seu-frontend.vercel.app,https://www.seusite.com
+(⚠️ IMPORTANTE: Adicione o domínio do seu frontend!)
+
+─────────────────────────────────────────────────────────────────────
+
+🟡 RECOMENDADAS - RATE LIMITING:
+
+Name: THROTTLE_TTL
+Value: 60
+
+Name: THROTTLE_LIMIT
+Value: 60
+
+─────────────────────────────────────────────────────────────────────
+
+🟢 OPCIONAIS - SUPABASE STORAGE (Para Uploads):
+
+Name: UPLOAD_PROVIDER
+Value: supabase
+
+Name: SUPABASE_URL
+Value: https://xkypvykdbnaqqchnlwmd.supabase.co
+
+Name: SUPABASE_SERVICE_ROLE_KEY
+Value: (Obtenha em: Supabase → Settings → API → service_role key)
+
+Name: SUPABASE_STORAGE_BUCKET
+Value: ecl-assets
+
+Name: UPLOAD_MAX_SIZE_MB
+Value: 5
+
+─────────────────────────────────────────────────────────────────────
+
+🟢 OPCIONAIS - EMAIL (Quando configurar):
+
+Name: MAIL_PROVIDER
+Value: none
+(Mude para "smtp" quando configurar provedor de email)
+
+Name: MAIL_FROM
+Value: noreply@ecl.com
+
+─────────────────────────────────────────────────────────────────────
+
+🟢 OPCIONAIS - ADMIN BOOTSTRAP (Para seed):
+
+Name: ADMIN_BOOTSTRAP_EMAIL
+Value: admin@ecl.com
+
+Name: ADMIN_BOOTSTRAP_USERNAME
+Value: admin
+
+Name: ADMIN_BOOTSTRAP_PASSWORD
+Value: SenhaSegura@123456
+(⚠️ Mude para uma senha forte em produção!)
+
+─────────────────────────────────────────────────────────────────────
+
+✅ CHECKLIST DE CONFIGURAÇÃO:
+
+[ ] Todas as variáveis OBRIGATÓRIAS adicionadas
+[ ] APP_URL configurada com domínio real da Vercel
+[ ] CORS_ORIGINS configurada com domínio do frontend
+[ ] Environment selecionado: Production, Preview, Development (ou todos)
+[ ] Variáveis salvas
+[ ] Deploy realizado
+
+─────────────────────────────────────────────────────────────────────
+
+🔧 COMO ADICIONAR NA VERCEL:
+
+1. Acesse seu projeto na Vercel
+2. Settings → Environment Variables
+3. Para cada variável:
+   - Clique em "Add New"
+   - Cole o Name
+   - Cole o Value
+   - Selecione os ambientes (Production recomendado)
+   - Clique "Save"
+4. Após adicionar todas, faça um novo deploy ou redeploy
+
+─────────────────────────────────────────────────────────────────────
+
+🚀 COMANDOS APÓS CONFIGURAR:
+
+# Deploy via Git
+git add .
+git commit -m "feat: configuração Supabase pronta"
+git push origin main
+
+# Ou via CLI
+cd Backend
+vercel --prod
+
+─────────────────────────────────────────────────────────────────────
+
+🧪 TESTAR APÓS DEPLOY:
+
+curl https://seu-projeto.vercel.app/health
+
+Resposta esperada:
+{
+  "status": "ok",
+  "database": "connected"
+}
+
+─────────────────────────────────────────────────────────────────────
+
+📝 NOTAS IMPORTANTES:
+
+• Todas as connection strings já estão com Transaction Pooler (porta 6543)
+• DIRECT_URL usa porta 5432 para migrations
+• Seus JWT secrets já estão configurados e são seguros
+• Supabase permite conexões de qualquer IP por padrão
+• Service Role Key deve ser obtida no dashboard do Supabase
+• Nunca comite .env no Git (já está no .gitignore)
+
+═══════════════════════════════════════════════════════════════════════

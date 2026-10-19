@@ -1,0 +1,226 @@
+═══════════════════════════════════════════════════════════════════════════
+  🚀 VARIÁVEIS OBRIGATÓRIAS PARA DEPLOY NA VERCEL
+  Elite Champions League - Backend Express
+═══════════════════════════════════════════════════════════════════════════
+
+📋 Configure em: https://vercel.com → Seu Projeto → Settings → Environment Variables
+
+⚠️  IMPORTANTE: Adicione estas variáveis ANTES de fazer o deploy!
+
+─────────────────────────────────────────────────────────────────────────────
+
+🔴 OBRIGATÓRIAS - SEM ELAS O DEPLOY FALHARÁ:
+
+1️⃣  DATABASE_URL
+postgresql://postgres.xkypvykdbnaqqchnlwmd:ElitechapionsLeague@aws-1-us-west-2.pooler.supabase.com:6543/postgres?pgbouncer=true
+
+2️⃣  DIRECT_URL
+postgresql://postgres.xkypvykdbnaqqchnlwmd:ElitechapionsLeague@aws-1-us-west-2.pooler.supabase.com:5432/postgres
+
+3️⃣  JWT_ACCESS_SECRET
+vNECeqGKkP03rnAFswArmDZswWqImSrPCszYJiIUdt0ksXuyZFvEV+cbeoYR6ZNSsqtPflde/bHBFMkK5tlKDw==
+
+4️⃣  JWT_REFRESH_SECRET
+3rqgfYBHwxnQbzix2dcdJZ6KxP/iIRy5WApyphJUx18oAMdsUSUNi+1QtC+k+FuN3B0Pt6pBjU+BbgZaN9/bEQ==
+
+─────────────────────────────────────────────────────────────────────────────
+
+🟡 RECOMENDADAS - AJUSTE ANTES DE USAR:
+
+5️⃣  NODE_ENV
+production
+
+6️⃣  APP_URL
+https://seu-projeto.vercel.app
+👉 MUDE para o domínio real que a Vercel irá gerar!
+
+7️⃣  CORS_ORIGINS
+https://seu-frontend.vercel.app,https://www.seusite.com
+👉 ADICIONE o domínio do seu frontend separado por vírgula!
+
+8️⃣  JWT_ACCESS_TTL
+15m
+
+9️⃣  JWT_REFRESH_TTL
+7d
+
+🔟  THROTTLE_TTL
+60
+
+1️⃣1️⃣  THROTTLE_LIMIT
+60
+
+─────────────────────────────────────────────────────────────────────────────
+
+🟢 OPCIONAIS - CONFIGURE DEPOIS (Uploads via Supabase):
+
+UPLOAD_PROVIDER=supabase
+SUPABASE_URL=https://xkypvykdbnaqqchnlwmd.supabase.co
+SUPABASE_SERVICE_ROLE_KEY=(obtenha no Supabase → Settings → API)
+SUPABASE_STORAGE_BUCKET=ecl-assets
+
+─────────────────────────────────────────────────────────────────────────────
+
+📝 COMO ADICIONAR NA VERCEL:
+
+PASSO A PASSO:
+
+1. Acesse: https://vercel.com/dashboard
+2. Selecione seu projeto (ou crie novo se ainda não existe)
+3. Vá em: Settings → Environment Variables
+4. Para cada variável acima:
+   
+   a) Clique em "Add New"
+   b) Name: cole o nome (ex: DATABASE_URL)
+   c) Value: cole o valor completo
+   d) Environments: selecione "Production" (ou todos)
+   e) Clique "Save"
+
+5. Repita para TODAS as variáveis obrigatórias (1 a 4)
+6. Adicione as recomendadas (5 a 11) ajustando APP_URL e CORS_ORIGINS
+
+─────────────────────────────────────────────────────────────────────────────
+
+⚙️  BUILD SETTINGS NA VERCEL:
+
+Também configure em Settings → General:
+
+Framework Preset:       Other
+Root Directory:         Backend
+Build Command:          npm run vercel-build
+Output Directory:       .
+Install Command:        npm install
+Node.js Version:        20.x (ou 22.x)
+
+─────────────────────────────────────────────────────────────────────────────
+
+🚀 FAZER O DEPLOY:
+
+Depois de configurar as variáveis:
+
+OPÇÃO 1 - Via Git (Recomendado):
+git add .
+git commit -m "feat: backend Express com Supabase configurado"
+git push origin main
+
+→ Deploy automático será iniciado!
+
+OPÇÃO 2 - Via CLI da Vercel:
+cd Backend
+vercel --prod
+
+─────────────────────────────────────────────────────────────────────────────
+
+🧪 TESTAR APÓS DEPLOY:
+
+1. Health Check:
+   curl https://seu-projeto.vercel.app/health
+   
+   ✅ Resposta esperada:
+   {
+     "status": "ok",
+     "database": "connected"
+   }
+
+2. Documentação API:
+   https://seu-projeto.vercel.app/docs
+
+3. Ping:
+   https://seu-projeto.vercel.app/ping
+
+4. Teste de Registro:
+   curl -X POST https://seu-projeto.vercel.app/api/v1/auth/register \
+     -H "Content-Type: application/json" \
+     -d '{"email":"teste@example.com","username":"teste","password":"Senha@123","displayName":"Teste"}'
+
+─────────────────────────────────────────────────────────────────────────────
+
+✅ CHECKLIST PRÉ-DEPLOY:
+
+[ ] Conta na Vercel criada
+[ ] Repositório conectado à Vercel
+[ ] Root Directory = Backend
+[ ] Build Command = npm run vercel-build
+[ ] 4 variáveis OBRIGATÓRIAS configuradas
+[ ] APP_URL ajustada com domínio real
+[ ] CORS_ORIGINS ajustada com domínio do frontend
+[ ] Environment = Production selecionado
+[ ] Git commit feito
+[ ] Push para main realizado
+
+─────────────────────────────────────────────────────────────────────────────
+
+📊 APÓS O PRIMEIRO DEPLOY:
+
+1. Rode as migrations do Prisma:
+   
+   Via Vercel CLI:
+   vercel env pull .env.production
+   npm run prisma:migrate:deploy
+   
+   Ou configure um comando post-deploy no vercel.json
+
+2. (Opcional) Execute o seed:
+   npm run prisma:seed
+
+3. Teste todos os endpoints
+
+4. Configure domínio customizado (se tiver)
+
+─────────────────────────────────────────────────────────────────────────────
+
+🆘 TROUBLESHOOTING:
+
+❌ Erro: "DATABASE_URL is required"
+   → Verifique se adicionou a variável na Vercel
+   → Confirme que selecionou "Production" environment
+
+❌ Erro: "Can't reach database"
+   → Verifique se a senha está correta
+   → Confirme que copiou a URL completa (incluindo ?pgbouncer=true)
+   → Projeto Supabase pode estar pausado (acesse o dashboard para despertar)
+
+❌ Erro: Cold start timeout
+   → Aumente maxDuration em vercel.json (já está em 30s)
+   → Otimize imports pesados
+
+❌ CORS Error
+   → Adicione o domínio do frontend em CORS_ORIGINS
+   → Separe múltiplos domínios por vírgula (sem espaços)
+
+❌ 404 em todas as rotas
+   → Verifique se Root Directory = Backend
+   → Confirme que vercel.json está na raiz do Backend
+
+─────────────────────────────────────────────────────────────────────────────
+
+📚 LINKS ÚTEIS:
+
+• Vercel Dashboard: https://vercel.com/dashboard
+• Supabase Dashboard: https://app.supabase.com
+• Documentação Vercel: https://vercel.com/docs
+• Documentação Prisma: https://www.prisma.io/docs
+• Seu Projeto Supabase: https://app.supabase.com/project/xkypvykdbnaqqchnlwmd
+
+─────────────────────────────────────────────────────────────────────────────
+
+🎉 RESUMO:
+
+✅ Backend Express 100% pronto
+✅ Supabase Transaction Pooler configurado
+✅ Build passando sem erros
+✅ TypeCheck OK
+✅ Variáveis documentadas
+✅ Pronto para deploy na Vercel!
+
+MÍNIMO NECESSÁRIO: Configure as 4 variáveis OBRIGATÓRIAS e faça o deploy!
+
+═══════════════════════════════════════════════════════════════════════════
+
+💡 DICA FINAL:
+
+Copie as 4 variáveis obrigatórias uma por uma para a Vercel.
+Ajuste APP_URL e CORS_ORIGINS depois do primeiro deploy.
+O domínio da Vercel será algo como: seu-projeto-abc123.vercel.app
+
+Boa sorte com o deploy! 🚀
