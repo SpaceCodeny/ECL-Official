@@ -83,9 +83,16 @@ matchesRouter.get(
       const skip = (page - 1) * limit;
       const { tournamentId, teamId, status } = req.query;
 
+      // Suporte para múltiplos status separados por vírgula
+      const statusArray = status 
+        ? (status as string).split(',').map(s => s.trim()).filter(Boolean)
+        : undefined;
+
       const where = {
         ...(tournamentId && { tournamentId: tournamentId as string }),
-        ...(status && { status: status as MatchStatus }),
+        ...(statusArray && statusArray.length > 0 && { 
+          status: statusArray.length === 1 ? statusArray[0] as MatchStatus : { in: statusArray as MatchStatus[] }
+        }),
         ...(teamId && {
           OR: [
             { teamAId: teamId as string },

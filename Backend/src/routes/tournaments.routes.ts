@@ -73,12 +73,19 @@ tournamentsRouter.get(
       const page = Math.max(1, Number(req.query["page"]) || 1);
       const limit = Math.min(100, Math.max(1, Number(req.query["limit"]) || 20));
       const skip = (page - 1) * limit;
-      const status = req.query["status"] as TournamentStatus | undefined;
+      const status = req.query["status"] as string | undefined;
       const season = req.query["season"] as string | undefined;
+
+      // Suporte para múltiplos status separados por vírgula
+      const statusArray = status 
+        ? status.split(',').map(s => s.trim()).filter(Boolean)
+        : undefined;
 
       const where = {
         deletedAt: null,
-        ...(status && { status }),
+        ...(statusArray && statusArray.length > 0 && {
+          status: statusArray.length === 1 ? statusArray[0] as TournamentStatus : { in: statusArray as TournamentStatus[] }
+        }),
         ...(season && { season }),
       };
 
