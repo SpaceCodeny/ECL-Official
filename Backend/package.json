@@ -5,7 +5,8 @@
   "scripts": {
     "build": "tsc",
     "vercel-build": "node scripts/generate-swagger.js && npx prisma generate && tsc",
-    "dev": "tsx watch src/server.ts",
+    "dev": "tsx watch --env-file=.env src/server.ts",
+    "dev:prod": "tsx watch --env-file=.env.production src/server.ts",
     "start": "node dist/server.js",
     "start:prod": "node dist/server.js",
     "predeploy": "npm run build",
@@ -43,6 +44,7 @@
     "@types/node": "^22.10.2",
     "@types/swagger-jsdoc": "^6.0.4",
     "@types/swagger-ui-express": "^4.1.6",
+    "dotenv-cli": "^11.0.0",
     "prisma": "^6.1.0",
     "tsx": "^4.19.2",
     "typescript": "^5.7.2"
