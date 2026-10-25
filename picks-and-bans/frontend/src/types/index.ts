@@ -5,7 +5,6 @@ export const MAPS = [
   "Prision",
   "Province",
   "Rust",
-  "Sakura",
   "Sandstone",
 ] as const;
 
