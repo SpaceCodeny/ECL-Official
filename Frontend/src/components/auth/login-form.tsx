@@ -97,12 +97,12 @@ export function LoginForm() {
         </Link>
       </div>
 
-      <p className="text-center text-sm text-muted">
+      {/* <p className="text-center text-sm text-muted">
         Não tem conta?{" "}
         <Link href="/register" className="font-medium text-gold hover:text-gold-light">
           Criar conta
         </Link>
-      </p>
+      </p> */}
     </form>
   );
 }

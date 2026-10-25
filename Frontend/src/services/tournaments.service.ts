@@ -26,9 +26,25 @@ export async function getFeaturedTournament(): Promise<FeaturedTournament | null
 export async function getTournaments(
   query: { status?: string; search?: string; limit?: number; page?: number } = {},
 ): Promise<Paginated<TournamentListItem>> {
-  return api.get<Paginated<TournamentListItem>>("/tournaments", { pageSize: 12, page: 1, ...query });
+  const response = await api.get<Paginated<any>>("/tournaments", { pageSize: 12, page: 1, ...query });
+  
+  // Transformar _count.registrations em registeredTeams
+  if (response.data) {
+    response.data = response.data.map((tournament: any) => ({
+      ...tournament,
+      registeredTeams: tournament._count?.registrations ?? 0,
+    }));
+  }
+  
+  return response as Paginated<TournamentListItem>;
 }
 
 export async function getTournamentBySlug(slug: string): Promise<Tournament> {
-  return api.get<Tournament>(`/tournaments/${slug}`);
+  const tournament = await api.get<any>(`/tournaments/${slug}`);
+  
+  // Transformar _count.registrations em registeredTeams
+  return {
+    ...tournament,
+    registeredTeams: tournament._count?.registrations ?? 0,
+  } as Tournament;
 }

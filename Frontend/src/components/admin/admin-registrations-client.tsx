@@ -81,19 +81,18 @@ export function AdminRegistrationsClient() {
     queryKey: ["admin-registrations", activeTournamentId, statusFilter],
     queryFn: () =>
       api.get<Registration[]>(
-        `/tournaments/${activeTournamentId}/registrations`,
-        statusFilter ? { status: statusFilter } : undefined,
+        `/registrations`,
+        { 
+          tournamentId: activeTournamentId,
+          ...(statusFilter ? { status: statusFilter } : {})
+        },
       ),
     enabled: Boolean(activeTournamentId),
   });
 
   const approveMutation = useMutation({
     mutationFn: (regId: string) =>
-      api.post(
-        `/tournaments/${activeTournamentId}/registrations/${regId}/approve`,
-        undefined,
-        true,
-      ),
+      api.patch(`/registrations/${regId}/approve`, {}, true),
     onSuccess: () =>
       queryClient.invalidateQueries({
         queryKey: ["admin-registrations", activeTournamentId],
@@ -102,11 +101,7 @@ export function AdminRegistrationsClient() {
 
   const rejectMutation = useMutation({
     mutationFn: (regId: string) =>
-      api.post(
-        `/tournaments/${activeTournamentId}/registrations/${regId}/reject`,
-        undefined,
-        true,
-      ),
+      api.patch(`/registrations/${regId}/reject`, {}, true),
     onSuccess: () =>
       queryClient.invalidateQueries({
         queryKey: ["admin-registrations", activeTournamentId],

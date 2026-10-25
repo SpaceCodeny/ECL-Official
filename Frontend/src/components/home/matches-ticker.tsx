@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
-import { Radio, CalendarDays, ChevronRight } from "lucide-react";
+import { Radio, CalendarDays } from "lucide-react";
 import { useUpcomingMatches } from "@/hooks/use-home";
 import { Avatar } from "@/components/ui/avatar";
 import { hasNoData, formatDateTime, cn } from "@/lib/utils";
@@ -28,79 +28,59 @@ function TickerCard({ match }: { match: Match }) {
   const isLive = match.status === "LIVE";
   const hasScore = (match.scoreA ?? null) !== null && (match.scoreB ?? null) !== null;
 
-  const stageName =
-    typeof match.stage === "string"
-      ? match.stage
-      : (match.stage as { name?: string })?.name ?? "";
-
-  const tournamentName =
-    typeof match.stage === "object" && match.stage !== null
-      ? (match.stage as { tournament?: { name: string } }).tournament?.name ?? ""
-      : "";
-
   return (
     <Link
       href={`/matches/${match.id}`}
       className={cn(
-        "group relative mx-2 flex shrink-0 items-center gap-3 rounded-xl border px-4 py-3 transition-all hover:border-gold/50 hover:shadow-md hover:shadow-gold/5",
+        "group relative mx-1.5 flex shrink-0 items-center gap-2 rounded-lg px-3 py-2 transition-all",
         isLive
-          ? "border-red-500/40 bg-red-500/5"
-          : "border-border bg-surface/60",
+          ? "border-2 border-red-500/60 bg-red-500/10 shadow-lg shadow-red-500/20 hover:border-red-500/80"
+          : "border-2 border-gold/40 bg-white/5 shadow-md shadow-gold/10 hover:border-gold/60 hover:shadow-gold/20",
       )}
-      style={{ minWidth: "280px", maxWidth: "320px" }}
+      style={{ minWidth: "260px", maxWidth: "300px" }}
     >
-      {/* Badge AO VIVO */}
-      {isLive && (
-        <span className="absolute -top-2 left-3 flex items-center gap-1 rounded-full bg-red-500 px-2 py-0.5 text-[9px] font-bold uppercase tracking-widest text-white">
-          <Radio className="h-2.5 w-2.5 animate-pulse" />
-          Ao Vivo
-        </span>
-      )}
-
       {/* Equipe A */}
       <div className="flex min-w-0 flex-1 items-center gap-2">
-        <Avatar name={match.teamA.name} src={match.teamA.logoUrl} size="sm" className="h-8 w-8 shrink-0" />
-        <span className={cn(
-          "truncate font-display text-xs font-bold uppercase tracking-tight",
-          hasScore && (match.scoreA ?? 0) > (match.scoreB ?? 0) ? "text-gold" : "text-paper",
-        )}>
+        <Avatar name={match.teamA.name} src={match.teamA.logoUrl} size="sm" className="h-7 w-7 shrink-0" />
+        <span className="truncate font-display text-[11px] font-bold uppercase tracking-tight text-paper">
           {match.teamA.name}
         </span>
       </div>
 
-      {/* Placar ou VS */}
-      <div className="flex shrink-0 flex-col items-center">
+      {/* Meio: placar ou VS + formato */}
+      <div className="flex shrink-0 flex-col items-center gap-0.5">
         {hasScore ? (
-          <span className="font-display text-base font-bold text-paper">
-            {match.scoreA} <span className="text-muted">·</span> {match.scoreB}
+          <span className="font-display text-sm font-bold text-paper">
+            {match.scoreA} <span className="text-white/30">·</span> {match.scoreB}
           </span>
         ) : (
-          <span className="font-display text-xs font-bold uppercase tracking-widest text-muted/60">VS</span>
+          <span className="font-display text-[10px] font-bold uppercase tracking-widest text-white/40">VS</span>
         )}
-        <span className="text-[9px] uppercase tracking-widest text-muted/50">{match.seriesFormat}</span>
+        <span className="rounded bg-white/10 px-1 py-px text-[9px] font-medium uppercase tracking-wide text-white/50">
+          {match.seriesFormat}
+        </span>
       </div>
 
       {/* Equipe B */}
       <div className="flex min-w-0 flex-1 flex-row-reverse items-center gap-2">
-        <Avatar name={match.teamB.name} src={match.teamB.logoUrl} size="sm" className="h-8 w-8 shrink-0" />
-        <span className={cn(
-          "truncate text-right font-display text-xs font-bold uppercase tracking-tight",
-          hasScore && (match.scoreB ?? 0) > (match.scoreA ?? 0) ? "text-gold" : "text-paper",
-        )}>
+        <Avatar name={match.teamB.name} src={match.teamB.logoUrl} size="sm" className="h-7 w-7 shrink-0" />
+        <span className="truncate text-right font-display text-[11px] font-bold uppercase tracking-tight text-paper">
           {match.teamB.name}
         </span>
       </div>
 
-      {/* Data */}
-      {!isLive && match.scheduledAt && (
-        <span className="absolute bottom-1.5 right-3 flex items-center gap-1 text-[9px] text-muted/60">
-          <CalendarDays className="h-2.5 w-2.5" />
+      {/* Badge AO VIVO ou data */}
+      {isLive ? (
+        <span className="ml-1 flex shrink-0 items-center gap-1 rounded-full bg-emerald-500 px-2 py-0.5 text-[9px] font-bold uppercase tracking-widest text-white">
+          <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-white" />
+          AO VIVO
+        </span>
+      ) : match.scheduledAt ? (
+        <span className="ml-1 flex shrink-0 flex-col items-end text-[9px] leading-tight text-white/40">
+          <CalendarDays className="mb-0.5 h-3 w-3" />
           {formatDateTime(match.scheduledAt)}
         </span>
-      )}
-
-      {/* Hover arrow */}
-      <ChevronRight className="absolute right-2 top-1/2 h-3 w-3 -translate-y-1/2 text-muted/20 transition-all group-hover:text-gold/60" aria-hidden />
+      ) : null}
     </Link>
   );
 }
@@ -162,7 +142,7 @@ export function MatchesTicker() {
 
   return (
     <div
-      className="relative overflow-hidden border-b border-border bg-navy/60 backdrop-blur-sm"
+      className="relative overflow-hidden border-b border-white/10 bg-black/60 backdrop-blur-md"
       onMouseEnter={() => setPaused(true)}
       onMouseLeave={() => setPaused(false)}
       onTouchStart={() => setPaused(true)}
@@ -170,26 +150,20 @@ export function MatchesTicker() {
       aria-label="Partidas ao vivo e próximas"
     >
       {/* Fade lateral esquerdo */}
-      <div
-        aria-hidden
-        className="pointer-events-none absolute inset-y-0 left-0 z-10 w-16 bg-gradient-to-r from-navy/60 to-transparent"
-      />
+      <div aria-hidden className="pointer-events-none absolute inset-y-0 left-0 z-10 w-20 bg-gradient-to-r from-black/80 to-transparent" />
       {/* Fade lateral direito */}
-      <div
-        aria-hidden
-        className="pointer-events-none absolute inset-y-0 right-0 z-10 w-16 bg-gradient-to-l from-navy/60 to-transparent"
-      />
+      <div aria-hidden className="pointer-events-none absolute inset-y-0 right-0 z-10 w-20 bg-gradient-to-l from-black/80 to-transparent" />
 
-      {/* Label fixo à esquerda */}
-      <div className="absolute inset-y-0 left-0 z-20 flex items-center">
-        <span className="flex items-center gap-1.5 bg-navy/60 pl-4 pr-3 font-display text-[10px] font-bold uppercase tracking-[0.2em] text-gold/80">
-          <Radio className="h-3 w-3" />
+      {/* Label "PARTIDAS" fixo à esquerda com fundo sólido */}
+      <div className="absolute inset-y-0 left-0 z-20 flex items-center bg-black/60 backdrop-blur-md pr-4">
+        <span className="flex items-center gap-1.5 pl-4 pr-3 font-display text-[10px] font-bold uppercase tracking-[0.2em] text-gold/90">
+          <Radio className="h-3 w-3 text-gold" />
           Partidas
         </span>
       </div>
 
       {/* Track rolante */}
-      <div className="py-2.5 pl-28">
+      <div className="py-2 pl-28">
         <div
           ref={trackRef}
           className="flex will-change-transform"

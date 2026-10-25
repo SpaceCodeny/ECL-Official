@@ -21,7 +21,7 @@ function TeamRow({ team, alignRight, highlight }: { team: MatchTeam; alignRight?
   );
 }
 
-export function MatchCard({ match }: { match: Match }) {
+export function MatchCard({ match, isLive = false }: { match: Match; isLive?: boolean }) {
   // O backend retorna scoreA/scoreB
   const scoreA = match.scoreA ?? null;
   const scoreB = match.scoreB ?? null;
@@ -33,13 +33,30 @@ export function MatchCard({ match }: { match: Match }) {
   const stageName = typeof match.stage === "string" ? match.stage : (match.stage?.name ?? "");
   const tournamentName =
     typeof match.stage === "object" ? (match.stage?.tournament?.name ?? "") : "";
+  const tournamentSlug = 
+    typeof match.stage === "object" ? (match.stage?.tournament?.slug ?? "") : "";
+
+  // Link para a tela da partida
+  const href = `/matches/${match.id}`;
 
   return (
-    <Link href={`/matches/${match.id}`} className="group block">
-      <Card className="h-full transition-colors group-hover:border-gold/40">
+    <Link href={href} className="group block">
+      <Card className={cn(
+        "h-full transition-all",
+        isLive 
+          ? "animate-pulse-border border-2 border-gold shadow-lg shadow-gold/20 group-hover:shadow-gold/40" 
+          : "group-hover:border-gold/40"
+      )}>
         <div className="flex items-center justify-between border-b border-border bg-ink/40 px-3 py-2 sm:px-4 sm:py-2.5">
           <span className="truncate text-[10px] uppercase tracking-widest text-muted sm:text-xs">{tournamentName}</span>
-          <MatchStatusBadge status={match.status} />
+          {isLive ? (
+            <span className="flex items-center gap-1.5 rounded bg-red-600 px-2 py-1 text-[10px] font-bold uppercase tracking-wide text-white">
+              <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-white" />
+              AO VIVO
+            </span>
+          ) : (
+            <MatchStatusBadge status={match.status} />
+          )}
         </div>
         <div className="flex items-center gap-2 p-3 sm:p-4">
           <TeamRow team={match.teamA} highlight={winnerA} />

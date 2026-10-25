@@ -25,10 +25,14 @@ function initials(name: string): string {
 
 /** Logo/marca de equipe ou avatar de jogador com fallback de iniciais. */
 export function Avatar({ name, src, size = "md", className }: AvatarProps) {
+  const hasImage = Boolean(src);
+
   return (
     <div
       className={cn(
-        "flex shrink-0 items-center justify-center overflow-hidden rounded-full border border-border bg-surface font-display font-bold uppercase text-gold",
+        "flex shrink-0 items-center justify-center overflow-hidden rounded-full font-display font-bold uppercase text-gold",
+        // Só mostra borda/fundo quando não tem imagem (fallback de iniciais)
+        !hasImage && "border border-border bg-surface",
         sizeMap[size],
         className,
       )}

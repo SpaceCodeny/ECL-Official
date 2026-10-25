@@ -47,11 +47,19 @@ export function CreateTournamentForm({ onSuccess, onCancel }: Props) {
 
   const { register, handleSubmit, formState: { errors } } = useForm<FormData>({
     resolver: zodResolver(schema),
-    defaultValues: { format: "GROUP_STAGE_PLAYOFFS", seriesFormat: "BO3", maxTeams: 16, autoApprove: false },
+    defaultValues: { format: "GROUP_STAGE_PLAYOFFS", seriesFormat: "BO3", maxTeams: 16, autoApprove: true },
   });
 
   const mutation = useMutation({
-    mutationFn: (data: FormData) => api.post("/tournaments", data, true),
+    mutationFn: (data: FormData) => {
+      // Converter datas de YYYY-MM-DD para ISO datetime
+      const payload = {
+        ...data,
+        startDate: data.startDate ? new Date(data.startDate + "T00:00:00").toISOString() : undefined,
+        registrationDeadline: data.registrationDeadline ? new Date(data.registrationDeadline + "T23:59:59").toISOString() : undefined,
+      };
+      return api.post("/tournaments", payload, true);
+    },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["admin-tournaments"] });
       queryClient.invalidateQueries({ queryKey: ["home", "tournaments"] });

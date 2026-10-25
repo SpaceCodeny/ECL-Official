@@ -38,6 +38,23 @@
   }
 }
 
+@layer utilities {
+  @keyframes pulse-border {
+    0%, 100% {
+      border-color: theme("colors.gold.DEFAULT");
+      box-shadow: 0 0 20px theme("colors.gold.DEFAULT" / 0.3);
+    }
+    50% {
+      border-color: theme("colors.gold.light");
+      box-shadow: 0 0 30px theme("colors.gold.DEFAULT" / 0.5);
+    }
+  }
+
+  .animate-pulse-border {
+    animation: pulse-border 2s ease-in-out infinite;
+  }
+}
+
 /* Respeita a preferência por movimento reduzido */
 @media (prefers-reduced-motion: reduce) {
   *,

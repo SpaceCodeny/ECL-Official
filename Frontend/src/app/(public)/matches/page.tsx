@@ -1,13 +1,18 @@
 import type { Metadata } from "next";
 import { SectionHeader } from "@/components/ui/section-header";
+import { matchesService } from "@/services/matches.service";
+import { MatchesListClient } from "./matches-list-client";
 
 export const metadata: Metadata = { title: "Partidas" };
 
-export default function MatchesPage() {
+export default async function MatchesPage() {
+  // Carregar todas as partidas inicialmente
+  const initialData = await matchesService.getMatches({ limit: 50 });
+
   return (
-    <div className="container-ecl py-12">
+    <div className="container-ecl py-8 sm:py-12">
       <SectionHeader title="Partidas" description="Partidas agendadas, ao vivo e finalizadas." />
-      <p className="text-muted">Página em construção — Fase 4.</p>
+      <MatchesListClient initialData={initialData} />
     </div>
   );
 }

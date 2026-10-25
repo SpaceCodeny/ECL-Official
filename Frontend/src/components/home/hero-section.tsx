@@ -1,50 +1,73 @@
 import Link from "next/link";
+import Image from "next/image";
 import { buttonVariants } from "@/components/ui/button";
 import { ArrowRight, BarChart3 } from "lucide-react";
 
 /**
- * Hero principal da homepage — estático, sem dependência de API.
+ * Hero principal da homepage — imagem de fundo do jogo com gradiente.
  */
 export function HeroSection() {
   return (
-    <section className="relative overflow-hidden border-b border-border bg-ink">
-      {/* Glow de fundo cinematográfico */}
-      <div
-        aria-hidden
-        className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_at_top,_rgba(13,20,38,0.95)_0%,_rgba(8,10,15,1)_65%)]"
-      />
-      <div aria-hidden className="pointer-events-none absolute -top-40 left-1/2 h-[28rem] w-[48rem] -translate-x-1/2 rounded-full bg-gold/10 blur-[140px]" />
-      {/* Linha de grade sutil */}
-      <div
-        aria-hidden
-        className="pointer-events-none absolute inset-0 opacity-[0.04]"
-        style={{
-          backgroundImage:
-            "linear-gradient(to right, #D6B15E 1px, transparent 1px), linear-gradient(to bottom, #D6B15E 1px, transparent 1px)",
-          backgroundSize: "64px 64px",
-        }}
-      />
+    <section className="relative overflow-hidden">
+      {/* ── Imagem de fundo ─────────────────────────────────── */}
+      <div className="absolute inset-0 z-0">
+        <Image
+          src="/images/desktop.png"
+          alt="Standoff 2 — Elite Champions League"
+          fill
+          priority
+          sizes="100vw"
+          className="object-cover object-center"
+        />
+        {/* Gradiente sutil: topo transparente, base escura para texto */}
+        <div
+          aria-hidden
+          className="absolute inset-0 bg-gradient-to-b from-black/20 via-black/30 to-black/70"
+        />
+        {/* Vinheta lateral muito sutil */}
+        <div
+          aria-hidden
+          className="absolute inset-0 bg-gradient-to-r from-black/30 via-transparent to-black/30"
+        />
+      </div>
 
-      <div className="container-ecl relative z-10 flex flex-col items-center py-24 text-center sm:py-32 lg:py-40">
-        <span className="mb-8 inline-flex items-center gap-2 rounded-full border border-gold/30 bg-gold/5 px-4 py-1.5 text-xs font-medium uppercase tracking-[0.2em] text-gold">
+      {/* ── Conteúdo ────────────────────────────────────────── */}
+      <div className="container-ecl relative z-10 flex min-h-[85vh] flex-col items-center justify-center pb-16 pt-12 text-center sm:min-h-[90vh] sm:pb-24 sm:pt-16 lg:min-h-screen lg:pb-32 lg:pt-20">
+        {/* Badge */}
+        <span className="mb-6 inline-flex items-center gap-2 rounded-full border border-gold/40 bg-black/40 px-4 py-1.5 text-[11px] font-medium uppercase tracking-[0.2em] text-gold backdrop-blur-sm sm:mb-8 sm:text-xs">
           Elite Champions League · Standoff 2
         </span>
 
-        <h1 className="font-display text-4xl font-bold uppercase leading-[1.05] tracking-tight text-paper sm:text-6xl lg:text-8xl">
-          The Road to <span className="text-gradient-gold">Glory</span>
+        {/* Título */}
+        <h1 className="font-display font-bold uppercase leading-[1.0] tracking-tight text-white">
+          <span className="block text-5xl sm:text-7xl lg:text-8xl xl:text-9xl">
+            The Road to
+          </span>
+          <span className="block text-5xl text-gold sm:text-7xl lg:text-8xl xl:text-9xl"
+            style={{ textShadow: "0 0 40px rgba(214,177,94,0.5)" }}>
+            Glory
+          </span>
         </h1>
 
-        <p className="mt-6 max-w-2xl text-sm leading-relaxed text-muted sm:text-base lg:text-lg">
+        {/* Descrição */}
+        <p className="mt-6 max-w-sm text-sm leading-relaxed text-white sm:max-w-xl sm:text-base lg:text-lg">
           A plataforma oficial de torneios competitivos de Standoff 2. Campeonatos, equipes,
-          partidas e rankings reunidos em um só ecossistema de esports.
+          partidas e rankings em um só ecossistema de esports.
         </p>
 
-        <div className="mt-10 flex flex-col gap-4 sm:flex-row">
-          <Link href="/tournaments" className={buttonVariants({ variant: "primary", size: "lg" })}>
+        {/* CTAs */}
+        <div className="mt-8 flex w-full max-w-xs flex-col gap-3 sm:max-w-none sm:flex-row sm:justify-center sm:gap-4">
+          <Link
+            href="/tournaments"
+            className={buttonVariants({ variant: "primary", size: "lg" })}
+          >
             Explorar campeonatos
             <ArrowRight className="h-4 w-4" aria-hidden />
           </Link>
-          <Link href="/rankings" className={buttonVariants({ variant: "secondary", size: "lg" })}>
+          <Link
+            href="/rankings"
+            className={buttonVariants({ variant: "secondary", size: "lg" })}
+          >
             <BarChart3 className="h-4 w-4" aria-hidden />
             Ver classificação
           </Link>

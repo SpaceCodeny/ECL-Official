@@ -111,8 +111,9 @@ matchesRouter.get(
             teamA: { select: { id: true, name: true, slug: true, logoUrl: true, tag: true } },
             teamB: { select: { id: true, name: true, slug: true, logoUrl: true, tag: true } },
             winner: { select: { id: true, name: true, slug: true } },
-            stage: { select: { id: true, name: true } },
+            stage: { select: { id: true, name: true, tournament: { select: { id: true, name: true } } } },
             group: { select: { id: true, name: true } },
+            maps: { select: { id: true, mapName: true, order: true, action: true, actionTeamId: true, scoreA: true, scoreB: true, played: true }, orderBy: { order: "asc" } },
           },
         }),
         prisma.match.count({ where }),
@@ -157,7 +158,14 @@ matchesRouter.get(
           teamA: { select: { id: true, name: true, slug: true, logoUrl: true, tag: true } },
           teamB: { select: { id: true, name: true, slug: true, logoUrl: true, tag: true } },
           winner: { select: { id: true, name: true, slug: true } },
-          stage: { select: { id: true, name: true, type: true } },
+          stage: {
+            select: {
+              id: true,
+              name: true,
+              type: true,
+              tournament: { select: { id: true, name: true, slug: true } },
+            },
+          },
           group: { select: { id: true, name: true } },
           maps: true,
           disputes: true,
@@ -265,6 +273,192 @@ matchesRouter.patch(
   }
 );
 
+// ─── PATCH /matches/:id/score ────────────────────────────────────────────────
+// Atualiza placar de uma partida AO VIVO sem finalizá-la.
+matchesRouter.patch(
+  "/:id/score",
+  authenticate,
+  authorize(UserRole.SUPER_ADMIN, UserRole.ADMINISTRATOR, UserRole.REFEREE),
+  async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const { scoreA, scoreB } = req.body as { scoreA: number; scoreB: number };
+
+      const match = await prisma.match.findUnique({ where: { id: getParam(req.params, "id") } });
+      if (!match) throw AppError.notFound("Partida não encontrada");
+      if (match.status !== MatchStatus.LIVE && match.status !== MatchStatus.AWAITING_RESULT) {
+        throw AppError.badRequest("Só é possível atualizar o placar de partidas AO VIVO");
+      }
+      if (typeof scoreA !== "number" || typeof scoreB !== "number" || scoreA < 0 || scoreB < 0) {
+        throw AppError.badRequest("Placar inválido");
+      }
+
+      const updated = await prisma.match.update({
+        where: { id: getParam(req.params, "id") },
+        data: { scoreA, scoreB },
+      });
+
+      res.json(updated);
+    } catch (error) {
+      next(error);
+    }
+  }
+);
+
+// ─── PATCH /matches/:id/maps/:mapId ─────────────────────────────────────────
+// Atualiza rounds de um mapa específico (scoreA/scoreB, 0–13).
+matchesRouter.patch(
+  "/:id/maps/:mapId",
+  authenticate,
+  authorize(UserRole.SUPER_ADMIN, UserRole.ADMINISTRATOR, UserRole.REFEREE),
+  async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const matchId = getParam(req.params, "id");
+      const mapId   = getParam(req.params, "mapId");
+      const { scoreA, scoreB } = req.body as { scoreA: number; scoreB: number };
+
+      if (typeof scoreA !== "number" || typeof scoreB !== "number" || scoreA < 0 || scoreB < 0 || scoreA > 13 || scoreB > 13) {
+        throw AppError.badRequest("Placar de rounds inválido (0–13)");
+      }
+      if (scoreA !== 13 && scoreB !== 13) {
+        throw AppError.badRequest("Um dos times deve ter 13 rounds para fechar o mapa");
+      }
+
+      const mapEntry = await prisma.matchMap.findUnique({ where: { id: mapId } });
+      if (!mapEntry || mapEntry.matchId !== matchId) throw AppError.notFound("Mapa não encontrado");
+
+      const match = await prisma.match.findUnique({ where: { id: matchId } });
+      if (!match) throw AppError.notFound("Partida não encontrada");
+
+      const winnerId = scoreA > scoreB ? match.teamAId : match.teamBId;
+
+      const updated = await prisma.matchMap.update({
+        where: { id: mapId },
+        data: { scoreA, scoreB, winnerId, played: true },
+      });
+
+      res.json(updated);
+    } catch (error) {
+      next(error);
+    }
+  }
+);
+
+// ─── PUT /matches/:id/maps ───────────────────────────────────────────────────
+// Admin define o pool de mapas (picks, bans, deciders) de uma partida.
+// Recebe um array de mapas e substitui todos os registros existentes.
+matchesRouter.put(
+  "/:id/maps",
+  authenticate,
+  authorize(UserRole.SUPER_ADMIN, UserRole.ADMINISTRATOR, UserRole.REFEREE),
+  async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const matchId = getParam(req.params, "id");
+      const match = await prisma.match.findUnique({
+        where: { id: matchId },
+        include: {
+          teamA: { select: { id: true, name: true } },
+          teamB: { select: { id: true, name: true } },
+        },
+      });
+      if (!match) throw AppError.notFound("Partida não encontrada");
+
+      const mapsInput = req.body as Array<{
+        mapName: string;
+        order: number;
+        action?: "PICKED" | "BANNED" | "DECIDER";
+        actionTeamId?: string;
+        scoreA?: number;
+        scoreB?: number;
+        winnerId?: string;
+        played?: boolean;
+      }>;
+
+      if (!Array.isArray(mapsInput)) {
+        throw AppError.badRequest("Body deve ser um array de mapas");
+      }
+
+      // Valida que actionTeamId pertence a um dos dois times
+      for (const m of mapsInput) {
+        if (m.actionTeamId && m.actionTeamId !== match.teamAId && m.actionTeamId !== match.teamBId) {
+          throw AppError.badRequest(`actionTeamId inválido para o mapa ${m.mapName}`);
+        }
+      }
+
+      await prisma.$transaction(async (tx) => {
+        await tx.matchMap.deleteMany({ where: { matchId } });
+        if (mapsInput.length > 0) {
+          await tx.matchMap.createMany({
+            data: mapsInput.map((m) => ({
+              matchId,
+              mapName: m.mapName,
+              order: m.order,
+              action: m.action ?? null,
+              actionTeamId: m.actionTeamId ?? null,
+              scoreA: m.scoreA ?? null,
+              scoreB: m.scoreB ?? null,
+              winnerId: m.winnerId ?? null,
+              played: m.played ?? false,
+            })),
+          });
+        }
+      });
+
+      const updated = await prisma.match.findUnique({
+        where: { id: matchId },
+        include: { maps: { orderBy: { order: "asc" } } },
+      });
+
+      res.json(updated);
+    } catch (error) {
+      next(error);
+    }
+  }
+);
+
+// ─── PATCH /matches/:id/status ───────────────────────────────────────────────
+matchesRouter.patch(
+  "/:id/status",
+  authenticate,
+  authorize(UserRole.SUPER_ADMIN, UserRole.ADMINISTRATOR, UserRole.REFEREE),
+  async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const { status } = req.body as { status: string };
+
+      const allowed: Record<string, MatchStatus[]> = {
+        LIVE: [MatchStatus.SCHEDULED, MatchStatus.READY],
+        AWAITING_RESULT: [MatchStatus.LIVE],
+        CANCELLED: [MatchStatus.SCHEDULED, MatchStatus.READY, MatchStatus.LIVE],
+      };
+
+      const match = await prisma.match.findUnique({ where: { id: getParam(req.params, "id") } });
+      if (!match) throw AppError.notFound("Partida não encontrada");
+
+      const valid = allowed[status];
+      if (!valid) throw AppError.badRequest("Status inválido");
+      if (!valid.includes(match.status)) {
+        throw AppError.badRequest(`Não é possível mover de ${match.status} para ${status}`);
+      }
+
+      const updated = await prisma.match.update({
+        where: { id: getParam(req.params, "id") },
+        data: {
+          status: status as MatchStatus,
+          // Ao iniciar ao vivo, zera o placar automaticamente
+          ...(status === "LIVE" ? { scoreA: 0, scoreB: 0 } : {}),
+        },
+        include: {
+          teamA: { select: { id: true, name: true, slug: true } },
+          teamB: { select: { id: true, name: true, slug: true } },
+        },
+      });
+
+      res.json(updated);
+    } catch (error) {
+      next(error);
+    }
+  }
+);
+
 /**
  * @openapi
  * /api/v1/matches/{id}/result:
@@ -303,8 +497,6 @@ matchesRouter.patch(
  */
 matchesRouter.post(
   "/:id/result",
-  authenticate,
-  authorize(UserRole.SUPER_ADMIN, UserRole.ADMINISTRATOR, UserRole.REFEREE),
   validate(MatchResultSchema),
   async (req: Request, res: Response, next: NextFunction) => {
     try {

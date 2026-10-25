@@ -420,3 +420,48 @@ tournamentsRouter.post(
     }
   }
 );
+
+// ─── GET /tournaments/:id/bracket ────────────────────────────────────────────
+// Retorna as fases do torneio com suas partidas para montar o chaveamento.
+// Fases de grupo (type=GROUP) incluem standings; fases eliminatórias incluem
+// o bracket tradicional de mata-mata.
+tournamentsRouter.get(
+  "/:id/bracket",
+  async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const stages = await prisma.tournamentStage.findMany({
+        where: { tournamentId: getParam(req.params, "id") },
+        orderBy: { order: "asc" },
+        include: {
+          groups: {
+            orderBy: { order: "asc" },
+            include: {
+              standings: {
+                orderBy: { points: "desc" },
+                include: {
+                  team: { select: { id: true, name: true, slug: true, logoUrl: true, tag: true } },
+                },
+              },
+            },
+          },
+          matches: {
+            orderBy: { scheduledAt: "asc" },
+            include: {
+              teamA: { select: { id: true, name: true, slug: true, logoUrl: true, tag: true } },
+              teamB: { select: { id: true, name: true, slug: true, logoUrl: true, tag: true } },
+              winner: { select: { id: true, name: true, slug: true } },
+              group: { select: { id: true, name: true } },
+            },
+          },
+        },
+      });
+
+      res.json(stages);
+    } catch (error) {
+      next(error);
+    }
+  }
+);
+
+// ─── PATCH /matches/:id/status ────────────────────────────────────────────────
+// Atualiza o status de uma partida (iniciar, finalizar) com validação.

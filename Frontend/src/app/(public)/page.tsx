@@ -18,7 +18,7 @@ export default function HomePage() {
       <HeroSection />
       <FeaturedTournamentSection />
       <TournamentsSection />
-      <StatsSection />
+      {/* <StatsSection /> */}
       <RankingSection />
       <AnnouncementsSection />
     </>

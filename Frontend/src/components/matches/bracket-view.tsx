@@ -1,119 +1,106 @@
 "use client";
 
 import Link from "next/link";
-import { GitBranch } from "lucide-react";
+import { GitBranch, Users } from "lucide-react";
 import { Avatar } from "@/components/ui/avatar";
 import { EmptyState } from "@/components/ui/empty-state";
-import { Badge } from "@/components/ui/badge";
-import { formatDate, cn } from "@/lib/utils";
+import { cn } from "@/lib/utils";
+import type { BracketStageData } from "@/components/tournaments/tournament-detail-client";
 
-// ─── Interfaces ───────────────────────────────────────────────────────────────
+// ─── Tabela de Fase de Grupos ──────────────────────────────────────────────────
 
-interface BracketTeam {
-  id: string;
-  name: string;
-  tag: string | null;
-  logoUrl: string | null;
+function GroupStandingsTable({ group }: { group: { id: string; name: string; standings: { team: { id: string; name: string; slug: string; logoUrl: string | null; tag: string | null }; played: number; wins: number; losses: number; mapsWon: number; mapsLost: number; points: number }[] } }) {
+  return (
+    <div className="card-ecl overflow-hidden">
+      <div className="border-b border-border bg-gold/5 px-4 py-2.5">
+        <h3 className="font-display text-sm font-bold uppercase tracking-widest text-gold">
+          {group.name}
+        </h3>
+      </div>
+      <div className="overflow-x-auto">
+        <table className="w-full text-xs sm:text-sm">
+          <thead>
+            <tr className="border-b border-border text-[10px] uppercase tracking-widest text-muted sm:text-xs">
+              <th className="py-2.5 pl-3 text-left w-7">#</th>
+              <th className="py-2.5 pl-2 text-left">Equipe</th>
+              <th className="py-2.5 px-2 text-center">J</th>
+              <th className="py-2.5 px-2 text-center">V</th>
+              <th className="py-2.5 px-2 text-center">D</th>
+              <th className="hidden py-2.5 px-2 text-center sm:table-cell">Maps</th>
+              <th className="py-2.5 pr-3 text-right font-bold text-gold">Pts</th>
+            </tr>
+          </thead>
+          <tbody>
+            {group.standings.length === 0 ? (
+              <tr>
+                <td colSpan={7} className="py-6 text-center text-xs text-muted">
+                  Nenhum dado de classificação ainda.
+                </td>
+              </tr>
+            ) : group.standings.map((row, i) => (
+              <tr
+                key={row.team.id}
+                className={cn(
+                  "border-b border-border/50 last:border-0 transition-colors hover:bg-surfaceHover",
+                  i < 2 && "bg-gold/5",
+                )}
+              >
+                <td className="py-2.5 pl-3 font-display text-xs font-bold text-muted">{i + 1}</td>
+                <td className="py-2.5 pl-2">
+                  <Link href={`/teams/${row.team.slug}`} className="flex items-center gap-2 hover:text-gold">
+                    <Avatar name={row.team.name} src={row.team.logoUrl} size="sm" className="h-6 w-6 text-[9px]" />
+                    <span className="font-display font-semibold uppercase tracking-tight truncate max-w-[100px] sm:max-w-none">{row.team.name}</span>
+                    {i < 2 && <span className="hidden rounded bg-gold/20 px-1 py-px text-[9px] font-bold text-gold sm:inline">CLASSIF.</span>}
+                  </Link>
+                </td>
+                <td className="py-2.5 px-2 text-center text-muted">{row.played}</td>
+                <td className="py-2.5 px-2 text-center text-emerald-400">{row.wins}</td>
+                <td className="py-2.5 px-2 text-center text-red-400">{row.losses}</td>
+                <td className="hidden py-2.5 px-2 text-center text-muted sm:table-cell">{row.mapsWon}/{row.mapsLost}</td>
+                <td className="py-2.5 pr-3 text-right font-display text-sm font-bold text-gold">{row.points}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  );
 }
 
-interface BracketMatch {
-  id: string;
-  teamA: BracketTeam | null;
-  teamB: BracketTeam | null;
-  scoreA: number | null;
-  scoreB: number | null;
-  winnerTeamId: string | null;
-  status: string;
-  scheduledAt?: string | null;
-  seriesFormat?: string;
-}
+// ─── Card de confronto no bracket ─────────────────────────────────────────────
 
-interface BracketStage {
-  id: string;
-  name: string;
-  order: number;
-  type: string;
-  matches: BracketMatch[];
-}
-
-interface BracketViewProps {
-  stages?: BracketStage[];
-}
-
-// ─── Labels de status ─────────────────────────────────────────────────────────
-
-const STATUS_LABEL: Record<string, string> = {
-  SCHEDULED: "AGD",
-  READY: "AGD",
-  LIVE: "AO VIVO",
-  AWAITING_RESULT: "AG. RESULT.",
-  COMPLETED: "FIM",
-  CANCELLED: "CANCEL.",
-};
-
-const statusVariant = (s: string): "live" | "success" | "warning" | "neutral" => {
-  if (s === "LIVE") return "live";
-  if (s === "COMPLETED") return "success";
-  if (s === "AWAITING_RESULT" || s === "READY") return "warning";
-  return "neutral";
-};
-
-// ─── Slot individual de uma partida ───────────────────────────────────────────
-
-function BracketSlot({
-  match,
-  isLast,
-  connectNext,
-}: {
-  match: BracketMatch;
-  isLast: boolean;
-  connectNext: boolean;
-}) {
+function BracketMatchCard({ match }: { match: BracketStageData["matches"][0] }) {
   const isCompleted = match.status === "COMPLETED";
+  const isLive = match.status === "LIVE" || match.status === "AWAITING_RESULT";
   const hasScore = match.scoreA !== null && match.scoreB !== null;
+  const tbd = !match.teamA || !match.teamB;
 
-  function TeamRow({
-    team,
-    score,
-    winner,
-    tbd,
-  }: {
-    team: BracketTeam | null;
-    score: number | null;
-    winner: boolean;
-    tbd?: boolean;
-  }) {
+  const winnerA = isCompleted && match.winnerTeamId === match.teamA?.id;
+  const winnerB = isCompleted && match.winnerTeamId === match.teamB?.id;
+
+  function TeamSlot({ team, score, winner, side }: { team: BracketStageData["matches"][0]["teamA"]; score: number | null; winner: boolean; side: "top" | "bot" }) {
     return (
-      <div
-        className={cn(
-          "flex items-center justify-between gap-2 px-3 py-2.5 transition-colors",
-          winner && "bg-gold/10",
-        )}
-      >
+      <div className={cn(
+        "flex items-center justify-between gap-2 px-3 py-2.5",
+        winner && "bg-gold/10",
+        side === "top" ? "border-b border-border/40" : "",
+      )}>
         <div className="flex min-w-0 items-center gap-2">
           {team ? (
-            <Avatar name={team.name} src={team.logoUrl} size="sm" className="h-6 w-6 text-[10px]" />
+            <Avatar name={team.name} src={team.logoUrl} size="sm" className="h-6 w-6 shrink-0 text-[9px]" />
           ) : (
-            <div className="h-6 w-6 rounded-full border border-dashed border-border" />
+            <div className="h-6 w-6 shrink-0 rounded-full border border-dashed border-border/60" />
           )}
-          <span
-            className={cn(
-              "truncate text-xs font-semibold",
-              tbd && "italic text-muted/60",
-              !tbd && winner ? "text-gold" : "text-paper",
-              !tbd && !winner && "text-paper/80",
-            )}
-          >
+          <span className={cn(
+            "truncate text-xs font-semibold",
+            !team && "italic text-muted/50",
+            team && winner ? "text-gold" : "text-paper/80",
+          )}>
             {team ? team.name : "A definir"}
           </span>
         </div>
         {hasScore && score !== null ? (
-          <span
-            className={cn(
-              "shrink-0 min-w-[1.5rem] text-center font-display text-sm font-bold",
-              winner ? "text-gold" : "text-muted",
-            )}
-          >
+          <span className={cn("shrink-0 min-w-[1.25rem] text-center font-display text-sm font-bold", winner ? "text-gold" : "text-muted")}>
             {score}
           </span>
         ) : null}
@@ -121,146 +108,200 @@ function BracketSlot({
     );
   }
 
-  const winnerA = isCompleted && match.winnerTeamId === match.teamA?.id;
-  const winnerB = isCompleted && match.winnerTeamId === match.teamB?.id;
-  const tbd = !match.teamA || !match.teamB;
+  const inner = (
+    <div className={cn(
+      "w-48 overflow-hidden rounded-lg border bg-surface shadow-sm transition-all",
+      isLive ? "border-red-500/60 shadow-red-500/10" : "border-border",
+      !tbd && "hover:border-gold/40 hover:shadow-gold/10",
+    )}>
+      {/* Status pill */}
+      <div className="flex items-center justify-between border-b border-border/60 bg-ink/60 px-3 py-1">
+        {isLive ? (
+          <span className="flex items-center gap-1 text-[9px] font-bold uppercase text-red-400">
+            <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-red-400" />
+            Ao Vivo
+          </span>
+        ) : (
+          <span className="text-[9px] text-muted/60 uppercase tracking-wide">
+            {match.status === "COMPLETED" ? "Finalizado" : match.status === "SCHEDULED" ? "Agendado" : match.status}
+          </span>
+        )}
+        <span className="text-[9px] text-muted/40">{match.seriesFormat}</span>
+      </div>
+      <TeamSlot team={match.teamA} score={match.scoreA} winner={winnerA} side="top" />
+      <TeamSlot team={match.teamB} score={match.scoreB} winner={winnerB} side="bot" />
+    </div>
+  );
+
+  if (tbd) return <div className="cursor-default">{inner}</div>;
 
   return (
-    /* Wrapper de posicionamento — inclui a linha conectora direita */
-    <div className={cn("relative flex items-center", !isLast && "mb-0")}>
-      {/* Card do confronto */}
-      <Link
-        href={`/matches/${match.id}`}
-        className="group w-52 overflow-hidden rounded-lg border border-border bg-surface shadow-sm transition-all hover:border-gold/40 hover:shadow-gold/10"
-        tabIndex={tbd ? -1 : 0}
-        onClick={tbd ? (e) => e.preventDefault() : undefined}
-      >
-        {/* Header: data + status */}
-        <div className="flex items-center justify-between border-b border-border/60 bg-ink/60 px-3 py-1.5">
-          <span className="text-[10px] font-medium text-muted/80">
-            {match.scheduledAt ? formatDate(match.scheduledAt) : "—"}
-          </span>
-          <Badge variant={statusVariant(match.status)} className="px-1.5 py-0 text-[9px]">
-            {STATUS_LABEL[match.status] ?? match.status}
-          </Badge>
-        </div>
-
-        {/* Times */}
-        <TeamRow team={match.teamA} score={match.scoreA} winner={winnerA} tbd={!match.teamA} />
-        <div className="mx-3 border-t border-border/40" />
-        <TeamRow team={match.teamB} score={match.scoreB} winner={winnerB} tbd={!match.teamB} />
-      </Link>
-
-      {/* Linha horizontal saindo do card para a direita */}
-      {connectNext && (
-        <div className="h-px w-8 shrink-0 bg-border" aria-hidden />
-      )}
-    </div>
+    <Link href={`/matches/${match.id}`} className="block">
+      {inner}
+    </Link>
   );
 }
 
-// ─── Coluna de uma fase ───────────────────────────────────────────────────────
+// ─── Bracket eliminatório — renderização SVG matemática ──────────────────────
+
+// Dimensões fixas do card (px)
+const CARD_W = 200;
+const CARD_H = 92; // header(26) + row(33) + row(33) = 92
+const COL_GAP = 56; // espaço horizontal entre colunas
+const CONNECTOR_W = COL_GAP; // comprimento das linhas horizontais
 
 /**
- * Organiza os slots em pares com linhas conectoras verticais entre cada par,
- * e linha horizontal à esquerda entrando em cada slot a partir do par anterior.
- *
- * Layout por fase:
- *
- *  ┌──────┐──           ┌──────┐──
- *  │ M1   │  ├──── ──── │ M5   │
- *  └──────┘──           └──────┘
- *  ┌──────┐──
- *  │ M2   │  ┘
- *  └──────┘
+ * Calcula as posições Y (centro) de cada card por fase.
+ * Fase 0: N cards espaçados por GAP_0
+ * Fase 1: N/2 cards, cada um centralizado entre o par da fase anterior
+ * E assim por diante.
  */
-function BracketColumn({
-  stage,
-  isLast,
-}: {
-  stage: BracketStage;
-  isLast: boolean;
-}) {
-  const matches = stage.matches;
+function computeLayout(stages: BracketStageData[]): {
+  positions: number[][]; // positions[stageIdx][matchIdx] = centerY
+  totalHeight: number;
+  colX: number[];        // x esquerdo de cada coluna
+} {
+  if (stages.length === 0) return { positions: [], totalHeight: 0, colX: [] };
 
-  // Agrupa em pares para desenhar os conectores entre confrontos que levam ao mesmo
-  // confronto na próxima fase. Pares: [M0,M1], [M2,M3], ...
-  const pairs: BracketMatch[][] = [];
-  for (let i = 0; i < matches.length; i += 2) {
-    pairs.push(matches.slice(i, i + 2));
+  const firstCount = stages[0]?.matches.length ?? 1;
+  // Espaço inicial entre cards — garante no mínimo 16px de gap
+  const BASE_VERTICAL = CARD_H + 16;
+
+  // Posições Y do centro de cada card na primeira fase
+  const firstPositions: number[] = [];
+  for (let i = 0; i < firstCount; i++) {
+    firstPositions.push(i * BASE_VERTICAL + CARD_H / 2);
   }
-  // Se ímpar (ex: grande final), trata como par único
-  if (matches.length === 1) {
-    pairs.push([matches[0]!]);
+
+  const positions: number[][] = [firstPositions];
+
+  // Cada fase seguinte: centro entre cada par da fase anterior
+  for (let si = 1; si < stages.length; si++) {
+    const prev = positions[si - 1]!;
+    const cur: number[] = [];
+    for (let i = 0; i < prev.length; i += 2) {
+      const a = prev[i]!;
+      const b = prev[i + 1] ?? a;
+      cur.push((a + b) / 2);
+    }
+    positions.push(cur);
+  }
+
+  // Altura total necessária
+  const allY = positions.flat();
+  const totalHeight = Math.max(...allY) + CARD_H / 2 + 8;
+
+  // X de cada coluna
+  const colX: number[] = [];
+  for (let si = 0; si < stages.length; si++) {
+    colX.push(si * (CARD_W + COL_GAP));
+  }
+
+  return { positions, totalHeight, colX };
+}
+
+function EliminationBracket({ stages }: { stages: BracketStageData[] }) {
+  if (stages.length === 0) return null;
+
+  const { positions, totalHeight, colX } = computeLayout(stages);
+  const totalWidth = (colX[colX.length - 1] ?? 0) + CARD_W;
+
+  // Gera todas as linhas de conexão entre fases
+  const lines: { x1: number; y1: number; x2: number; y2: number }[] = [];
+  for (let si = 0; si < stages.length - 1; si++) {
+    const curPositions = positions[si]!;
+    const nextPositions = positions[si + 1]!;
+    const xRight = colX[si]! + CARD_W;      // lado direito da coluna atual
+    const xLeft = colX[si + 1]!;            // lado esquerdo da próxima coluna
+    const xMid = xRight + CONNECTOR_W / 2;  // meio do conector
+
+    // Cada par (i, i+1) se conecta ao próximo match (i/2)
+    for (let i = 0; i < curPositions.length; i += 2) {
+      const yTop = curPositions[i]!;
+      const yBot = curPositions[i + 1] ?? yTop;
+      const yNext = nextPositions[Math.floor(i / 2)]!;
+
+      if (curPositions[i + 1] !== undefined) {
+        // Linha horizontal do card top → meio
+        lines.push({ x1: xRight, y1: yTop, x2: xMid, y2: yTop });
+        // Linha horizontal do card bot → meio
+        lines.push({ x1: xRight, y1: yBot, x2: xMid, y2: yBot });
+        // Linha vertical ligando top e bot no meio
+        lines.push({ x1: xMid, y1: yTop, x2: xMid, y2: yBot });
+        // Linha horizontal do meio → próxima fase
+        lines.push({ x1: xMid, y1: yNext, x2: xLeft, y2: yNext });
+      } else {
+        // Fase final: só um card — linha reta
+        lines.push({ x1: xRight, y1: yTop, x2: xLeft, y2: yTop });
+      }
+    }
   }
 
   return (
-    <div className="flex flex-col">
-      {/* Nome da fase */}
-      <p className="mb-4 text-center text-xs font-semibold uppercase tracking-widest text-muted/80">
-        {stage.name}
-      </p>
+    <div className="overflow-x-auto pb-4">
+      <div
+        className="relative"
+        style={{ width: totalWidth, height: totalHeight, minWidth: totalWidth }}
+      >
+        {/* SVG único com todas as linhas — fica atrás dos cards */}
+        <svg
+          className="pointer-events-none absolute inset-0"
+          width={totalWidth}
+          height={totalHeight}
+          aria-hidden
+        >
+          {lines.map((l, i) => (
+            <line
+              key={i}
+              x1={l.x1} y1={l.y1}
+              x2={l.x2} y2={l.y2}
+              stroke="rgba(212,175,55,0.25)"
+              strokeWidth={1.5}
+              strokeLinecap="round"
+            />
+          ))}
+        </svg>
 
-      {/* Pares de confrontos */}
-      <div className="flex flex-col gap-0">
-        {pairs.map((pair, pi) => {
-          const topMatch = pair[0];
-          const botMatch = pair[1];
-
-          if (!topMatch) return null;
-
-          // Fase final: só um jogo
-          if (!botMatch) {
-            return (
-              <div key={`pair-${pi}`} className="flex items-center">
-                {/* Linha de entrada (vindo da fase anterior) */}
-                {!isLast && (
-                  <div className="h-px w-8 shrink-0 bg-border" aria-hidden />
-                )}
-                <BracketSlot
-                  match={topMatch}
-                  isLast
-                  connectNext={false}
-                />
-              </div>
-            );
-          }
-
-          return (
-            <div key={`pair-${pi}`} className="relative mb-8 flex flex-col">
-              {/* Slot superior */}
-              <div className="flex items-center">
-                {/* Linha horizontal entrando (da fase anterior) */}
-                {pi === 0 || true ? null : null}
-                <div className="flex items-center">
-                  <BracketSlot
-                    match={topMatch}
-                    isLast={false}
-                    connectNext={!isLast}
-                  />
-                </div>
-              </div>
-
-              {/* Conector vertical entre os dois slots do par */}
-              {!isLast && (
-                <div
-                  className="absolute right-0 top-[calc(50%-1rem)] h-[calc(50%+1rem+2.4rem)] w-px bg-border"
-                  aria-hidden
-                  style={{ right: "-0px" }}
-                />
-              )}
-
-              {/* Slot inferior */}
-              <div className="mt-4 flex items-center">
-                <BracketSlot
-                  match={botMatch}
-                  isLast
-                  connectNext={!isLast}
-                />
-              </div>
+        {/* Cards posicionados absolutamente */}
+        {stages.map((stage, si) => (
+          <div key={stage.id}>
+            {/* Label da fase */}
+            <div
+              className="absolute text-center"
+              style={{ left: colX[si], top: 0, width: CARD_W }}
+            >
+              {/* apenas mostrar se for a primeira linha */}
             </div>
-          );
-        })}
+
+            {stage.matches.map((match, mi) => {
+              const cy = positions[si]?.[mi] ?? 0;
+              const top = cy - CARD_H / 2;
+
+              return (
+                <div
+                  key={match.id}
+                  className="absolute"
+                  style={{ left: colX[si], top, width: CARD_W }}
+                >
+                  <BracketMatchCard match={match} />
+                </div>
+              );
+            })}
+          </div>
+        ))}
+      </div>
+
+      {/* Labels das fases abaixo do bracket */}
+      <div className="mt-4 flex" style={{ width: totalWidth, minWidth: totalWidth }}>
+        {stages.map((stage, si) => (
+          <div
+            key={stage.id}
+            className="text-center text-[10px] font-semibold uppercase tracking-widest text-muted/60 sm:text-xs"
+            style={{ width: CARD_W + (si < stages.length - 1 ? COL_GAP : 0), paddingLeft: 0 }}
+          >
+            {stage.name}
+          </div>
+        ))}
       </div>
     </div>
   );
@@ -268,13 +309,14 @@ function BracketColumn({
 
 // ─── Componente principal ─────────────────────────────────────────────────────
 
-export function BracketView({ stages }: BracketViewProps) {
-  // Filtra apenas fases do tipo bracket (não grupos)
-  const bracketStages = (stages ?? [])
-    .filter((s) => s.type !== "GROUP")
-    .sort((a, b) => a.order - b.order);
+export function BracketView({ stages }: { stages?: BracketStageData[] }) {
+  const allStages = stages ?? [];
 
-  if (!bracketStages.length) {
+  const groupStages = allStages.filter((s) => s.type === "GROUP");
+  const elimStages = allStages.filter((s) => s.type !== "GROUP").sort((a, b) => a.order - b.order);
+
+  // Nenhuma dado ainda
+  if (allStages.length === 0) {
     return (
       <EmptyState
         icon={GitBranch}
@@ -284,169 +326,59 @@ export function BracketView({ stages }: BracketViewProps) {
     );
   }
 
-  // Determina o número total de fases para calcular o espaçamento vertical
-  // entre pares: fases iniciais têm mais jogos, então o gap entre pares cresce
-  // conforme avança (metade dos jogos a cada fase).
-  const maxMatches = Math.max(...bracketStages.map((s) => s.matches.length), 1);
-
   return (
-    <div className="overflow-x-auto pb-4">
-      {/* Grade horizontal de fases */}
-      <div
-        className="flex min-w-max items-start gap-0"
-        role="region"
-        aria-label="Chaveamento do campeonato"
-      >
-        {bracketStages.map((stage, stageIdx) => {
-          const isLast = stageIdx === bracketStages.length - 1;
-          const matchCount = stage.matches.length;
+    <div className="space-y-10">
+      {/* ── 1. Fase de Grupos ────────────────────────────────────── */}
+      {groupStages.length > 0 && (
+        <div className="space-y-6">
+          <div className="flex items-center gap-3">
+            <div className="h-px flex-1 bg-gradient-to-r from-transparent via-gold/30 to-transparent" />
+            <h2 className="flex items-center gap-2 font-display text-lg font-bold uppercase tracking-tight text-gold sm:text-xl">
+              <Users className="h-5 w-5" />
+              Fase de Grupos
+            </h2>
+            <div className="h-px flex-1 bg-gradient-to-r from-transparent via-gold/30 to-transparent" />
+          </div>
 
-          // Cada fase tem verticalmente mais espaço entre pares que a anterior.
-          // O fator de escala: cada fase eliminatória dobra o espaço entre pares.
-          const pairGap = Math.pow(2, stageIdx) * 4; // rem
-
-          return (
-            <div
-              key={stage.id}
-              className="flex flex-col items-center"
-              style={{
-                // Centraliza verticalmente cada fase em relação à fase anterior
-                marginTop: stageIdx === 0 ? "0" : `${(Math.pow(2, stageIdx - 1) * 4) / 2}rem`,
-              }}
-            >
-              {/* Nome da fase */}
-              <p className="mb-4 w-60 text-center text-xs font-semibold uppercase tracking-widest text-muted/80">
-                {stage.name}
-              </p>
-
-              {/* Confrontos da fase */}
-              <div
-                className="flex flex-col"
-                style={{ gap: `${pairGap}rem` }}
-              >
-                {pairMatches(stage.matches).map((pair, pi) => {
-                  const top = pair[0];
-                  const bot = pair[1];
-
-                  if (!top) return null;
-
-                  // Grande final ou semifinal com apenas um slot
-                  if (!bot) {
-                    return (
-                      <div key={`pair-${pi}`} className="relative flex items-center">
-                        {/* Linha entrando da esquerda */}
-                        {stageIdx > 0 && (
-                          <div className="h-px w-8 shrink-0 bg-border" aria-hidden />
-                        )}
-                        <BracketSlot match={top} isLast connectNext={false} />
-                      </div>
-                    );
-                  }
-
-                  return (
-                    <BracketPair
-                      key={`pair-${pi}`}
-                      top={top}
-                      bot={bot}
-                      isLastStage={isLast}
-                      showEntryLine={stageIdx > 0}
-                    />
-                  );
-                })}
-              </div>
+          {groupStages.map((stage) => (
+            <div key={stage.id}>
+              {stage.groups.length > 0 ? (
+                <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
+                  {stage.groups.map((group) => (
+                    <GroupStandingsTable key={group.id} group={group} />
+                  ))}
+                </div>
+              ) : (
+                <p className="text-sm text-muted">Grupos ainda não definidos.</p>
+              )}
             </div>
-          );
-        })}
-      </div>
-    </div>
-  );
-}
+          ))}
+        </div>
+      )}
 
-// ─── Utilitários ──────────────────────────────────────────────────────────────
+      {/* ── 2. Chaveamento Eliminatório ──────────────────────────── */}
+      {elimStages.length > 0 && (
+        <div className="space-y-6">
+          <div className="flex items-center gap-3">
+            <div className="h-px flex-1 bg-gradient-to-r from-transparent via-gold/30 to-transparent" />
+            <h2 className="flex items-center gap-2 font-display text-lg font-bold uppercase tracking-tight text-gold sm:text-xl">
+              <GitBranch className="h-5 w-5" />
+              Chaveamento Mata-Mata
+            </h2>
+            <div className="h-px flex-1 bg-gradient-to-r from-transparent via-gold/30 to-transparent" />
+          </div>
 
-/** Agrupa matches em pares (cada par alimenta um confronto na fase seguinte). */
-function pairMatches(matches: BracketMatch[]): (BracketMatch | undefined)[][] {
-  const pairs: (BracketMatch | undefined)[][] = [];
-  for (let i = 0; i < matches.length; i += 2) {
-    pairs.push([matches[i], matches[i + 1]]);
-  }
-  if (matches.length === 1) return [[matches[0], undefined]];
-  return pairs;
-}
+          <EliminationBracket stages={elimStages} />
+        </div>
+      )}
 
-// ─── Par de confrontos com conectores ─────────────────────────────────────────
-
-function BracketPair({
-  top,
-  bot,
-  isLastStage,
-  showEntryLine,
-}: {
-  top: BracketMatch;
-  bot: BracketMatch;
-  isLastStage: boolean;
-  showEntryLine: boolean;
-}) {
-  // Altura do slot de confronto (header 28px + 2 times × 38px + borders ≈ 110px)
-  const SLOT_H = 110;
-  // Gap entre os dois slots do par
-  const GAP = 16;
-  // Ponto vertical central de cada slot
-  const topCenter = SLOT_H / 2;
-  const botCenter = SLOT_H + GAP + SLOT_H / 2;
-  // Meio do par (onde a linha vertical encontra a horizontal de saída)
-  const midY = (topCenter + botCenter) / 2;
-
-  return (
-    <div className="relative flex flex-col" style={{ gap: `${GAP}px` }}>
-      {/* Slot superior */}
-      <div className="flex items-center">
-        {showEntryLine && (
-          <div className="h-px w-8 shrink-0 bg-border" aria-hidden />
-        )}
-        <BracketSlot match={top} isLast={false} connectNext={!isLastStage} />
-      </div>
-
-      {/* Slot inferior */}
-      <div className="flex items-center">
-        {showEntryLine && (
-          <div className="h-px w-8 shrink-0 bg-border" aria-hidden />
-        )}
-        <BracketSlot match={bot} isLast connectNext={!isLastStage} />
-      </div>
-
-      {/* Conector vertical + horizontal de saída (só se não for a última fase) */}
-      {!isLastStage && (
-        <svg
-          className="pointer-events-none absolute"
-          aria-hidden
-          style={{
-            left: `calc(100% - 32px)`, // começa na linha horizontal do slot
-            top: 0,
-            width: 40,
-            height: SLOT_H * 2 + GAP,
-            overflow: "visible",
-          }}
-        >
-          {/* Linha vertical que conecta o meio do top ao meio do bot */}
-          <line
-            x1={32}
-            y1={topCenter}
-            x2={32}
-            y2={botCenter}
-            stroke="#1F2937"
-            strokeWidth={1.5}
-          />
-          {/* Linha horizontal saindo do meio vertical para a direita */}
-          <line
-            x1={32}
-            y1={midY}
-            x2={40}
-            y2={midY}
-            stroke="#1F2937"
-            strokeWidth={1.5}
-          />
-        </svg>
+      {/* Nenhum conteúdo renderizável */}
+      {groupStages.length === 0 && elimStages.length === 0 && (
+        <EmptyState
+          icon={GitBranch}
+          title="Chaveamento não gerado"
+          description="O chaveamento estará disponível quando o campeonato entrar na fase eliminatória."
+        />
       )}
     </div>
   );

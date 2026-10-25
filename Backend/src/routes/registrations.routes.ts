@@ -144,11 +144,14 @@ registrationsRouter.post(
         throw AppError.badRequest("Torneio já atingiu o número máximo de times");
       }
 
+      // Admin sempre aprova automaticamente, caso contrário segue a regra do torneio
+      const shouldAutoApprove = isAdmin || tournament.autoApprove;
+
       const registration = await prisma.tournamentRegistration.create({
         data: {
           tournamentId,
           teamId,
-          status: tournament.autoApprove ? RegistrationStatus.APPROVED : RegistrationStatus.PENDING,
+          status: shouldAutoApprove ? RegistrationStatus.APPROVED : RegistrationStatus.PENDING,
         },
         include: {
           team: { select: { id: true, name: true, slug: true, logoUrl: true } },

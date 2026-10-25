@@ -92,14 +92,14 @@ export function RankingsClient() {
           <table className="w-full text-sm">
             <thead>
               <tr className="border-b border-border text-xs uppercase tracking-widest text-muted">
-                <th className="py-3 pl-4 text-left w-10">Pos.</th>
+                <th className="w-16 py-3 pl-4 text-left sm:w-20">Pos.</th>
                 <th className="py-3 text-left">Equipe</th>
-                <th className="hidden py-3 text-center sm:table-cell">Jogos</th>
-                <th className="hidden py-3 text-center sm:table-cell">V</th>
-                <th className="hidden py-3 text-center sm:table-cell">D</th>
-                <th className="hidden py-3 text-center md:table-cell">Aprov.</th>
-                <th className="hidden py-3 text-center lg:table-cell">Títulos</th>
-                <th className="py-3 pr-4 text-right font-bold text-gold">Pontos</th>
+                <th className="hidden w-16 py-3 text-center sm:table-cell">Jogos</th>
+                <th className="hidden w-12 py-3 text-center sm:table-cell">V</th>
+                <th className="hidden w-12 py-3 text-center sm:table-cell">D</th>
+                <th className="hidden w-20 py-3 text-center md:table-cell">Aprov.</th>
+                <th className="hidden w-20 py-3 text-center lg:table-cell">Títulos</th>
+                <th className="w-20 py-3 pr-4 text-right font-bold text-gold sm:w-24">Pontos</th>
               </tr>
             </thead>
             <tbody>
@@ -109,34 +109,34 @@ export function RankingsClient() {
                 return (
                   <tr key={e.team.id} className={cn("border-b border-border/50 last:border-0 transition-colors hover:bg-surfaceHover", i < 3 && "bg-gold/5")}>
                     <td className="py-3 pl-4">
-                      <div className="flex items-center gap-2">
-                        <span className={cn("flex h-7 w-7 items-center justify-center rounded font-display text-sm font-bold", i < 3 ? "bg-gold/15 text-gold" : "text-muted")}>
+                      <div className="flex items-center gap-1.5 sm:gap-2">
+                        <span className={cn("flex h-7 w-7 shrink-0 items-center justify-center rounded font-display text-sm font-bold tabular-nums", i < 3 ? "bg-gold/15 text-gold" : "text-muted")}>
                           {i + 1}
                         </span>
                         {delta !== null && delta !== 0 ? (
                           delta > 0
-                            ? <TrendingUp className="h-3.5 w-3.5 text-emerald-400" />
-                            : <TrendingDown className="h-3.5 w-3.5 text-red-400" />
-                        ) : <Minus className="h-3.5 w-3.5 text-muted/50" />}
+                            ? <TrendingUp className="h-3 w-3 shrink-0 text-emerald-400 sm:h-3.5 sm:w-3.5" />
+                            : <TrendingDown className="h-3 w-3 shrink-0 text-red-400 sm:h-3.5 sm:w-3.5" />
+                        ) : <Minus className="h-3 w-3 shrink-0 text-muted/50 sm:h-3.5 sm:w-3.5" />}
                       </div>
                     </td>
-                    <td className="py-3">
-                      <Link href={`/teams/${e.team.slug}`} className="flex items-center gap-3 hover:text-gold">
-                        <Avatar name={e.team.name} src={e.team.logoUrl} size="sm" />
-                        <div className="min-w-0">
-                          <span className="font-display font-semibold uppercase tracking-tight">{e.team.name}</span>
-                          {e.team.tag && <span className="ml-2 text-xs text-muted">{e.team.tag}</span>}
+                    <td className="py-3 pr-2">
+                      <Link href={`/teams/${e.team.slug}`} className="flex items-center gap-2 hover:text-gold sm:gap-3">
+                        <Avatar name={e.team.name} src={e.team.logoUrl} size="sm" className="shrink-0" />
+                        <div className="min-w-0 flex-1">
+                          <span className="block truncate font-display text-xs font-semibold uppercase tracking-tight sm:text-sm">{e.team.name}</span>
+                          {e.team.tag && <span className="text-[10px] text-muted sm:text-xs">{e.team.tag}</span>}
                         </div>
                       </Link>
                     </td>
-                    <td className="hidden py-3 text-center text-muted sm:table-cell">{e.matchesPlayed}</td>
-                    <td className="hidden py-3 text-center text-emerald-400 sm:table-cell">{e.wins}</td>
-                    <td className="hidden py-3 text-center text-red-400 sm:table-cell">{e.losses}</td>
-                    <td className="hidden py-3 text-center text-muted md:table-cell">{rate}%</td>
+                    <td className="hidden py-3 text-center font-display tabular-nums text-muted sm:table-cell">{e.matchesPlayed}</td>
+                    <td className="hidden py-3 text-center font-display tabular-nums text-emerald-400 sm:table-cell">{e.wins}</td>
+                    <td className="hidden py-3 text-center font-display tabular-nums text-red-400 sm:table-cell">{e.losses}</td>
+                    <td className="hidden py-3 text-center font-display tabular-nums text-muted md:table-cell">{rate}%</td>
                     <td className="hidden py-3 text-center lg:table-cell">
                       {e.titles > 0 ? <Badge variant="gold">{e.titles}</Badge> : <span className="text-muted/40">—</span>}
                     </td>
-                    <td className="py-3 pr-4 text-right font-display text-base font-bold text-gold">{e.points.toLocaleString("pt-BR")}</td>
+                    <td className="py-3 pr-4 text-right font-display text-base font-bold tabular-nums text-gold">{e.points.toLocaleString("pt-BR")}</td>
                   </tr>
                 );
               })}
