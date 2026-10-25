@@ -11,9 +11,5 @@
       "src": "/(.*)",
       "dest": "server.js"
     }
-  ],
-  "env": {
-    "PORT": "3003",
-    "CLIENT_URL": "@client-url"
-  }
+  ]
 }

@@ -5,25 +5,29 @@ VARIÁVEIS DE AMBIENTE PARA VERCEL
 📦 BACKEND (Deploy PRIMEIRO)
 -------------------------------------------
 Root Directory: picks-and-bans/backend
+Framework: Other
 
-CLIENT_URL=
-(Deixe vazio por enquanto, preencher depois do frontend)
+NENHUMA variável por enquanto!
+(Vamos adicionar CLIENT_URL depois do frontend)
 
 
 📦 FRONTEND (Deploy DEPOIS)
 -------------------------------------------
 Root Directory: picks-and-bans/frontend
+Framework: Next.js
 
-NEXT_PUBLIC_API_URL=
-(Cole aqui a URL do backend após deploy)
-Exemplo: https://picks-backend-xyz.vercel.app
+Adicionar variável:
+Name: NEXT_PUBLIC_API_URL
+Value: [URL DO BACKEND QUE VOCÊ ACABOU DE DEPLOYAR]
 
 
 🔄 VOLTAR NO BACKEND (Atualizar)
 -------------------------------------------
-CLIENT_URL=
-(Cole aqui a URL do frontend após deploy)
-Exemplo: https://ecl-picks.vercel.app
+Adicionar variável:
+Name: CLIENT_URL  
+Value: [URL DO FRONTEND QUE VOCÊ ACABOU DE DEPLOYAR]
+
+Depois: Deployments → ••• → Redeploy
 
 
 ===========================================

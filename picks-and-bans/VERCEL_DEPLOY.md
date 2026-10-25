@@ -20,9 +20,7 @@ Como o Vercel não suporta WebSocket para backend, o sistema foi adaptado para u
    - **Install Command**: `npm install`
 
 4. **Environment Variables:**
-   ```
-   CLIENT_URL = (deixe vazio por enquanto, preencher depois)
-   ```
+   - **NÃO adicione nada ainda!** (Vamos adicionar depois do frontend)
 
 5. **Deploy** → Aguarde completar
 
@@ -59,13 +57,14 @@ Como o Vercel não suporta WebSocket para backend, o sistema foi adaptado para u
 
 1. **Volte no projeto do Backend** no Vercel
 2. **Settings** → **Environment Variables**
-3. **Edite `CLIENT_URL`:**
+3. **Add New** → **Add Environment Variable:**
    ```
-   CLIENT_URL = https://ecl-picks-bans.vercel.app
+   Name: CLIENT_URL
+   Value: https://ecl-picks-bans.vercel.app
    ```
    ⚠️ Use a URL do frontend do passo 2 (SEM barra no final)
 
-4. **Redeploy** (Deployments → ••• → Redeploy)
+4. **Deployments** → **•••** → **Redeploy**
 
 ---
 
