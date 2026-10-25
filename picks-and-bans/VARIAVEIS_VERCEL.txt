@@ -1,0 +1,55 @@
+===========================================
+VARIÁVEIS DE AMBIENTE PARA VERCEL
+===========================================
+
+📦 BACKEND (Deploy PRIMEIRO)
+-------------------------------------------
+Root Directory: picks-and-bans/backend
+
+CLIENT_URL=
+(Deixe vazio por enquanto, preencher depois do frontend)
+
+
+📦 FRONTEND (Deploy DEPOIS)
+-------------------------------------------
+Root Directory: picks-and-bans/frontend
+
+NEXT_PUBLIC_API_URL=
+(Cole aqui a URL do backend após deploy)
+Exemplo: https://picks-backend-xyz.vercel.app
+
+
+🔄 VOLTAR NO BACKEND (Atualizar)
+-------------------------------------------
+CLIENT_URL=
+(Cole aqui a URL do frontend após deploy)
+Exemplo: https://ecl-picks.vercel.app
+
+
+===========================================
+CHECKLIST DE DEPLOY
+===========================================
+
+Backend:
+[ ] Root Directory correto: picks-and-bans/backend
+[ ] Framework: Other
+[ ] Install Command: npm install
+[ ] CLIENT_URL vazio (por enquanto)
+[ ] Deploy concluído
+[ ] URL copiada: ___________________
+
+Frontend:
+[ ] Root Directory correto: picks-and-bans/frontend
+[ ] Framework: Next.js (auto-detect)
+[ ] NEXT_PUBLIC_API_URL com URL do backend
+[ ] Deploy concluído
+[ ] URL copiada: ___________________
+
+Finalizar:
+[ ] Voltei no backend
+[ ] Atualizei CLIENT_URL com URL do frontend
+[ ] Fiz redeploy do backend
+[ ] Testei: abri 2 abas/dispositivos
+[ ] Picks/bans sincronizando! ✅
+
+===========================================
