@@ -224,7 +224,7 @@ export function RegisterTeamForm({ tournamentId, tournamentSlug }: Props) {
                 key={team.id}
                 className="flex items-center gap-2 rounded-full border border-gold/20 bg-ink/50 px-3 py-1.5"
               >
-                <Avatar name={team.name} src={team.logoUrl} size="xs" />
+                <Avatar name={team.name} src={team.logoUrl} size="sm" />
                 <span className="text-xs font-medium text-paper">{team.name}</span>
                 <button
                   onClick={(e) => {
