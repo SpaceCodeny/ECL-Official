@@ -9,14 +9,14 @@ export default async function MatchesPage() {
   // Carregar todas as partidas inicialmente
   const initialData = await matchesService.getMatches({ limit: 50 });
 
-  // Garantir que a resposta tenha o formato correto
+  // Transformar para o formato esperado pelo componente
   const formattedData = {
     data: initialData.data || [],
-    pagination: initialData.pagination || {
-      page: 1,
-      limit: 50,
-      total: initialData.data?.length || 0,
-      pages: 1,
+    pagination: {
+      page: initialData.page || 1,
+      limit: initialData.pageSize || 50,
+      total: initialData.total || 0,
+      pages: initialData.totalPages || 1,
     },
   };
 
