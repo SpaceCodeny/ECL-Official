@@ -1,6 +1,7 @@
 import { PickBanSession } from '@/types';
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3003';
+// Remove barra final se existir
+const API_URL = (process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3003').replace(/\/$/, '');
 
 export async function createSession(teamAName: string, teamBName: string) {
   const response = await fetch(`${API_URL}/api/sessions`, {
