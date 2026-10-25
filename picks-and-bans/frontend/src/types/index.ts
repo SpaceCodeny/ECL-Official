@@ -6,6 +6,7 @@ export const MAPS = [
   "Province",
   "Rust",
   "Sakura",
+  "Sandstone",
 ] as const;
 
 export type MapName = (typeof MAPS)[number];

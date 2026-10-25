@@ -25,7 +25,7 @@ const SEQUENCE = [
   { team: 'A', action: 'BAN' },
 ];
 
-const MAPS = ['Breeze', 'Dune', 'Hanami', 'Prision', 'Province', 'Rust', 'Sakura'];
+const MAPS = ['Breeze', 'Dune', 'Hanami', 'Prision', 'Province', 'Rust', 'Sakura', 'Sandstone'];
 
 // ==================== ROTAS HTTP ====================
 
@@ -154,16 +154,26 @@ app.post('/api/sessions/:id/action', (req, res) => {
 
   // Verificar se completou as 6 ações
   if (session.actions.length === 6) {
-    // Encontrar o decider (mapa que sobrou)
+    // Encontrar os 2 deciders (mapas que sobraram) - agora são 8 mapas total
     const allUsedMaps = session.actions.map((a) => a.map);
-    const decider = MAPS.find((m) => !allUsedMaps.includes(m));
+    const remainingMaps = MAPS.filter((m) => !allUsedMaps.includes(m));
 
-    if (decider) {
+    // Adicionar os 2 mapas restantes como deciders
+    if (remainingMaps.length >= 1) {
       session.actions.push({
-        map: decider,
+        map: remainingMaps[0],
         team: 'A',
         action: 'PICK',
         order: 7,
+      });
+    }
+    
+    if (remainingMaps.length >= 2) {
+      session.actions.push({
+        map: remainingMaps[1],
+        team: 'B',
+        action: 'PICK',
+        order: 8,
       });
     }
 

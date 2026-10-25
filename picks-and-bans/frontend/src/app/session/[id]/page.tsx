@@ -238,7 +238,7 @@ export default function SessionPage({ params }: { params: Promise<{ id: string }
 
   const usedMaps = session.actions.map((a) => a.map);
   const pickedMaps = session.actions.filter((a) => a.action === "PICK");
-  const decider = session.actions.find((a) => a.order === 7);
+  const deciders = session.actions.filter((a) => a.order >= 7); // Mapas 7 e 8 são os deciders
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-ink via-navy to-ink p-4 sm:p-8">
@@ -329,16 +329,18 @@ export default function SessionPage({ params }: { params: Promise<{ id: string }
                         <p className="mt-2 font-display text-sm font-bold uppercase text-red-200">Banned by Team {action.team}</p>
                       </div>
                     )}
-                    {isPicked && action.order !== 7 && (
+                    {isPicked && action.order !== 7 && action.order !== 8 && (
                       <div className="text-center">
                         <CheckCircle className="mx-auto h-12 w-12 text-green-400" />
                         <p className="mt-2 font-display text-sm font-bold uppercase text-green-200">Picked by Team {action.team}</p>
                       </div>
                     )}
-                    {action.order === 7 && (
+                    {(action.order === 7 || action.order === 8) && (
                       <div className="text-center">
                         <CheckCircle className="mx-auto h-12 w-12 text-gold" />
-                        <p className="mt-2 font-display text-sm font-bold uppercase text-gold">DECIDER</p>
+                        <p className="mt-2 font-display text-sm font-bold uppercase text-gold">
+                          DECIDER {action.order === 7 ? '1' : '2'}
+                        </p>
                       </div>
                     )}
                   </div>
@@ -352,7 +354,7 @@ export default function SessionPage({ params }: { params: Promise<{ id: string }
         {session.status === "COMPLETED" && (
           <div className="rounded-lg border border-gold bg-gold/10 p-6">
             <h2 className="mb-4 font-display text-2xl font-bold uppercase text-gold">✅ Pick & Ban Completo!</h2>
-            <div className="grid gap-4 sm:grid-cols-3">
+            <div className="grid gap-4 sm:grid-cols-4">
               <div>
                 <p className="mb-2 text-sm uppercase text-muted">Mapa 1 (Team A Pick)</p>
                 <p className="font-display text-xl font-bold text-paper">{pickedMaps[0]?.map}</p>
@@ -362,8 +364,12 @@ export default function SessionPage({ params }: { params: Promise<{ id: string }
                 <p className="font-display text-xl font-bold text-paper">{pickedMaps[1]?.map}</p>
               </div>
               <div>
-                <p className="mb-2 text-sm uppercase text-gold">🏆 Decider</p>
-                <p className="font-display text-xl font-bold text-gold">{decider?.map}</p>
+                <p className="mb-2 text-sm uppercase text-gold">🏆 Decider 1</p>
+                <p className="font-display text-xl font-bold text-gold">{deciders[0]?.map}</p>
+              </div>
+              <div>
+                <p className="mb-2 text-sm uppercase text-gold">🏆 Decider 2</p>
+                <p className="font-display text-xl font-bold text-gold">{deciders[1]?.map}</p>
               </div>
             </div>
           </div>
