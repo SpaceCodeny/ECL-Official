@@ -11,6 +11,10 @@ const nextConfig = {
         protocol: "https",
         hostname: "jzmfbjdcqvgyeeafvzep.supabase.co",
       },
+      {
+        protocol: "https",
+        hostname: "ecl-official.vercel.app",
+      },
     ],
   },
 };
