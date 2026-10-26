@@ -50,14 +50,33 @@ export default function LoginPage() {
 
   return (
     <div className="relative flex min-h-screen items-center justify-center overflow-hidden bg-ink">
-      {/* Background Premium Effects */}
-      <div className="absolute inset-0 overflow-hidden">
-        {/* Gradient Orbs */}
-        <div className="absolute -left-1/4 -top-1/4 h-[800px] w-[800px] rounded-full bg-gold/5 blur-[120px]" />
-        <div className="absolute -bottom-1/4 -right-1/4 h-[800px] w-[800px] rounded-full bg-blue-500/5 blur-[120px]" />
-        
-        {/* Animated Grid */}
-        <div className="absolute inset-0 bg-[linear-gradient(rgba(214,181,94,0.03)_1px,transparent_1px),linear-gradient(90deg,rgba(214,181,94,0.03)_1px,transparent_1px)] bg-[size:64px_64px] [mask-image:radial-gradient(ellipse_80%_50%_at_50%_50%,#000,transparent)]" />
+      {/* Background Image - Desktop */}
+      <div className="absolute inset-0 z-0 hidden md:block">
+        <Image
+          src="https://ecl-official.vercel.app/images/desktop.png"
+          alt="Elite Champions League Background"
+          fill
+          priority
+          sizes="100vw"
+          className="object-cover object-center"
+        />
+        {/* Gradiente escuro para melhor legibilidade */}
+        <div className="absolute inset-0 bg-gradient-to-b from-black/60 via-black/70 to-black/80" />
+        <div className="absolute inset-0 bg-gradient-to-r from-black/50 via-transparent to-black/50" />
+      </div>
+
+      {/* Background Image - Mobile */}
+      <div className="absolute inset-0 z-0 md:hidden">
+        <Image
+          src="https://ecl-official.vercel.app/images/mobile.png"
+          alt="Elite Champions League Background"
+          fill
+          priority
+          sizes="100vw"
+          className="object-cover object-center"
+        />
+        {/* Gradiente escuro para melhor legibilidade */}
+        <div className="absolute inset-0 bg-gradient-to-b from-black/60 via-black/70 to-black/85" />
       </div>
 
       {/* Content */}
@@ -66,7 +85,7 @@ export default function LoginPage() {
         <div className="mb-10 text-center">
           <div className="relative mx-auto mb-8 flex h-24 w-24 items-center justify-center">
             <div className="absolute inset-0 animate-pulse rounded-full bg-gold/20 blur-xl" />
-            <div className="relative flex h-20 w-20 items-center justify-center rounded-2xl border border-gold/20 bg-gradient-to-br from-navy via-surface to-navy shadow-2xl shadow-gold/10">
+            <div className="relative flex h-20 w-20 items-center justify-center rounded-2xl border border-gold/20 bg-gradient-to-br from-navy via-surface to-navy shadow-2xl shadow-gold/10 backdrop-blur-sm">
               <Image
                 src="https://ecl-official.vercel.app/images/logo.png"
                 alt="ECL Logo"
@@ -77,13 +96,14 @@ export default function LoginPage() {
             </div>
           </div>
           
-          <div className="space-y-2">
-            <h1 className="font-display text-4xl font-bold tracking-tight">
-              <span className="bg-gradient-to-r from-paper via-gold to-paper bg-clip-text text-transparent">
-                Admin Portal
+          <div className="space-y-3">
+            <h1 className="font-display text-5xl font-bold uppercase leading-tight tracking-tight sm:text-6xl">
+              <span className="block text-white">Admin</span>
+              <span className="block text-gold" style={{ textShadow: "0 0 40px rgba(214,177,94,0.5)" }}>
+                Portal
               </span>
             </h1>
-            <p className="text-sm font-medium uppercase tracking-wider text-muted">
+            <p className="text-sm font-medium uppercase tracking-[0.2em] text-gold/80">
               Picks & Bans System
             </p>
           </div>
@@ -92,28 +112,28 @@ export default function LoginPage() {
         {/* Login Card */}
         <div className="group relative">
           {/* Glow Effect on Hover */}
-          <div className="absolute -inset-0.5 rounded-2xl bg-gradient-to-r from-gold via-blue-500 to-gold opacity-0 blur transition duration-500 group-hover:opacity-20" />
+          <div className="absolute -inset-0.5 rounded-2xl bg-gradient-to-r from-gold via-yellow-500 to-gold opacity-0 blur transition duration-500 group-hover:opacity-20" />
           
-          <div className="relative overflow-hidden rounded-2xl border border-gold/10 bg-gradient-to-b from-surface/90 via-surface/95 to-navy/90 p-8 shadow-2xl backdrop-blur-xl">
+          <div className="relative overflow-hidden rounded-2xl border border-gold/20 bg-black/40 p-8 shadow-2xl backdrop-blur-xl">
             {/* Shine Effect */}
             <div className="absolute inset-0 -translate-x-full bg-gradient-to-r from-transparent via-white/5 to-transparent transition-transform duration-1000 group-hover:translate-x-full" />
             
             <form onSubmit={handleLogin} className="relative space-y-6">
               {/* Username Input */}
               <div className="space-y-2">
-                <label className="block text-sm font-semibold uppercase tracking-wider text-gold">
+                <label className="block font-display text-sm font-bold uppercase tracking-wider text-gold">
                   Usuário
                 </label>
                 <div className="group/input relative">
                   <div className="absolute inset-y-0 left-0 flex items-center pl-4">
-                    <User className="h-5 w-5 text-muted transition-colors group-focus-within/input:text-gold" />
+                    <User className="h-5 w-5 text-gold/60 transition-colors group-focus-within/input:text-gold" />
                   </div>
                   <input
                     type="text"
                     value={username}
                     onChange={(e) => setUsername(e.target.value)}
                     placeholder="Digite seu usuário"
-                    className="w-full rounded-xl border border-border bg-ink/50 py-3.5 pl-12 pr-4 font-medium text-paper placeholder:text-muted/40 transition-all focus:border-gold focus:bg-ink focus:outline-none focus:ring-2 focus:ring-gold/20"
+                    className="w-full rounded-xl border border-gold/20 bg-black/60 py-3.5 pl-12 pr-4 font-medium text-white placeholder:text-white/40 backdrop-blur-sm transition-all focus:border-gold focus:bg-black/80 focus:outline-none focus:ring-2 focus:ring-gold/30"
                     required
                     autoComplete="username"
                   />
@@ -122,26 +142,26 @@ export default function LoginPage() {
 
               {/* Password Input */}
               <div className="space-y-2">
-                <label className="block text-sm font-semibold uppercase tracking-wider text-gold">
+                <label className="block font-display text-sm font-bold uppercase tracking-wider text-gold">
                   Senha
                 </label>
                 <div className="group/input relative">
                   <div className="absolute inset-y-0 left-0 flex items-center pl-4">
-                    <Lock className="h-5 w-5 text-muted transition-colors group-focus-within/input:text-gold" />
+                    <Lock className="h-5 w-5 text-gold/60 transition-colors group-focus-within/input:text-gold" />
                   </div>
                   <input
                     type={showPassword ? "text" : "password"}
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
                     placeholder="Digite sua senha"
-                    className="w-full rounded-xl border border-border bg-ink/50 py-3.5 pl-12 pr-12 font-medium text-paper placeholder:text-muted/40 transition-all focus:border-gold focus:bg-ink focus:outline-none focus:ring-2 focus:ring-gold/20"
+                    className="w-full rounded-xl border border-gold/20 bg-black/60 py-3.5 pl-12 pr-12 font-medium text-white placeholder:text-white/40 backdrop-blur-sm transition-all focus:border-gold focus:bg-black/80 focus:outline-none focus:ring-2 focus:ring-gold/30"
                     required
                     autoComplete="current-password"
                   />
                   <button
                     type="button"
                     onClick={() => setShowPassword(!showPassword)}
-                    className="absolute inset-y-0 right-0 flex items-center pr-4 text-muted transition-colors hover:text-paper"
+                    className="absolute inset-y-0 right-0 flex items-center pr-4 text-gold/60 transition-colors hover:text-gold"
                   >
                     {showPassword ? <EyeOff className="h-5 w-5" /> : <Eye className="h-5 w-5" />}
                   </button>
@@ -150,7 +170,7 @@ export default function LoginPage() {
 
               {/* Error Message */}
               {error && (
-                <div className="animate-in fade-in slide-in-from-top-2 duration-300 rounded-xl border border-red-500/20 bg-red-500/10 p-4">
+                <div className="animate-in fade-in slide-in-from-top-2 duration-300 rounded-xl border border-red-500/30 bg-red-500/10 p-4 backdrop-blur-sm">
                   <div className="flex items-center gap-3">
                     <div className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-lg bg-red-500/20">
                       <Shield className="h-4 w-4 text-red-400" />
@@ -166,10 +186,10 @@ export default function LoginPage() {
                 disabled={loading || !username || !password}
                 className="group/btn relative w-full overflow-hidden rounded-xl bg-gradient-to-r from-gold via-yellow-500 to-gold p-[2px] transition-all hover:shadow-lg hover:shadow-gold/50 disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:shadow-none"
               >
-                <div className="relative flex items-center justify-center gap-2 rounded-[10px] bg-gradient-to-r from-gold via-yellow-500 to-gold px-6 py-3.5 font-display text-base font-bold uppercase tracking-wider text-ink transition-all">
+                <div className="relative flex items-center justify-center gap-2 rounded-[10px] bg-gradient-to-r from-gold via-yellow-500 to-gold px-6 py-3.5 font-display text-base font-bold uppercase tracking-wider text-black transition-all">
                   {loading ? (
                     <>
-                      <div className="h-5 w-5 animate-spin rounded-full border-2 border-ink/20 border-t-ink" />
+                      <div className="h-5 w-5 animate-spin rounded-full border-2 border-black/20 border-t-black" />
                       <span>Autenticando...</span>
                     </>
                   ) : (
@@ -190,7 +210,7 @@ export default function LoginPage() {
           <Link 
             href="https://ecl-official.vercel.app"
             target="_blank"
-            className="group inline-flex items-center gap-2 text-sm text-muted transition-colors hover:text-gold"
+            className="group inline-flex items-center gap-2 text-sm text-white/70 transition-colors hover:text-gold"
           >
             <span className="font-medium">Elite Champions League</span>
             <span className="text-gold">©</span>

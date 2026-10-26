@@ -21,7 +21,8 @@ const config: Config = {
         navy: "#0F172A",
       },
       fontFamily: {
-        display: ["var(--font-rajdhani)", "sans-serif"],
+        sans: ["var(--font-sans)", "system-ui", "sans-serif"],
+        display: ["var(--font-display)", "system-ui", "sans-serif"],
       },
     },
   },
