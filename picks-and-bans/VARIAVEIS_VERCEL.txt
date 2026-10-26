@@ -1,82 +1,62 @@
-===========================================
-VARIÁVEIS DE AMBIENTE PARA VERCEL
-===========================================
+# ==========================================
+# VARIÁVEIS DE AMBIENTE - VERCEL
+# ==========================================
 
-📦 BACKEND (Deploy PRIMEIRO)
--------------------------------------------
-Root Directory: picks-and-bans/backend
-Framework: Other
+# ========== BACKEND ==========
+# Projeto: peaks-and-bans-backend
 
-Adicionar variáveis:
+CLIENT_URL=https://peaks-and-bans.vercel.app
+ECL_API_URL=https://ecl-backend-six.vercel.app
+ECL_FRONTEND_URL=https://ecl-official.vercel.app
+JWT_SECRET=ecl-picks-bans-2024-secret-key-very-secure-random-string
 
-1. Name: CLIENT_URL
-   Value: https://peaks-and-bans.vercel.app
+# Admin 1: ECL-master / ECL@2026
+ADMIN_PASSWORD_HASH_1=$2a$10$kVoFrVjAAt1lgk9/0bKd9.CtQcELjmn2WRrd4.Hzcz8grkmxJWVgS
 
-2. Name: ECL_API_URL
-   Value: https://ecl-backend-six.vercel.app
-
-3. Name: ECL_FRONTEND_URL
-   Value: https://ecl-official.vercel.app
-
-4. Name: JWT_SECRET
-   Value: ecl-picks-bans-2024-secret-key-very-secure-random-string
-
-5. Name: ADMIN_USERNAME
-   Value: ECL-master
-
-6. Name: ADMIN_PASSWORD_HASH
-   Value: $2a$10$kVoFrVjAAt1lgk9/0bKd9.CtQcELjmn2WRrd4.Hzcz8grkmxJWVgS
+# Admin 2: Nexus / Nexus@2026
+ADMIN_PASSWORD_HASH_2=$2a$10$y/OJZdZFCkeUTcPQEhCHoOFHty9niHw45efEYP40JLYPSXRYURUVG
 
 
-📦 FRONTEND (Deploy DEPOIS)
--------------------------------------------
-Root Directory: picks-and-bans/frontend
-Framework: Next.js
+# ========== FRONTEND ==========
+# Projeto: peaks-and-bans
 
-Adicionar variável:
-Name: NEXT_PUBLIC_API_URL
-Value: https://peaks-and-bans-backend.vercel.app
-
-(Substitua pela URL real do seu backend se for diferente)
+NEXT_PUBLIC_API_URL=https://peaks-and-bans-backend.vercel.app
 
 
-🔄 VOLTAR NO BACKEND (Atualizar)
--------------------------------------------
-Adicionar variável:
-Name: CLIENT_URL  
-Value: [URL DO FRONTEND QUE VOCÊ ACABOU DE DEPLOYAR]
+# ==========================================
+# INSTRUÇÕES DE DEPLOY
+# ==========================================
 
-Depois: Deployments → ••• → Redeploy
+1. Acesse https://vercel.com/dashboard
+2. Selecione o projeto backend (peaks-and-bans-backend)
+3. Vá em Settings > Environment Variables
+4. Adicione TODAS as variáveis do BACKEND acima
+5. Salve e faça redeploy do backend
 
+6. Selecione o projeto frontend (peaks-and-bans)
+7. Vá em Settings > Environment Variables
+8. Adicione a variável do FRONTEND acima
+9. Salve e faça redeploy do frontend
 
-===========================================
-CHECKLIST DE DEPLOY
-===========================================
+# ==========================================
+# CREDENCIAIS DE ADMIN
+# ==========================================
 
-Backend:
-[ ] Root Directory correto: picks-and-bans/backend
-[ ] Framework: Other
-[ ] Install Command: npm install
-[ ] CLIENT_URL vazio (por enquanto)
-[ ] Deploy concluído
-[ ] URL copiada: ___________________
+Admin 1:
+Usuário: ECL-master
+Senha: ECL@2026
+Hash: $2a$10$kVoFrVjAAt1lgk9/0bKd9.CtQcELjmn2WRrd4.Hzcz8grkmxJWVgS
 
-Frontend:
-[ ] Root Directory correto: picks-and-bans/frontend
-[ ] Framework: Next.js (auto-detect)
-[ ] NEXT_PUBLIC_API_URL com URL do backend
-[ ] Deploy concluído
-[ ] URL copiada: ___________________
-
-Finalizar:
-[ ] Voltei no backend
-[ ] Atualizei CLIENT_URL com URL do frontend
-[ ] Fiz redeploy do backend
-[ ] Testei: abri 2 abas/dispositivos
-[ ] Picks/bans sincronizando! ✅
-
-===========================================
+Admin 2:
+Usuário: Nexus
+Senha: Nexus@2026
+Hash: $2a$10$y/OJZdZFCkeUTcPQEhCHoOFHty9niHw45efEYP40JLYPSXRYURUVG
 
 
-## BACKEND - Adicionar nova variável:
-ECL_API_URL=https://ecl-backend.vercel.app
+# ==========================================
+# OBSERVAÇÕES IMPORTANTES
+# ==========================================
+
+- REMOVER as variáveis antigas ADMIN_USERNAME e ADMIN_PASSWORD_HASH da Vercel
+- ADICIONAR as novas variáveis ADMIN_PASSWORD_HASH_1 e ADMIN_PASSWORD_HASH_2
+- Ambos os admins têm acesso total ao painel administrativo

@@ -22,13 +22,17 @@ app.use(express.json());
 // Para produção real, use um banco de dados (Redis, MongoDB, etc.)
 const sessions = new Map();
 
-// Credenciais admin (em produção, use banco de dados)
-// Senha padrão: "admin123" (hash gerado com bcrypt)
-const ADMIN_CREDENTIALS = {
-  username: process.env.ADMIN_USERNAME || 'admin',
-  // Hash de "admin123" - alterar em produção via variável de ambiente
-  passwordHash: process.env.ADMIN_PASSWORD_HASH || '$2a$10$xQHj5YrJZ0FZqZQXKZ5LZOxZ1JZ3Z5Z5Z5Z5Z5Z5Z5Z5Z5Z5Z5Z5Z',
-};
+// Credenciais admin - suporte para múltiplos admins
+const ADMIN_USERS = [
+  {
+    username: 'ECL-master',
+    passwordHash: process.env.ADMIN_PASSWORD_HASH_1 || '$2a$10$kVoFrVjAAt1lgk9/0bKd9.CtQcELjmn2WRrd4.Hzcz8grkmxJWVgS', // ECL@2026
+  },
+  {
+    username: 'Nexus',
+    passwordHash: process.env.ADMIN_PASSWORD_HASH_2 || '$2a$10$y/OJZdZFCkeUTcPQEhCHoOFHty9niHw45efEYP40JLYPSXRYURUVG', // Nexus@2026
+  },
+];
 
 // Secret para JWT (DEVE ser definido em produção via variável de ambiente)
 const JWT_SECRET = process.env.JWT_SECRET || 'change-this-secret-in-production-urgently';
@@ -73,26 +77,21 @@ app.post('/api/auth/login', async (req, res) => {
     return res.status(400).json({ error: 'Usuário e senha são obrigatórios' });
   }
 
-  // Verificar username
-  if (username !== ADMIN_CREDENTIALS.username) {
+  // Buscar admin pelo username
+  const admin = ADMIN_USERS.find(user => user.username === username);
+
+  if (!admin) {
     return res.status(401).json({ error: 'Credenciais inválidas' });
   }
 
-  // Para desenvolvimento, aceitar senha padrão se não houver hash configurado
+  // Verificar senha com bcrypt
   let isValidPassword = false;
   
   try {
-    if (process.env.ADMIN_PASSWORD_HASH && process.env.ADMIN_PASSWORD_HASH !== '$2a$10$xQHj5YrJZ0FZqZQXKZ5LZOxZ1JZ3Z5Z5Z5Z5Z5Z5Z5Z5Z5Z5Z5Z5Z') {
-      // Em produção, usar bcrypt
-      isValidPassword = await bcrypt.compare(password, ADMIN_CREDENTIALS.passwordHash);
-    } else {
-      // Em desenvolvimento, aceitar senha simples "admin123"
-      isValidPassword = password === 'admin123';
-    }
+    isValidPassword = await bcrypt.compare(password, admin.passwordHash);
   } catch (error) {
     console.error('Erro ao verificar senha:', error);
-    // Fallback para senha simples
-    isValidPassword = password === 'admin123';
+    return res.status(500).json({ error: 'Erro ao validar credenciais' });
   }
 
   if (!isValidPassword) {
@@ -101,14 +100,14 @@ app.post('/api/auth/login', async (req, res) => {
 
   // Gerar token JWT válido por 24 horas
   const token = jwt.sign(
-    { username: ADMIN_CREDENTIALS.username, role: 'admin' },
+    { username: admin.username, role: 'admin' },
     JWT_SECRET,
     { expiresIn: '24h' }
   );
 
   res.json({ 
     token,
-    user: { username: ADMIN_CREDENTIALS.username, role: 'admin' }
+    user: { username: admin.username, role: 'admin' }
   });
 });
 
