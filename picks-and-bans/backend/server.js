@@ -38,9 +38,37 @@ app.get('/api/health', (req, res) => {
   res.json({ status: 'ok', sessions: sessions.size });
 });
 
+// Buscar times cadastrados da API principal da ECL
+app.get('/api/teams', async (req, res) => {
+  try {
+    const ECL_API_URL = process.env.ECL_API_URL || 'https://ecl-backend.vercel.app';
+    const response = await fetch(`${ECL_API_URL}/api/v1/teams?limit=100`);
+    
+    if (!response.ok) {
+      throw new Error('Falha ao buscar times da API ECL');
+    }
+
+    const data = await response.json();
+    
+    // Retornar apenas os campos necessários
+    const teams = data.data.map(team => ({
+      id: team.id,
+      name: team.name,
+      tag: team.tag || team.name.substring(0, 4).toUpperCase(),
+      logoUrl: team.logoUrl,
+    }));
+
+    res.json({ teams });
+  } catch (error) {
+    console.error('Erro ao buscar times:', error);
+    // Retornar array vazio em caso de erro
+    res.json({ teams: [] });
+  }
+});
+
 // Criar nova sessão
 app.post('/api/sessions', (req, res) => {
-  const { teamAName, teamBName } = req.body;
+  const { teamAName, teamBName, teamALogo, teamBLogo, teamATag, teamBTag } = req.body;
 
   if (!teamAName || !teamBName) {
     return res.status(400).json({ error: 'Nomes dos times são obrigatórios' });
@@ -52,13 +80,15 @@ app.post('/api/sessions', (req, res) => {
     teamA: {
       id: 'A',
       name: teamAName,
-      tag: teamAName.substring(0, 4).toUpperCase(),
+      tag: teamATag || teamAName.substring(0, 4).toUpperCase(),
+      logoUrl: teamALogo || null,
       leader: null,
     },
     teamB: {
       id: 'B',
       name: teamBName,
-      tag: teamBName.substring(0, 4).toUpperCase(),
+      tag: teamBTag || teamBName.substring(0, 4).toUpperCase(),
+      logoUrl: teamBLogo || null,
       leader: null,
     },
     actions: [],

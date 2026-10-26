@@ -2,6 +2,67 @@
 @tailwind components;
 @tailwind utilities;
 
+@layer base {
+  :root {
+    --font-sans: "Inter", system-ui, sans-serif;
+    --font-display: "Oswald", system-ui, sans-serif;
+  }
+
+  * {
+    border-color: hsl(215 28% 17%);
+  }
+
+  html {
+    scroll-behavior: smooth;
+  }
+
+  body {
+    background-color: #080A0F;
+    color: #F5F6F8;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+}
+
+@layer components {
+  .container-ecl {
+    @apply mx-auto w-full max-w-7xl px-4 sm:px-6 lg:px-8;
+  }
+
+  .card-ecl {
+    @apply rounded-lg border border-border bg-surface/80;
+  }
+}
+
+@layer utilities {
+  @keyframes pulse-border {
+    0%, 100% {
+      border-color: #D6B15E;
+      box-shadow: 0 0 20px rgba(214, 177, 94, 0.3);
+    }
+    50% {
+      border-color: #E8C97F;
+      box-shadow: 0 0 30px rgba(214, 177, 94, 0.5);
+    }
+  }
+
+  .animate-pulse-border {
+    animation: pulse-border 2s ease-in-out infinite;
+  }
+}
+
+/* Respeita preferência por movimento reduzido */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
 @import url('https://fonts.googleapis.com/css2?family=Rajdhani:wght@400;500;600;700&display=swap');
 
 :root {

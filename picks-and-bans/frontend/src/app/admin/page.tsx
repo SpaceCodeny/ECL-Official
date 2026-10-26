@@ -1,23 +1,66 @@
 "use client";
 
-import { useState } from "react";
-import { Plus, Users, Copy, Check, ExternalLink, ArrowLeft } from "lucide-react";
-import { createSession } from "@/lib/api";
+import { useState, useEffect } from "react";
+import { Plus, Users, Copy, Check, ExternalLink, ArrowLeft, Search } from "lucide-react";
+import { createSession, getTeams, Team } from "@/lib/api";
+import Image from "next/image";
 
 export default function AdminPage() {
-  const [teamAName, setTeamAName] = useState("");
-  const [teamBName, setTeamBName] = useState("");
+  const [teams, setTeams] = useState<Team[]>([]);
+  const [loadingTeams, setLoadingTeams] = useState(true);
+  
+  // Team A
+  const [teamASelected, setTeamASelected] = useState<Team | null>(null);
+  const [teamACustomName, setTeamACustomName] = useState("");
+  const [showTeamAList, setShowTeamAList] = useState(false);
+  const [teamASearch, setTeamASearch] = useState("");
+  
+  // Team B
+  const [teamBSelected, setTeamBSelected] = useState<Team | null>(null);
+  const [teamBCustomName, setTeamBCustomName] = useState("");
+  const [showTeamBList, setShowTeamBList] = useState(false);
+  const [teamBSearch, setTeamBSearch] = useState("");
+  
   const [loading, setLoading] = useState(false);
   const [generatedLink, setGeneratedLink] = useState("");
   const [sessionId, setSessionId] = useState("");
   const [copied, setCopied] = useState(false);
 
+  useEffect(() => {
+    loadTeams();
+  }, []);
+
+  const loadTeams = async () => {
+    setLoadingTeams(true);
+    try {
+      const data = await getTeams();
+      setTeams(data);
+    } catch (error) {
+      console.error("Erro ao carregar times:", error);
+    } finally {
+      setLoadingTeams(false);
+    }
+  };
+
+  const filteredTeamsA = teams.filter(t => 
+    t.name.toLowerCase().includes(teamASearch.toLowerCase()) ||
+    t.tag.toLowerCase().includes(teamASearch.toLowerCase())
+  );
+
+  const filteredTeamsB = teams.filter(t => 
+    t.name.toLowerCase().includes(teamBSearch.toLowerCase()) ||
+    t.tag.toLowerCase().includes(teamBSearch.toLowerCase())
+  );
+
+  const getTeamAName = () => teamASelected?.name || teamACustomName.trim();
+  const getTeamBName = () => teamBSelected?.name || teamBCustomName.trim();
+
   const handleCreateSession = async () => {
-    const nameA = teamAName.trim();
-    const nameB = teamBName.trim();
+    const nameA = getTeamAName();
+    const nameB = getTeamBName();
 
     if (!nameA || !nameB) {
-      alert("Digite o nome de ambos os times!");
+      alert("Selecione ou digite o nome de ambos os times!");
       return;
     }
 
@@ -29,7 +72,14 @@ export default function AdminPage() {
     setLoading(true);
 
     try {
-      const response = await createSession(nameA, nameB);
+      const response = await createSession(
+        nameA,
+        nameB,
+        teamASelected?.logoUrl,
+        teamBSelected?.logoUrl,
+        teamASelected?.tag,
+        teamBSelected?.tag
+      );
       const link = `${window.location.origin}/session/${response.sessionId}`;
       setGeneratedLink(link);
       setSessionId(response.sessionId);
@@ -58,8 +108,12 @@ export default function AdminPage() {
   const createNewSession = () => {
     setGeneratedLink("");
     setSessionId("");
-    setTeamAName("");
-    setTeamBName("");
+    setTeamASelected(null);
+    setTeamACustomName("");
+    setTeamASearch("");
+    setTeamBSelected(null);
+    setTeamBCustomName("");
+    setTeamBSearch("");
     setCopied(false);
   };
 
@@ -82,14 +136,24 @@ export default function AdminPage() {
           {/* Times */}
           <div className="mb-6 grid grid-cols-2 gap-4 rounded-lg border border-border bg-surface p-6">
             <div className="text-center">
-              <p className="mb-1 text-sm text-muted">Time A</p>
-              <p className="font-display text-2xl font-bold text-gold">{teamAName}</p>
-              <p className="text-xs text-muted">{teamAName.substring(0, 4).toUpperCase()}</p>
+              <p className="mb-2 text-sm text-muted">Time A</p>
+              {teamASelected?.logoUrl && (
+                <div className="relative mx-auto mb-2 h-12 w-12">
+                  <Image src={teamASelected.logoUrl} alt={getTeamAName()} fill className="object-contain" />
+                </div>
+              )}
+              <p className="font-display text-2xl font-bold text-gold">{getTeamAName()}</p>
+              <p className="text-xs text-muted">{teamASelected?.tag || getTeamAName().substring(0, 4).toUpperCase()}</p>
             </div>
             <div className="text-center">
-              <p className="mb-1 text-sm text-muted">Time B</p>
-              <p className="font-display text-2xl font-bold text-gold">{teamBName}</p>
-              <p className="text-xs text-muted">{teamBName.substring(0, 4).toUpperCase()}</p>
+              <p className="mb-2 text-sm text-muted">Time B</p>
+              {teamBSelected?.logoUrl && (
+                <div className="relative mx-auto mb-2 h-12 w-12">
+                  <Image src={teamBSelected.logoUrl} alt={getTeamBName()} fill className="object-contain" />
+                </div>
+              )}
+              <p className="font-display text-2xl font-bold text-gold">{getTeamBName()}</p>
+              <p className="text-xs text-muted">{teamBSelected?.tag || getTeamBName().substring(0, 4).toUpperCase()}</p>
             </div>
           </div>
 
@@ -185,47 +249,217 @@ export default function AdminPage() {
 
   // Tela de criação
   return (
-    <div className="min-h-screen bg-gradient-to-b from-ink via-navy to-ink p-8">
-      <div className="mx-auto max-w-2xl">
+    <div className="min-h-screen bg-gradient-to-b from-ink via-navy to-ink p-4 sm:p-8">
+      <div className="mx-auto max-w-4xl">
         <div className="mb-8">
-          <h1 className="mb-2 font-display text-4xl font-bold uppercase tracking-tight text-paper">
+          <h1 className="mb-2 font-display text-3xl font-bold uppercase tracking-tight text-paper sm:text-4xl">
             Criar Sessão de Pick & Ban
           </h1>
-          <p className="text-muted">Digite o nome dos times para iniciar uma sessão de treino</p>
+          <p className="text-muted">Selecione times cadastrados ou digite nomes manualmente</p>
         </div>
 
-        <div className="space-y-6 rounded-lg border border-border bg-surface p-6">
+        <div className="space-y-6 rounded-lg border border-border bg-surface p-4 sm:p-6">
           {/* Time A */}
           <div>
-            <label className="mb-2 block text-sm font-medium text-paper">
-              <Users className="mb-1 inline h-4 w-4" /> Nome do Time A
+            <label className="mb-3 block text-sm font-medium text-paper">
+              <Users className="mb-1 inline h-4 w-4" /> Time A
             </label>
-            <input
-              type="text"
-              value={teamAName}
-              onChange={(e) => setTeamAName(e.target.value)}
-              placeholder="Ex: Phantom Squad"
-              className="w-full rounded-lg border border-border bg-ink px-4 py-3 text-paper placeholder:text-muted/50 focus:border-gold focus:outline-none"
-            />
+            
+            {teamASelected ? (
+              <div className="flex items-center justify-between rounded-lg border-2 border-gold bg-gold/10 p-3">
+                <div className="flex items-center gap-3">
+                  {teamASelected.logoUrl && (
+                    <div className="relative h-10 w-10 flex-shrink-0">
+                      <Image src={teamASelected.logoUrl} alt={teamASelected.name} fill className="object-contain" />
+                    </div>
+                  )}
+                  <div>
+                    <p className="font-bold text-paper">{teamASelected.name}</p>
+                    <p className="text-xs text-muted">{teamASelected.tag}</p>
+                  </div>
+                </div>
+                <button
+                  onClick={() => setTeamASelected(null)}
+                  className="rounded bg-red-500/20 px-3 py-1 text-sm font-medium text-red-400 hover:bg-red-500/30"
+                >
+                  Remover
+                </button>
+              </div>
+            ) : (
+              <>
+                <div className="mb-2 flex gap-2">
+                  <button
+                    onClick={() => setShowTeamAList(!showTeamAList)}
+                    className="flex flex-1 items-center justify-center gap-2 rounded-lg border border-border bg-ink px-4 py-3 font-medium text-paper hover:bg-ink/80"
+                  >
+                    <Search className="h-4 w-4" />
+                    Selecionar Time Cadastrado
+                  </button>
+                </div>
+                
+                {showTeamAList && (
+                  <div className="mb-3 rounded-lg border border-border bg-ink p-3">
+                    <input
+                      type="text"
+                      value={teamASearch}
+                      onChange={(e) => setTeamASearch(e.target.value)}
+                      placeholder="Buscar time..."
+                      className="mb-3 w-full rounded border border-border bg-navy px-3 py-2 text-sm text-paper placeholder:text-muted/50 focus:border-gold focus:outline-none"
+                    />
+                    <div className="max-h-60 space-y-2 overflow-y-auto">
+                      {loadingTeams ? (
+                        <p className="py-4 text-center text-sm text-muted">Carregando times...</p>
+                      ) : filteredTeamsA.length === 0 ? (
+                        <p className="py-4 text-center text-sm text-muted">Nenhum time encontrado</p>
+                      ) : (
+                        filteredTeamsA.map((team) => (
+                          <button
+                            key={team.id}
+                            onClick={() => {
+                              setTeamASelected(team);
+                              setShowTeamAList(false);
+                              setTeamASearch("");
+                            }}
+                            className="flex w-full items-center gap-3 rounded border border-border bg-surface p-2 text-left hover:border-gold hover:bg-surface/80"
+                          >
+                            {team.logoUrl && (
+                              <div className="relative h-8 w-8 flex-shrink-0">
+                                <Image src={team.logoUrl} alt={team.name} fill className="object-contain" />
+                              </div>
+                            )}
+                            <div className="min-w-0 flex-1">
+                              <p className="truncate text-sm font-bold text-paper">{team.name}</p>
+                              <p className="text-xs text-muted">{team.tag}</p>
+                            </div>
+                          </button>
+                        ))
+                      )}
+                    </div>
+                  </div>
+                )}
+
+                <div className="relative my-3">
+                  <div className="absolute inset-0 flex items-center">
+                    <div className="w-full border-t border-border"></div>
+                  </div>
+                  <div className="relative flex justify-center text-xs">
+                    <span className="bg-surface px-2 text-muted">ou</span>
+                  </div>
+                </div>
+
+                <input
+                  type="text"
+                  value={teamACustomName}
+                  onChange={(e) => setTeamACustomName(e.target.value)}
+                  placeholder="Digite o nome do time manualmente"
+                  className="w-full rounded-lg border border-border bg-ink px-4 py-3 text-paper placeholder:text-muted/50 focus:border-gold focus:outline-none"
+                />
+              </>
+            )}
           </div>
 
           {/* Time B */}
           <div>
-            <label className="mb-2 block text-sm font-medium text-paper">
-              <Users className="mb-1 inline h-4 w-4" /> Nome do Time B
+            <label className="mb-3 block text-sm font-medium text-paper">
+              <Users className="mb-1 inline h-4 w-4" /> Time B
             </label>
-            <input
-              type="text"
-              value={teamBName}
-              onChange={(e) => setTeamBName(e.target.value)}
-              placeholder="Ex: Crimson Wolves"
-              className="w-full rounded-lg border border-border bg-ink px-4 py-3 text-paper placeholder:text-muted/50 focus:border-gold focus:outline-none"
-            />
+            
+            {teamBSelected ? (
+              <div className="flex items-center justify-between rounded-lg border-2 border-gold bg-gold/10 p-3">
+                <div className="flex items-center gap-3">
+                  {teamBSelected.logoUrl && (
+                    <div className="relative h-10 w-10 flex-shrink-0">
+                      <Image src={teamBSelected.logoUrl} alt={teamBSelected.name} fill className="object-contain" />
+                    </div>
+                  )}
+                  <div>
+                    <p className="font-bold text-paper">{teamBSelected.name}</p>
+                    <p className="text-xs text-muted">{teamBSelected.tag}</p>
+                  </div>
+                </div>
+                <button
+                  onClick={() => setTeamBSelected(null)}
+                  className="rounded bg-red-500/20 px-3 py-1 text-sm font-medium text-red-400 hover:bg-red-500/30"
+                >
+                  Remover
+                </button>
+              </div>
+            ) : (
+              <>
+                <div className="mb-2 flex gap-2">
+                  <button
+                    onClick={() => setShowTeamBList(!showTeamBList)}
+                    className="flex flex-1 items-center justify-center gap-2 rounded-lg border border-border bg-ink px-4 py-3 font-medium text-paper hover:bg-ink/80"
+                  >
+                    <Search className="h-4 w-4" />
+                    Selecionar Time Cadastrado
+                  </button>
+                </div>
+                
+                {showTeamBList && (
+                  <div className="mb-3 rounded-lg border border-border bg-ink p-3">
+                    <input
+                      type="text"
+                      value={teamBSearch}
+                      onChange={(e) => setTeamBSearch(e.target.value)}
+                      placeholder="Buscar time..."
+                      className="mb-3 w-full rounded border border-border bg-navy px-3 py-2 text-sm text-paper placeholder:text-muted/50 focus:border-gold focus:outline-none"
+                    />
+                    <div className="max-h-60 space-y-2 overflow-y-auto">
+                      {loadingTeams ? (
+                        <p className="py-4 text-center text-sm text-muted">Carregando times...</p>
+                      ) : filteredTeamsB.length === 0 ? (
+                        <p className="py-4 text-center text-sm text-muted">Nenhum time encontrado</p>
+                      ) : (
+                        filteredTeamsB.map((team) => (
+                          <button
+                            key={team.id}
+                            onClick={() => {
+                              setTeamBSelected(team);
+                              setShowTeamBList(false);
+                              setTeamBSearch("");
+                            }}
+                            className="flex w-full items-center gap-3 rounded border border-border bg-surface p-2 text-left hover:border-gold hover:bg-surface/80"
+                          >
+                            {team.logoUrl && (
+                              <div className="relative h-8 w-8 flex-shrink-0">
+                                <Image src={team.logoUrl} alt={team.name} fill className="object-contain" />
+                              </div>
+                            )}
+                            <div className="min-w-0 flex-1">
+                              <p className="truncate text-sm font-bold text-paper">{team.name}</p>
+                              <p className="text-xs text-muted">{team.tag}</p>
+                            </div>
+                          </button>
+                        ))
+                      )}
+                    </div>
+                  </div>
+                )}
+
+                <div className="relative my-3">
+                  <div className="absolute inset-0 flex items-center">
+                    <div className="w-full border-t border-border"></div>
+                  </div>
+                  <div className="relative flex justify-center text-xs">
+                    <span className="bg-surface px-2 text-muted">ou</span>
+                  </div>
+                </div>
+
+                <input
+                  type="text"
+                  value={teamBCustomName}
+                  onChange={(e) => setTeamBCustomName(e.target.value)}
+                  placeholder="Digite o nome do time manualmente"
+                  className="w-full rounded-lg border border-border bg-ink px-4 py-3 text-paper placeholder:text-muted/50 focus:border-gold focus:outline-none"
+                />
+              </>
+            )}
           </div>
 
           <button
             onClick={handleCreateSession}
-            disabled={loading || !teamAName.trim() || !teamBName.trim()}
+            disabled={loading || (!getTeamAName() || !getTeamBName())}
             className="w-full rounded-lg bg-gold px-6 py-4 font-display text-lg font-bold uppercase tracking-wide text-ink transition-all hover:bg-gold-light disabled:cursor-not-allowed disabled:opacity-50"
           >
             {loading ? (
@@ -243,7 +477,7 @@ export default function AdminPage() {
         <div className="mt-6 space-y-4">
           <div className="rounded-lg border border-gold/20 bg-gold/5 p-4">
             <p className="text-sm text-gold">
-              <strong>💡 Como funciona:</strong> Após criar a sessão, você receberá um link para compartilhar com ambos os times.
+              <strong>💡 Como funciona:</strong> Você pode selecionar times já cadastrados na ECL ou criar uma sessão com nomes personalizados.
               O Pick & Ban acontecerá em tempo real seguindo a ordem:
             </p>
             <div className="mt-3 flex flex-wrap gap-2">
@@ -255,14 +489,6 @@ export default function AdminPage() {
               <span className="rounded bg-red-900/50 px-2 py-1 text-xs font-bold text-red-200">A BAN</span>
               <span className="rounded bg-gold/50 px-2 py-1 text-xs font-bold text-gold">DECIDER</span>
             </div>
-          </div>
-
-          <div className="rounded-lg border border-border bg-surface p-4">
-            <p className="mb-2 text-sm font-medium text-paper">📋 Dica:</p>
-            <p className="text-sm text-muted">
-              Cada time deve entrar no mesmo link para fazer suas escolhas de ban e pick.
-              O sistema funciona localmente, sem necessidade de login.
-            </p>
           </div>
         </div>
       </div>

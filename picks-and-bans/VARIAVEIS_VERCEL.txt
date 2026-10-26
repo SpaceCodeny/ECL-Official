@@ -57,3 +57,7 @@ Finalizar:
 [ ] Picks/bans sincronizando! ✅
 
 ===========================================
+
+
+## BACKEND - Adicionar nova variável:
+ECL_API_URL=https://ecl-backend.vercel.app

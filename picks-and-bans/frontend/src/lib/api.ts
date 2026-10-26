@@ -3,11 +3,48 @@ import { PickBanSession } from '@/types';
 // Remove barra final se existir
 const API_URL = (process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3003').replace(/\/$/, '');
 
-export async function createSession(teamAName: string, teamBName: string) {
+export interface Team {
+  id: string;
+  name: string;
+  tag: string;
+  logoUrl: string | null;
+}
+
+export async function getTeams(): Promise<Team[]> {
+  try {
+    const response = await fetch(`${API_URL}/api/teams`);
+    
+    if (!response.ok) {
+      return [];
+    }
+
+    const data = await response.json();
+    return data.teams || [];
+  } catch (error) {
+    console.error('Erro ao buscar times:', error);
+    return [];
+  }
+}
+
+export async function createSession(
+  teamAName: string, 
+  teamBName: string,
+  teamALogo?: string | null,
+  teamBLogo?: string | null,
+  teamATag?: string,
+  teamBTag?: string
+) {
   const response = await fetch(`${API_URL}/api/sessions`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ teamAName, teamBName }),
+    body: JSON.stringify({ 
+      teamAName, 
+      teamBName,
+      teamALogo,
+      teamBLogo,
+      teamATag,
+      teamBTag
+    }),
   });
 
   if (!response.ok) {
