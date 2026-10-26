@@ -19,7 +19,25 @@ export async function getTeams(): Promise<Team[]> {
     }
 
     const data = await response.json();
-    return data.teams || [];
+    
+    // Garantir que as URLs sejam absolutas
+    const SUPABASE_URL = 'https://jzmfbjdcqvgyeeafvzep.supabase.co/storage/v1/object/public';
+    
+    const teams = (data.teams || []).map((team: Team) => {
+      let logoUrl = team.logoUrl;
+      
+      // Se a URL for relativa, converter para absoluta
+      if (logoUrl && logoUrl.startsWith('/images/')) {
+        logoUrl = `${SUPABASE_URL}${logoUrl}`;
+      }
+      
+      return {
+        ...team,
+        logoUrl
+      };
+    });
+    
+    return teams;
   } catch (error) {
     console.error('Erro ao buscar times:', error);
     return [];
