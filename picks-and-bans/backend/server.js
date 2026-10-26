@@ -42,6 +42,8 @@ app.get('/api/health', (req, res) => {
 app.get('/api/teams', async (req, res) => {
   try {
     const ECL_API_URL = process.env.ECL_API_URL || 'https://ecl-backend-six.vercel.app';
+    const SUPABASE_URL = 'https://jzmfbjdcqvgyeeafvzep.supabase.co/storage/v1/object/public';
+    
     const response = await fetch(`${ECL_API_URL}/api/v1/teams?limit=100`);
     
     if (!response.ok) {
@@ -50,13 +52,22 @@ app.get('/api/teams', async (req, res) => {
 
     const data = await response.json();
     
-    // Retornar apenas os campos necessários
-    const teams = data.data.map(team => ({
-      id: team.id,
-      name: team.name,
-      tag: team.tag || team.name.substring(0, 4).toUpperCase(),
-      logoUrl: team.logoUrl,
-    }));
+    // Retornar apenas os campos necessários e converter URLs relativas
+    const teams = data.data.map(team => {
+      let logoUrl = team.logoUrl;
+      
+      // Se a URL for relativa (começa com /), converter para URL absoluta do Supabase
+      if (logoUrl && logoUrl.startsWith('/images/')) {
+        logoUrl = `${SUPABASE_URL}${logoUrl}`;
+      }
+      
+      return {
+        id: team.id,
+        name: team.name,
+        tag: team.tag || team.name.substring(0, 4).toUpperCase(),
+        logoUrl: logoUrl,
+      };
+    });
 
     res.json({ teams });
   } catch (error) {

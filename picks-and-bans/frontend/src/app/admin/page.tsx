@@ -3,7 +3,6 @@
 import { useState, useEffect } from "react";
 import { Plus, Users, Copy, Check, ExternalLink, ArrowLeft, Search } from "lucide-react";
 import { createSession, getTeams, Team } from "@/lib/api";
-import Image from "next/image";
 
 export default function AdminPage() {
   const [teams, setTeams] = useState<Team[]>([]);
@@ -138,8 +137,8 @@ export default function AdminPage() {
             <div className="text-center">
               <p className="mb-2 text-sm text-muted">Time A</p>
               {teamASelected?.logoUrl && (
-                <div className="relative mx-auto mb-2 h-12 w-12">
-                  <Image src={teamASelected.logoUrl} alt={getTeamAName()} fill className="object-contain" />
+                <div className="mx-auto mb-2 flex h-12 w-12 items-center justify-center">
+                  <img src={teamASelected.logoUrl} alt={getTeamAName()} className="max-h-full max-w-full object-contain" />
                 </div>
               )}
               <p className="font-display text-2xl font-bold text-gold">{getTeamAName()}</p>
@@ -148,8 +147,8 @@ export default function AdminPage() {
             <div className="text-center">
               <p className="mb-2 text-sm text-muted">Time B</p>
               {teamBSelected?.logoUrl && (
-                <div className="relative mx-auto mb-2 h-12 w-12">
-                  <Image src={teamBSelected.logoUrl} alt={getTeamBName()} fill className="object-contain" />
+                <div className="mx-auto mb-2 flex h-12 w-12 items-center justify-center">
+                  <img src={teamBSelected.logoUrl} alt={getTeamBName()} className="max-h-full max-w-full object-contain" />
                 </div>
               )}
               <p className="font-display text-2xl font-bold text-gold">{getTeamBName()}</p>
@@ -270,7 +269,7 @@ export default function AdminPage() {
                 <div className="flex items-center gap-3">
                   {teamASelected.logoUrl && (
                     <div className="relative h-10 w-10 flex-shrink-0">
-                      <Image src={teamASelected.logoUrl} alt={teamASelected.name} fill className="object-contain" />
+                      <img src={teamASelected.logoUrl} alt={teamASelected.name} className="h-full w-full object-contain" />
                     </div>
                   )}
                   <div>
@@ -323,8 +322,8 @@ export default function AdminPage() {
                             className="flex w-full items-center gap-3 rounded border border-border bg-surface p-2 text-left hover:border-gold hover:bg-surface/80"
                           >
                             {team.logoUrl && (
-                              <div className="relative h-8 w-8 flex-shrink-0">
-                                <Image src={team.logoUrl} alt={team.name} fill className="object-contain" />
+                              <div className="flex h-8 w-8 flex-shrink-0 items-center justify-center">
+                                <img src={team.logoUrl} alt={team.name} className="max-h-full max-w-full object-contain" />
                               </div>
                             )}
                             <div className="min-w-0 flex-1">
@@ -368,8 +367,8 @@ export default function AdminPage() {
               <div className="flex items-center justify-between rounded-lg border-2 border-gold bg-gold/10 p-3">
                 <div className="flex items-center gap-3">
                   {teamBSelected.logoUrl && (
-                    <div className="relative h-10 w-10 flex-shrink-0">
-                      <Image src={teamBSelected.logoUrl} alt={teamBSelected.name} fill className="object-contain" />
+                    <div className="flex h-10 w-10 flex-shrink-0 items-center justify-center">
+                      <img src={teamBSelected.logoUrl} alt={teamBSelected.name} className="max-h-full max-w-full object-contain" />
                     </div>
                   )}
                   <div>
@@ -422,8 +421,8 @@ export default function AdminPage() {
                             className="flex w-full items-center gap-3 rounded border border-border bg-surface p-2 text-left hover:border-gold hover:bg-surface/80"
                           >
                             {team.logoUrl && (
-                              <div className="relative h-8 w-8 flex-shrink-0">
-                                <Image src={team.logoUrl} alt={team.name} fill className="object-contain" />
+                              <div className="flex h-8 w-8 flex-shrink-0 items-center justify-center">
+                                <img src={team.logoUrl} alt={team.name} className="max-h-full max-w-full object-contain" />
                               </div>
                             )}
                             <div className="min-w-0 flex-1">
