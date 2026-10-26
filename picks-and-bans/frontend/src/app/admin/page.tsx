@@ -1,10 +1,14 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { Plus, Users, Copy, Check, ExternalLink, ArrowLeft, Search } from "lucide-react";
+import { useRouter } from "next/navigation";
+import { Plus, Users, Copy, Check, ExternalLink, ArrowLeft, Search, LogOut } from "lucide-react";
 import { createSession, getTeams, Team } from "@/lib/api";
 
 export default function AdminPage() {
+  const router = useRouter();
+  const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const [isCheckingAuth, setIsCheckingAuth] = useState(true);
   const [teams, setTeams] = useState<Team[]>([]);
   const [loadingTeams, setLoadingTeams] = useState(true);
   
@@ -26,8 +30,52 @@ export default function AdminPage() {
   const [copied, setCopied] = useState(false);
 
   useEffect(() => {
-    loadTeams();
+    checkAuthentication();
   }, []);
+
+  useEffect(() => {
+    if (isAuthenticated) {
+      loadTeams();
+    }
+  }, [isAuthenticated]);
+
+  const checkAuthentication = async () => {
+    try {
+      const token = localStorage.getItem('admin_token');
+      
+      if (!token) {
+        router.push('/login');
+        return;
+      }
+
+      const API_URL = (process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3003').replace(/\/$/, '');
+      const response = await fetch(`${API_URL}/api/auth/verify`, {
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      });
+
+      if (!response.ok) {
+        localStorage.removeItem('admin_token');
+        localStorage.removeItem('admin_user');
+        router.push('/login');
+        return;
+      }
+
+      setIsAuthenticated(true);
+    } catch (error) {
+      console.error('Erro ao verificar autenticação:', error);
+      router.push('/login');
+    } finally {
+      setIsCheckingAuth(false);
+    }
+  };
+
+  const handleLogout = () => {
+    localStorage.removeItem('admin_token');
+    localStorage.removeItem('admin_user');
+    router.push('/login');
+  };
 
   const loadTeams = async () => {
     setLoadingTeams(true);
@@ -115,6 +163,23 @@ export default function AdminPage() {
     setTeamBSearch("");
     setCopied(false);
   };
+
+  // Loading de autenticação
+  if (isCheckingAuth) {
+    return (
+      <div className="flex min-h-screen items-center justify-center bg-ink">
+        <div className="text-center">
+          <div className="mx-auto mb-4 h-12 w-12 animate-spin rounded-full border-4 border-gold border-t-transparent" />
+          <p className="text-muted">Verificando autenticação...</p>
+        </div>
+      </div>
+    );
+  }
+
+  // Se não autenticado, não renderizar nada (vai redirecionar)
+  if (!isAuthenticated) {
+    return null;
+  }
 
   // Tela de link gerado
   if (generatedLink) {
@@ -250,11 +315,20 @@ export default function AdminPage() {
   return (
     <div className="min-h-screen bg-gradient-to-b from-ink via-navy to-ink p-4 sm:p-8">
       <div className="mx-auto max-w-4xl">
-        <div className="mb-8">
-          <h1 className="mb-2 font-display text-3xl font-bold uppercase tracking-tight text-paper sm:text-4xl">
-            Criar Sessão de Pick & Ban
-          </h1>
-          <p className="text-muted">Selecione times cadastrados ou digite nomes manualmente</p>
+        <div className="mb-8 flex items-center justify-between">
+          <div>
+            <h1 className="mb-2 font-display text-3xl font-bold uppercase tracking-tight text-paper sm:text-4xl">
+              Criar Sessão de Pick & Ban
+            </h1>
+            <p className="text-muted">Selecione times cadastrados ou digite nomes manualmente</p>
+          </div>
+          <button
+            onClick={handleLogout}
+            className="flex items-center gap-2 rounded-lg border border-border bg-surface px-4 py-2 font-medium text-paper transition-all hover:bg-surface/80"
+          >
+            <LogOut className="h-4 w-4" />
+            <span className="hidden sm:inline">Sair</span>
+          </button>
         </div>
 
         <div className="space-y-6 rounded-lg border border-border bg-surface p-4 sm:p-6">

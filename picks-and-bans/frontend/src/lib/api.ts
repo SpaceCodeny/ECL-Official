@@ -52,9 +52,14 @@ export async function createSession(
   teamATag?: string,
   teamBTag?: string
 ) {
+  const token = localStorage.getItem('admin_token');
+  
   const response = await fetch(`${API_URL}/api/sessions`, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+    headers: { 
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${token}`
+    },
     body: JSON.stringify({ 
       teamAName, 
       teamBName,
@@ -66,6 +71,13 @@ export async function createSession(
   });
 
   if (!response.ok) {
+    if (response.status === 401 || response.status === 403) {
+      // Token inválido, redirecionar para login
+      localStorage.removeItem('admin_token');
+      localStorage.removeItem('admin_user');
+      window.location.href = '/login';
+      throw new Error('Sessão expirada. Faça login novamente.');
+    }
     throw new Error('Erro ao criar sessão');
   }
 

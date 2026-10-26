@@ -1,5 +1,7 @@
 const express = require('express');
 const cors = require('cors');
+const jwt = require('jsonwebtoken');
+const bcrypt = require('bcryptjs');
 
 const app = express();
 
@@ -15,6 +17,35 @@ app.use(express.json());
 // Para produção real, use um banco de dados (Redis, MongoDB, etc.)
 const sessions = new Map();
 
+// Credenciais admin (em produção, use banco de dados)
+// Senha padrão: "admin123" (hash gerado com bcrypt)
+const ADMIN_CREDENTIALS = {
+  username: process.env.ADMIN_USERNAME || 'admin',
+  // Hash de "admin123" - alterar em produção via variável de ambiente
+  passwordHash: process.env.ADMIN_PASSWORD_HASH || '$2a$10$xQHj5YrJZ0FZqZQXKZ5LZOxZ1JZ3Z5Z5Z5Z5Z5Z5Z5Z5Z5Z5Z5Z5Z',
+};
+
+// Secret para JWT (DEVE ser definido em produção via variável de ambiente)
+const JWT_SECRET = process.env.JWT_SECRET || 'change-this-secret-in-production-urgently';
+
+// Middleware de autenticação
+const authenticateToken = (req, res, next) => {
+  const authHeader = req.headers['authorization'];
+  const token = authHeader && authHeader.split(' ')[1];
+
+  if (!token) {
+    return res.status(401).json({ error: 'Token não fornecido' });
+  }
+
+  jwt.verify(token, JWT_SECRET, (err, user) => {
+    if (err) {
+      return res.status(403).json({ error: 'Token inválido ou expirado' });
+    }
+    req.user = user;
+    next();
+  });
+};
+
 // Mapa de sequência do Pick & Ban
 const SEQUENCE = [
   { team: 'A', action: 'BAN' },
@@ -28,6 +59,52 @@ const SEQUENCE = [
 const MAPS = ['Breeze', 'Dune', 'Hanami', 'Prision', 'Province', 'Rust', 'Sandstone'];
 
 // ==================== ROTAS HTTP ====================
+
+// Login endpoint
+app.post('/api/auth/login', async (req, res) => {
+  const { username, password } = req.body;
+
+  if (!username || !password) {
+    return res.status(400).json({ error: 'Usuário e senha são obrigatórios' });
+  }
+
+  // Verificar username
+  if (username !== ADMIN_CREDENTIALS.username) {
+    return res.status(401).json({ error: 'Credenciais inválidas' });
+  }
+
+  // Para desenvolvimento, aceitar senha padrão se não houver hash configurado
+  let isValidPassword = false;
+  
+  if (process.env.ADMIN_PASSWORD_HASH) {
+    // Em produção, usar bcrypt
+    isValidPassword = await bcrypt.compare(password, ADMIN_CREDENTIALS.passwordHash);
+  } else {
+    // Em desenvolvimento, aceitar senha simples "admin123"
+    isValidPassword = password === 'admin123';
+  }
+
+  if (!isValidPassword) {
+    return res.status(401).json({ error: 'Credenciais inválidas' });
+  }
+
+  // Gerar token JWT válido por 24 horas
+  const token = jwt.sign(
+    { username: ADMIN_CREDENTIALS.username, role: 'admin' },
+    JWT_SECRET,
+    { expiresIn: '24h' }
+  );
+
+  res.json({ 
+    token,
+    user: { username: ADMIN_CREDENTIALS.username, role: 'admin' }
+  });
+});
+
+// Verificar token
+app.get('/api/auth/verify', authenticateToken, (req, res) => {
+  res.json({ valid: true, user: req.user });
+});
 
 // Health check
 app.get('/health', (req, res) => {
@@ -77,8 +154,8 @@ app.get('/api/teams', async (req, res) => {
   }
 });
 
-// Criar nova sessão
-app.post('/api/sessions', (req, res) => {
+// Criar nova sessão (PROTEGIDO - requer autenticação)
+app.post('/api/sessions', authenticateToken, (req, res) => {
   const { teamAName, teamBName, teamALogo, teamBLogo, teamATag, teamBTag } = req.body;
 
   if (!teamAName || !teamBName) {

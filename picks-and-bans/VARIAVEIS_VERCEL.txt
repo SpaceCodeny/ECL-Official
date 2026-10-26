@@ -21,6 +21,18 @@ Adicionar variáveis:
    Value: https://ecl-official.vercel.app
    (URL do frontend da ECL - para carregar imagens)
 
+4. Name: JWT_SECRET
+   Value: [GERE UM SECRET ALEATÓRIO FORTE]
+   (Importante: Use um gerador de senha forte!)
+
+5. Name: ADMIN_USERNAME
+   Value: admin
+   (Ou outro usuário que preferir)
+
+6. Name: ADMIN_PASSWORD_HASH
+   Value: [DEIXE VAZIO EM DEV - use "admin123"]
+   (Em produção, gere hash bcrypt da senha desejada)
+
 
 📦 FRONTEND (Deploy DEPOIS)
 -------------------------------------------
