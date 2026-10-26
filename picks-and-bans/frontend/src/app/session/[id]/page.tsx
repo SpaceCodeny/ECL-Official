@@ -114,7 +114,7 @@ export default function SessionPage({ params }: { params: Promise<{ id: string }
    🛡️ ${session.teamA.name} começa de CT
 
 🏆 Decider: *${decider?.map}*
-   🛡️ Vencedor do Mapa 1 começa de CT
+   🛡️ Vencedor de ${pickedMaps[0]?.map} começa de CT
 
 ---
 Bora jogar! 🔥`;
@@ -320,7 +320,8 @@ Bora jogar! 🔥`;
               ctInfo = `${ctTeam} inicia CT`;
             } else if (action?.order === 7) {
               // Decider: quem ganhou o mapa 1 começa de CT
-              ctInfo = "Vencedor Mapa 1 inicia CT";
+              const firstPickedMap = pickedMaps[0]?.map || "Mapa 1";
+              ctInfo = `Vencedor de ${firstPickedMap} inicia CT`;
             }
 
             return (
@@ -404,7 +405,7 @@ Bora jogar! 🔥`;
                 <p className="mb-1 text-xs font-medium uppercase text-gold">🏆 Decider</p>
                 <p className="font-display text-lg font-bold text-gold">{decider?.map}</p>
                 <p className="mt-1 text-xs font-bold text-gold/80">
-                  🛡️ Vencedor do Mapa 1 começa de CT
+                  🛡️ Vencedor de {pickedMaps[0]?.map} começa de CT
                 </p>
               </div>
             </div>
