@@ -1,30 +1,30 @@
-import Link from "next/link";
-import { Shield } from "lucide-react";
+"use client";
+
+import { useEffect } from "react";
+import { useRouter } from "next/navigation";
 
 export default function HomePage() {
-  return (
-    <div className="flex min-h-screen items-center justify-center bg-gradient-to-b from-ink via-navy to-ink">
-      <div className="mx-auto max-w-2xl px-6 text-center">
-        <Shield className="mx-auto mb-6 h-20 w-20 text-gold" />
-        <h1 className="mb-4 font-display text-5xl font-bold uppercase tracking-tight text-paper">
-          ECL Pick & Ban
-        </h1>
-        <p className="mb-8 text-xl text-muted">
-          Sistema de Pick & Ban em tempo real para treinos
-        </p>
-        
-        <div className="flex flex-col gap-4 sm:flex-row sm:justify-center">
-          <Link
-            href="/admin"
-            className="rounded-lg bg-gold px-8 py-4 font-display text-lg font-bold uppercase tracking-wide text-ink transition-all hover:bg-gold-light hover:shadow-lg hover:shadow-gold/30"
-          >
-            Criar Sessão (Admin)
-          </Link>
-        </div>
+  const router = useRouter();
 
-        <div className="mt-12 text-sm text-muted">
-          <p>Powered by Elite Champions League</p>
-        </div>
+  useEffect(() => {
+    // Verificar se já está autenticado
+    const token = localStorage.getItem('admin_token');
+    
+    if (token) {
+      // Se autenticado, ir para admin
+      router.push('/admin');
+    } else {
+      // Se não autenticado, ir para login
+      router.push('/login');
+    }
+  }, [router]);
+
+  // Loading enquanto redireciona
+  return (
+    <div className="flex min-h-screen items-center justify-center bg-ink">
+      <div className="text-center">
+        <div className="mx-auto mb-4 h-12 w-12 animate-spin rounded-full border-4 border-gold border-t-transparent" />
+        <p className="text-muted">Carregando...</p>
       </div>
     </div>
   );
