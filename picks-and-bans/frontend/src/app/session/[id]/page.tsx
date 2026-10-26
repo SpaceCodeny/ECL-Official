@@ -13,6 +13,7 @@ export default function SessionPage({ params }: { params: Promise<{ id: string }
   const [leaderNick, setLeaderNick] = useState("");
   const [inputNick, setInputNick] = useState("");
   const [copied, setCopied] = useState(false);
+  const [resultsCopied, setResultsCopied] = useState(false);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -37,7 +38,7 @@ export default function SessionPage({ params }: { params: Promise<{ id: string }
 
         setLoading(false);
 
-        // Iniciar polling a cada 2 segundos
+        // Polling a cada 2 segundos
         pollingInterval = setInterval(async () => {
           try {
             const updatedSession = await getSession(id);
@@ -97,19 +98,30 @@ export default function SessionPage({ params }: { params: Promise<{ id: string }
     }
   };
 
-  const handleReset = async () => {
-    if (!confirm("Deseja resetar a sessão?")) return;
-    try {
-      await apiResetSession(id);
-    } catch (error) {
-      alert("Erro ao resetar sessão");
-    }
-  };
+  const copyResults = () => {
+    if (!session) return;
+    
+    const resultText = `🎮 *ECL PICKS & BANS - RESULTADO* 🎮
 
-  const copyLink = () => {
-    navigator.clipboard.writeText(window.location.href);
-    setCopied(true);
-    setTimeout(() => setCopied(false), 2000);
+⚔️ *${session.teamA.name}* vs *${session.teamB.name}*
+
+📍 *MAPAS ESCOLHIDOS:*
+
+1️⃣ Mapa 1: *${pickedMaps[0]?.map}* (${session.teamA.name})
+   🛡️ ${session.teamB.name} começa de CT
+
+2️⃣ Mapa 2: *${pickedMaps[1]?.map}* (${session.teamB.name})
+   🛡️ ${session.teamA.name} começa de CT
+
+🏆 Decider: *${decider?.map}*
+   🛡️ Vencedor do Mapa 1 começa de CT
+
+---
+Bora jogar! 🔥`;
+
+    navigator.clipboard.writeText(resultText);
+    setResultsCopied(true);
+    setTimeout(() => setResultsCopied(false), 3000);
   };
 
   if (loading) {
@@ -143,82 +155,62 @@ export default function SessionPage({ params }: { params: Promise<{ id: string }
     );
   }
 
+  // Tela de seleção
   if (!selectedTeam || !leaderNick) {
     return (
-      <div className="min-h-screen bg-gradient-to-b from-ink via-navy to-ink flex items-center justify-center p-4">
-        <div className="w-full max-w-4xl">
-          <div className="mb-8 text-center">
-            <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-gold/20">
-              <User className="h-8 w-8 text-gold" />
-            </div>
-            <h1 className="mb-2 font-display text-4xl font-bold uppercase tracking-tight text-paper">
+      <div className="min-h-screen bg-ink flex items-center justify-center p-4">
+        <div className="w-full max-w-md">
+          <div className="mb-6 text-center">
+            <h1 className="mb-2 font-display text-3xl font-bold uppercase text-paper">
               Entrar na Sessão
             </h1>
-            <p className="text-muted">Digite seu nickname e selecione seu time</p>
+            <p className="text-sm text-muted">Digite seu nickname e selecione seu time</p>
           </div>
 
-          <div className="mb-8">
-            <label className="mb-3 block text-center text-sm font-medium text-paper">
-              Seu Nickname (apelido)
+          <div className="mb-6">
+            <label className="mb-2 block text-sm font-medium text-paper">
+              Seu Nickname
             </label>
             <input
               type="text"
               value={inputNick}
               onChange={(e) => setInputNick(e.target.value)}
-              placeholder="Ex: Player123"
+              placeholder="Digite seu apelido"
               maxLength={20}
-              className="w-full rounded-lg border border-border bg-surface px-4 py-3 text-center text-lg font-medium text-paper placeholder:text-muted/50 focus:border-gold focus:outline-none"
+              className="w-full rounded-lg border border-border bg-surface px-4 py-3 text-paper placeholder:text-muted/50 focus:border-gold focus:outline-none focus:ring-2 focus:ring-gold"
             />
           </div>
 
-          <div className="grid gap-6 sm:grid-cols-2">
+          <div className="mb-6 grid gap-3 sm:grid-cols-2">
             <button
               onClick={() => selectTeamWithNick("A")}
               disabled={!inputNick.trim()}
-              className="group relative overflow-hidden rounded-2xl border-2 border-border bg-surface p-8 transition-all hover:border-gold hover:shadow-2xl hover:shadow-gold/20 disabled:cursor-not-allowed disabled:opacity-50"
+              className="card-ecl p-4 transition-all hover:border-gold disabled:cursor-not-allowed disabled:opacity-50"
             >
-              <div className="text-center">
-                <div className="mx-auto mb-4 flex h-20 w-20 items-center justify-center rounded-full bg-purple-500/20 transition-all group-hover:bg-purple-500/30">
-                  <span className="font-display text-3xl font-bold text-purple-400">
-                    {session?.teamA.tag || "A"}
-                  </span>
-                </div>
-                <h2 className="mb-2 font-display text-3xl font-bold uppercase text-paper">
-                  {session?.teamA.name || "Time A"}
-                </h2>
-                <p className="text-sm text-muted">Clique para representar o Time A</p>
-                {session?.teamA.leader && (
-                  <p className="mt-2 text-xs text-gold">Líder: {session.teamA.leader}</p>
-                )}
+              <div className="mb-2 flex h-12 w-12 items-center justify-center rounded-lg bg-navy text-lg font-bold text-gold">
+                {session?.teamA.tag || "A"}
               </div>
+              <p className="text-xs font-medium uppercase text-muted">Time A</p>
+              <p className="font-display text-lg font-bold text-paper">{session?.teamA.name || "Time A"}</p>
+              {session?.teamA.leader && (
+                <p className="mt-1 text-xs text-gold">Líder: {session.teamA.leader}</p>
+              )}
             </button>
 
             <button
               onClick={() => selectTeamWithNick("B")}
               disabled={!inputNick.trim()}
-              className="group relative overflow-hidden rounded-2xl border-2 border-border bg-surface p-8 transition-all hover:border-gold hover:shadow-2xl hover:shadow-gold/20 disabled:cursor-not-allowed disabled:opacity-50"
+              className="card-ecl p-4 transition-all hover:border-gold disabled:cursor-not-allowed disabled:opacity-50"
             >
-              <div className="text-center">
-                <div className="mx-auto mb-4 flex h-20 w-20 items-center justify-center rounded-full bg-pink-500/20 transition-all group-hover:bg-pink-500/30">
-                  <span className="font-display text-3xl font-bold text-pink-400">
-                    {session?.teamB.tag || "B"}
-                  </span>
-                </div>
-                <h2 className="mb-2 font-display text-3xl font-bold uppercase text-paper">
-                  {session?.teamB.name || "Time B"}
-                </h2>
-                <p className="text-sm text-muted">Clique para representar o Time B</p>
-                {session?.teamB.leader && (
-                  <p className="mt-2 text-xs text-gold">Líder: {session.teamB.leader}</p>
-                )}
+              <div className="mb-2 flex h-12 w-12 items-center justify-center rounded-lg bg-navy text-lg font-bold text-gold">
+                {session?.teamB.tag || "B"}
               </div>
+              <p className="text-xs font-medium uppercase text-muted">Time B</p>
+              <p className="font-display text-lg font-bold text-paper">{session?.teamB.name || "Time B"}</p>
+              {session?.teamB.leader && (
+                <p className="mt-1 text-xs text-gold">Líder: {session.teamB.leader}</p>
+              )}
             </button>
-          </div>
-
-          <div className="mt-8 rounded-lg border border-blue-500/20 bg-blue-500/5 p-4 text-center">
-            <p className="text-sm text-blue-200">
-              💡 <strong>Dica:</strong> As ações serão sincronizadas em tempo real!
-            </p>
           </div>
         </div>
       </div>
@@ -241,105 +233,144 @@ export default function SessionPage({ params }: { params: Promise<{ id: string }
   const decider = session.actions.find((a) => a.order === 7);
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-ink via-navy to-ink p-4 sm:p-8">
-      <div className="mx-auto max-w-7xl">
+    <div className="min-h-screen bg-ink">
+      <div className="container-ecl py-4 sm:py-6">
         {/* Header */}
-        <div className="mb-8 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-          <div>
-            <h1 className="mb-2 font-display text-3xl font-bold uppercase tracking-tight text-paper">
-              Pick & Ban Session
-            </h1>
-            <p className="text-sm text-muted">
-              Você: <span className="font-bold text-gold">{leaderNick}</span> • Time:{" "}
-              <span className={cn("font-bold", selectedTeam === "A" ? "text-purple-400" : "text-pink-400")}>
-                {selectedTeam === "A" ? session.teamA.name : session.teamB.name}
-              </span>
-            </p>
+        <header className="mb-4 text-center">
+          <h1 className="mb-1 font-display text-2xl font-bold uppercase text-paper sm:text-3xl">
+            Pick & Ban
+          </h1>
+          <div className="inline-flex items-center gap-2 rounded-md bg-surface px-3 py-1.5 text-xs sm:text-sm">
+            <div className="h-1.5 w-1.5 rounded-full bg-green-500"></div>
+            <span className="font-medium text-muted">
+              {leaderNick} • {selectedTeam === "A" ? session.teamA.name : session.teamB.name}
+            </span>
           </div>
-          <div className="flex gap-2">
-            <button onClick={copyLink} className="rounded-lg border border-border bg-surface px-4 py-2 font-display text-sm font-bold uppercase text-paper transition-all hover:border-gold">
-              {copied ? <Check className="mr-2 inline h-4 w-4" /> : <Copy className="mr-2 inline h-4 w-4" />}
-              {copied ? "Copiado!" : "Link"}
-            </button>
-            <button onClick={handleReset} className="rounded-lg border border-border bg-surface px-4 py-2 font-display text-sm font-bold uppercase text-paper transition-all hover:border-gold">
-              <RefreshCw className="mr-2 inline h-4 w-4" />
-              Reset
-            </button>
+        </header>
+
+        {/* Alerta de Turno */}
+        {session.status === "IN_PROGRESS" && (
+          <div className="mb-4">
+            {session.currentTurn === selectedTeam ? (
+              <div className={cn(
+                "rounded-lg border-2 p-4 text-center",
+                session.currentAction === "BAN" ? "border-red-500 bg-red-950/30" : "border-green-500 bg-green-950/30"
+              )}>
+                <p className="mb-1 text-xs font-medium uppercase text-muted">É a sua vez!</p>
+                <h2 className={cn(
+                  "font-display text-2xl font-bold uppercase sm:text-3xl",
+                  session.currentAction === "BAN" ? "text-red-400" : "text-green-400"
+                )}>
+                  {session.currentAction === "BAN" ? "🚫 Banir Mapa" : "✅ Escolher Mapa"}
+                </h2>
+                <p className="mt-2 text-sm text-paper/80">
+                  Toque no mapa que deseja {session.currentAction === "BAN" ? "banir" : "escolher"}
+                </p>
+              </div>
+            ) : (
+              <div className="card-ecl p-3 text-center">
+                <p className="text-sm text-muted">
+                  Aguardando <strong className="text-gold">{session.currentTurn === "A" ? session.teamA.name : session.teamB.name}</strong> {session.currentAction === "BAN" ? "banir" : "escolher"}...
+                </p>
+              </div>
+            )}
           </div>
-        </div>
+        )}
 
         {/* Times */}
-        <div className="mb-8 grid grid-cols-2 gap-4">
-          <div className={cn("rounded-lg border p-4 relative", session.currentTurn === "A" && session.status === "IN_PROGRESS" ? "border-gold bg-gold/10" : "border-border bg-surface", selectedTeam === "A" && "ring-2 ring-purple-500/50")}>
-            {selectedTeam === "A" && <div className="absolute -top-2 -right-2 rounded-full bg-purple-500 px-2 py-1 text-xs font-bold text-white">Você</div>}
-            <p className="mb-2 text-xs uppercase tracking-wide text-muted">Time A</p>
-            <p className="font-display text-2xl font-bold uppercase text-paper">{session.teamA.name}</p>
-            <p className="text-sm text-gold">{session.teamA.tag}</p>
-            {session.teamA.leader && <p className="mt-1 text-xs text-muted">Líder: {session.teamA.leader}</p>}
-            {session.currentTurn === "A" && session.status === "IN_PROGRESS" && (
-              <p className="mt-2 text-sm font-medium text-gold">
-                👉 Vez de {session.currentAction === "BAN" ? "BANIR" : "ESCOLHER"}
-              </p>
-            )}
+        <div className="mb-4 grid grid-cols-2 gap-2 sm:gap-4">
+          <div className={cn("card-ecl p-3 sm:p-4", session.currentTurn === "A" && session.status === "IN_PROGRESS" && "animate-pulse-border", selectedTeam === "A" && "ring-2 ring-gold")}>
+            {selectedTeam === "A" && <div className="mb-2 inline-block rounded-md bg-gold px-2 py-0.5 text-xs font-bold uppercase text-ink">Você</div>}
+            <div className="flex items-center gap-2">
+              <div className="flex h-10 w-10 items-center justify-center rounded-md bg-navy text-sm font-bold text-gold sm:h-12 sm:w-12">{session.teamA.tag}</div>
+              <div className="min-w-0 flex-1">
+                <p className="text-xs font-medium uppercase text-muted">Time A</p>
+                <p className="truncate font-display text-base font-bold text-paper sm:text-lg">{session.teamA.name}</p>
+              </div>
+            </div>
           </div>
 
-          <div className={cn("rounded-lg border p-4 relative", session.currentTurn === "B" && session.status === "IN_PROGRESS" ? "border-gold bg-gold/10" : "border-border bg-surface", selectedTeam === "B" && "ring-2 ring-pink-500/50")}>
-            {selectedTeam === "B" && <div className="absolute -top-2 -right-2 rounded-full bg-pink-500 px-2 py-1 text-xs font-bold text-white">Você</div>}
-            <p className="mb-2 text-xs uppercase tracking-wide text-muted">Time B</p>
-            <p className="font-display text-2xl font-bold uppercase text-paper">{session.teamB.name}</p>
-            <p className="text-sm text-gold">{session.teamB.tag}</p>
-            {session.teamB.leader && <p className="mt-1 text-xs text-muted">Líder: {session.teamB.leader}</p>}
-            {session.currentTurn === "B" && session.status === "IN_PROGRESS" && (
-              <p className="mt-2 text-sm font-medium text-gold">
-                👉 Vez de {session.currentAction === "BAN" ? "BANIR" : "ESCOLHER"}
-              </p>
-            )}
+          <div className={cn("card-ecl p-3 sm:p-4", session.currentTurn === "B" && session.status === "IN_PROGRESS" && "animate-pulse-border", selectedTeam === "B" && "ring-2 ring-gold")}>
+            {selectedTeam === "B" && <div className="mb-2 inline-block rounded-md bg-gold px-2 py-0.5 text-xs font-bold uppercase text-ink">Você</div>}
+            <div className="flex items-center gap-2">
+              <div className="flex h-10 w-10 items-center justify-center rounded-md bg-navy text-sm font-bold text-gold sm:h-12 sm:w-12">{session.teamB.tag}</div>
+              <div className="min-w-0 flex-1">
+                <p className="text-xs font-medium uppercase text-muted">Time B</p>
+                <p className="truncate font-display text-base font-bold text-paper sm:text-lg">{session.teamB.name}</p>
+              </div>
+            </div>
           </div>
         </div>
 
         {/* Mapas */}
-        <div className="mb-8 grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-4">
+        <div className="mb-6 grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-4">
           {MAPS.map((map) => {
             const action = session.actions.find((a) => a.map === map);
             const isAvailable = !usedMaps.includes(map);
             const isBanned = action?.action === "BAN";
             const isPicked = action?.action === "PICK";
+            const teamName = action?.team === "A" ? session.teamA.name : session.teamB.name;
+            const canInteract = isAvailable && session.status === "IN_PROGRESS" && session.currentTurn === selectedTeam;
+            
+            // Determinar quem começa de CT
+            let ctInfo = "";
+            if (isPicked && action.order !== 7) {
+              // Mapa escolhido (não decider): o time oposto começa de CT
+              const ctTeam = action.team === "A" ? session.teamB.name : session.teamA.name;
+              ctInfo = `${ctTeam} inicia CT`;
+            } else if (action?.order === 7) {
+              // Decider: quem ganhou o mapa 1 começa de CT
+              ctInfo = "Vencedor Mapa 1 inicia CT";
+            }
 
             return (
               <button
                 key={map}
-                onClick={() => isAvailable && handleAction(map)}
-                disabled={!isAvailable || session.status !== "IN_PROGRESS"}
-                className={cn("group relative overflow-hidden rounded-lg border transition-all", isAvailable && session.status === "IN_PROGRESS" ? "border-gold/40 hover:border-gold hover:shadow-lg hover:shadow-gold/20 cursor-pointer" : "border-border cursor-not-allowed", isBanned && "opacity-30")}
+                onClick={() => canInteract && handleAction(map)}
+                disabled={!canInteract}
+                className={cn(
+                  "group relative overflow-hidden rounded-lg border-2 transition-all active:scale-95",
+                  canInteract ? "border-gold/40" : "border-border",
+                  isBanned && "opacity-50"
+                )}
               >
-                <div className="aspect-video w-full overflow-hidden bg-surface">
-                  <div
-                    className="h-full w-full bg-cover bg-center transition-transform group-hover:scale-110"
-                    style={{ backgroundImage: `linear-gradient(rgba(0,0,0,0.4), rgba(0,0,0,0.4)), url(/images/maps/${map.toLowerCase()}.png)`, backgroundColor: "#1A1F28" }}
-                  />
+                <div className="aspect-video w-full bg-navy">
+                  <img src={`/images/maps/${map.toLowerCase()}.png`} alt={map} className="h-full w-full object-cover" loading="lazy" />
                 </div>
-                <div className="p-3">
-                  <p className="font-display text-lg font-bold uppercase text-paper">{map}</p>
+                <div className="bg-surface p-2">
+                  <p className="truncate font-display text-sm font-bold uppercase text-paper">{map}</p>
                 </div>
                 {action && (
-                  <div className={cn("absolute inset-0 flex items-center justify-center", isBanned && "bg-red-900/80", isPicked && "bg-green-900/80")}>
+                  <div className={cn("absolute inset-0 flex flex-col items-center justify-center backdrop-blur-sm", isBanned && "bg-red-900/90", isPicked && action.order !== 7 && "bg-green-900/90", action.order === 7 && "bg-gold/90")}>
                     {isBanned && (
-                      <div className="text-center">
-                        <X className="mx-auto h-12 w-12 text-red-400" />
-                        <p className="mt-2 font-display text-sm font-bold uppercase text-red-200">Banned by Team {action.team}</p>
-                      </div>
+                      <>
+                        <X className="mb-2 h-10 w-10 text-red-300" />
+                        <p className="px-2 text-center text-xs font-bold uppercase text-red-200">Banido</p>
+                        <p className="px-2 text-center text-xs text-white">{teamName}</p>
+                      </>
                     )}
                     {isPicked && action.order !== 7 && (
-                      <div className="text-center">
-                        <CheckCircle className="mx-auto h-12 w-12 text-green-400" />
-                        <p className="mt-2 font-display text-sm font-bold uppercase text-green-200">Picked by Team {action.team}</p>
-                      </div>
+                      <>
+                        <CheckCircle className="mb-2 h-10 w-10 text-green-300" />
+                        <p className="px-2 text-center text-xs font-bold uppercase text-green-200">Escolhido</p>
+                        <p className="px-2 text-center text-xs text-white">{teamName}</p>
+                        {ctInfo && (
+                          <p className="mt-1 px-2 text-center text-xs font-semibold text-blue-300">
+                            🛡️ {ctInfo}
+                          </p>
+                        )}
+                      </>
                     )}
                     {action.order === 7 && (
-                      <div className="text-center">
-                        <CheckCircle className="mx-auto h-12 w-12 text-gold" />
-                        <p className="mt-2 font-display text-sm font-bold uppercase text-gold">DECIDER</p>
-                      </div>
+                      <>
+                        <div className="mb-2 text-4xl">🏆</div>
+                        <p className="font-display text-lg font-bold uppercase text-ink">DECIDER</p>
+                        {ctInfo && (
+                          <p className="mt-1 px-2 text-center text-xs font-bold text-ink/80">
+                            🛡️ {ctInfo}
+                          </p>
+                        )}
+                      </>
                     )}
                   </div>
                 )}
@@ -350,22 +381,41 @@ export default function SessionPage({ params }: { params: Promise<{ id: string }
 
         {/* Resultado */}
         {session.status === "COMPLETED" && (
-          <div className="rounded-lg border border-gold bg-gold/10 p-6">
-            <h2 className="mb-4 font-display text-2xl font-bold uppercase text-gold">✅ Pick & Ban Completo!</h2>
-            <div className="grid gap-4 sm:grid-cols-3">
-              <div>
-                <p className="mb-2 text-sm uppercase text-muted">Mapa 1 (Team A Pick)</p>
-                <p className="font-display text-xl font-bold text-paper">{pickedMaps[0]?.map}</p>
+          <div className="card-ecl border-gold/50 bg-navy/80 p-4">
+            <h2 className="mb-4 text-center font-display text-xl font-bold uppercase text-gold">
+              ✅ Pick & Ban Concluído!
+            </h2>
+            <div className="mb-4 space-y-2">
+              <div className="card-ecl p-3">
+                <p className="mb-1 text-xs font-medium uppercase text-muted">Mapa 1 • {session.teamA.name}</p>
+                <p className="font-display text-lg font-bold text-paper">{pickedMaps[0]?.map}</p>
+                <p className="mt-1 text-xs font-semibold text-blue-400">
+                  🛡️ {session.teamB.name} começa de CT
+                </p>
               </div>
-              <div>
-                <p className="mb-2 text-sm uppercase text-muted">Mapa 2 (Team B Pick)</p>
-                <p className="font-display text-xl font-bold text-paper">{pickedMaps[1]?.map}</p>
+              <div className="card-ecl p-3">
+                <p className="mb-1 text-xs font-medium uppercase text-muted">Mapa 2 • {session.teamB.name}</p>
+                <p className="font-display text-lg font-bold text-paper">{pickedMaps[1]?.map}</p>
+                <p className="mt-1 text-xs font-semibold text-blue-400">
+                  🛡️ {session.teamA.name} começa de CT
+                </p>
               </div>
-              <div>
-                <p className="mb-2 text-sm uppercase text-gold">🏆 Decider</p>
-                <p className="font-display text-xl font-bold text-gold">{decider?.map}</p>
+              <div className="card-ecl border-gold bg-gold/10 p-3">
+                <p className="mb-1 text-xs font-medium uppercase text-gold">🏆 Decider</p>
+                <p className="font-display text-lg font-bold text-gold">{decider?.map}</p>
+                <p className="mt-1 text-xs font-bold text-gold/80">
+                  🛡️ Vencedor do Mapa 1 começa de CT
+                </p>
               </div>
             </div>
+            <button
+              onClick={copyResults}
+              className="w-full rounded-lg bg-green-600 px-4 py-3 font-display text-base font-bold uppercase text-white transition-all active:scale-95"
+            >
+              <span className="flex items-center justify-center gap-2">
+                {resultsCopied ? <><Check className="h-5 w-5" />Copiado!</> : <><Copy className="h-5 w-5" />Copiar para WhatsApp</>}
+              </span>
+            </button>
           </div>
         )}
       </div>
