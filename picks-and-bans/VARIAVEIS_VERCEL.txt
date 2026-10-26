@@ -11,27 +11,21 @@ Adicionar variáveis:
 
 1. Name: CLIENT_URL
    Value: https://peaks-and-bans.vercel.app
-   (Adicione DEPOIS do deploy do frontend)
 
 2. Name: ECL_API_URL
    Value: https://ecl-backend-six.vercel.app
-   (URL da API principal da ECL)
 
 3. Name: ECL_FRONTEND_URL
    Value: https://ecl-official.vercel.app
-   (URL do frontend da ECL - para carregar imagens)
 
 4. Name: JWT_SECRET
-   Value: [GERE UM SECRET ALEATÓRIO FORTE]
-   (Importante: Use um gerador de senha forte!)
+   Value: ecl-picks-bans-2024-secret-key-very-secure-random-string
 
 5. Name: ADMIN_USERNAME
-   Value: admin
-   (Ou outro usuário que preferir)
+   Value: ECL-master
 
 6. Name: ADMIN_PASSWORD_HASH
-   Value: [DEIXE VAZIO EM DEV - use "admin123"]
-   (Em produção, gere hash bcrypt da senha desejada)
+   Value: $2a$10$kVoFrVjAAt1lgk9/0bKd9.CtQcELjmn2WRrd4.Hzcz8grkmxJWVgS
 
 
 📦 FRONTEND (Deploy DEPOIS)
