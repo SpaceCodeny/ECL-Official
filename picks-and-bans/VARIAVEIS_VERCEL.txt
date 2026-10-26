@@ -7,8 +7,15 @@ VARIÁVEIS DE AMBIENTE PARA VERCEL
 Root Directory: picks-and-bans/backend
 Framework: Other
 
-NENHUMA variável por enquanto!
-(Vamos adicionar CLIENT_URL depois do frontend)
+Adicionar variáveis:
+
+1. Name: CLIENT_URL
+   Value: https://peaks-and-bans.vercel.app
+   (Adicione DEPOIS do deploy do frontend)
+
+2. Name: ECL_API_URL
+   Value: https://ecl-backend-six.vercel.app
+   (URL da API principal da ECL - CORRETA!)
 
 
 📦 FRONTEND (Deploy DEPOIS)
@@ -18,7 +25,9 @@ Framework: Next.js
 
 Adicionar variável:
 Name: NEXT_PUBLIC_API_URL
-Value: [URL DO BACKEND QUE VOCÊ ACABOU DE DEPLOYAR]
+Value: https://peaks-and-bans-backend.vercel.app
+
+(Substitua pela URL real do seu backend se for diferente)
 
 
 🔄 VOLTAR NO BACKEND (Atualizar)

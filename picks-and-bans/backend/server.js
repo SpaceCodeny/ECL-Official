@@ -41,7 +41,7 @@ app.get('/api/health', (req, res) => {
 // Buscar times cadastrados da API principal da ECL
 app.get('/api/teams', async (req, res) => {
   try {
-    const ECL_API_URL = process.env.ECL_API_URL || 'https://ecl-backend.vercel.app';
+    const ECL_API_URL = process.env.ECL_API_URL || 'https://ecl-backend-six.vercel.app';
     const response = await fetch(`${ECL_API_URL}/api/v1/teams?limit=100`);
     
     if (!response.ok) {
