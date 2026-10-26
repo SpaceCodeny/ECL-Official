@@ -184,66 +184,66 @@ export default function AdminPage() {
   // Tela de link gerado
   if (generatedLink) {
     return (
-      <div className="min-h-screen bg-gradient-to-b from-ink via-navy to-ink p-8">
+      <div className="min-h-screen bg-gradient-to-b from-ink via-navy to-ink p-4 sm:p-6 lg:p-8">
         <div className="mx-auto max-w-3xl">
           {/* Header */}
-          <div className="mb-8 text-center">
-            <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-green-500/20">
-              <Check className="h-8 w-8 text-green-400" />
+          <div className="mb-6 text-center sm:mb-8">
+            <div className="mx-auto mb-3 flex h-12 w-12 items-center justify-center rounded-full bg-green-500/20 sm:mb-4 sm:h-16 sm:w-16">
+              <Check className="h-6 w-6 text-green-400 sm:h-8 sm:w-8" />
             </div>
-            <h1 className="mb-2 font-display text-4xl font-bold uppercase tracking-tight text-paper">
+            <h1 className="mb-2 font-display text-2xl font-bold uppercase tracking-tight text-paper sm:text-3xl lg:text-4xl">
               Sessão Criada com Sucesso!
             </h1>
-            <p className="text-muted">Compartilhe o link abaixo com os líderes dos times</p>
+            <p className="text-sm text-muted sm:text-base">Compartilhe o link abaixo com os líderes dos times</p>
           </div>
 
           {/* Times */}
-          <div className="mb-6 grid grid-cols-2 gap-4 rounded-lg border border-border bg-surface p-6">
+          <div className="mb-4 grid grid-cols-2 gap-3 rounded-lg border border-border bg-surface p-4 sm:mb-6 sm:gap-4 sm:p-6">
             <div className="text-center">
-              <p className="mb-2 text-sm text-muted">Time A</p>
+              <p className="mb-1.5 text-xs text-muted sm:mb-2 sm:text-sm">Time A</p>
               {teamASelected?.logoUrl && (
-                <div className="mx-auto mb-2 flex h-12 w-12 items-center justify-center">
+                <div className="mx-auto mb-1.5 flex h-10 w-10 items-center justify-center sm:mb-2 sm:h-12 sm:w-12">
                   <img src={teamASelected.logoUrl} alt={getTeamAName()} className="max-h-full max-w-full object-contain" />
                 </div>
               )}
-              <p className="font-display text-2xl font-bold text-gold">{getTeamAName()}</p>
+              <p className="font-display text-lg font-bold text-gold sm:text-xl lg:text-2xl">{getTeamAName()}</p>
               <p className="text-xs text-muted">{teamASelected?.tag || getTeamAName().substring(0, 4).toUpperCase()}</p>
             </div>
             <div className="text-center">
-              <p className="mb-2 text-sm text-muted">Time B</p>
+              <p className="mb-1.5 text-xs text-muted sm:mb-2 sm:text-sm">Time B</p>
               {teamBSelected?.logoUrl && (
-                <div className="mx-auto mb-2 flex h-12 w-12 items-center justify-center">
+                <div className="mx-auto mb-1.5 flex h-10 w-10 items-center justify-center sm:mb-2 sm:h-12 sm:w-12">
                   <img src={teamBSelected.logoUrl} alt={getTeamBName()} className="max-h-full max-w-full object-contain" />
                 </div>
               )}
-              <p className="font-display text-2xl font-bold text-gold">{getTeamBName()}</p>
+              <p className="font-display text-lg font-bold text-gold sm:text-xl lg:text-2xl">{getTeamBName()}</p>
               <p className="text-xs text-muted">{teamBSelected?.tag || getTeamBName().substring(0, 4).toUpperCase()}</p>
             </div>
           </div>
 
           {/* Link */}
-          <div className="mb-6 space-y-3 rounded-lg border border-border bg-surface p-6">
-            <label className="block text-sm font-medium text-paper">🔗 Link da Sessão</label>
-            <div className="flex gap-2">
+          <div className="mb-4 space-y-2 rounded-lg border border-border bg-surface p-4 sm:mb-6 sm:space-y-3 sm:p-6">
+            <label className="block text-xs font-medium text-paper sm:text-sm">🔗 Link da Sessão</label>
+            <div className="flex flex-col gap-2 sm:flex-row">
               <input
                 type="text"
                 value={generatedLink}
                 readOnly
-                className="flex-1 rounded-lg border border-border bg-ink px-4 py-3 font-mono text-sm text-paper focus:outline-none"
+                className="flex-1 rounded-lg border border-border bg-ink px-3 py-2 font-mono text-xs text-paper focus:outline-none sm:px-4 sm:py-3 sm:text-sm"
               />
               <button
                 onClick={copyLink}
-                className="flex items-center gap-2 rounded-lg bg-gold px-6 py-3 font-bold text-ink transition-all hover:bg-gold-light"
+                className="flex items-center justify-center gap-2 rounded-lg bg-gold px-4 py-2 font-bold text-ink transition-all hover:bg-gold-light sm:px-6 sm:py-3"
               >
                 {copied ? (
                   <>
                     <Check className="h-4 w-4" />
-                    Copiado!
+                    <span className="text-sm sm:text-base">Copiado!</span>
                   </>
                 ) : (
                   <>
                     <Copy className="h-4 w-4" />
-                    Copiar
+                    <span className="text-sm sm:text-base">Copiar</span>
                   </>
                 )}
               </button>
@@ -251,58 +251,58 @@ export default function AdminPage() {
           </div>
 
           {/* Instruções */}
-          <div className="mb-6 space-y-4 rounded-lg border border-blue-500/20 bg-blue-500/5 p-6">
-            <h3 className="flex items-center gap-2 font-display text-lg font-bold text-blue-300">
+          <div className="mb-4 space-y-3 rounded-lg border border-blue-500/20 bg-blue-500/5 p-4 sm:mb-6 sm:space-y-4 sm:p-6">
+            <h3 className="flex items-center gap-2 font-display text-base font-bold text-blue-300 sm:text-lg">
               📋 Instruções para os Times
             </h3>
-            <ul className="space-y-2 text-sm text-blue-200">
+            <ul className="space-y-1.5 text-xs text-blue-200 sm:space-y-2 sm:text-sm">
               <li className="flex items-start gap-2">
-                <span className="mt-1 text-gold">•</span>
+                <span className="mt-0.5 text-gold sm:mt-1">•</span>
                 <span>Compartilhe este link com os líderes de ambos os times</span>
               </li>
               <li className="flex items-start gap-2">
-                <span className="mt-1 text-gold">•</span>
+                <span className="mt-0.5 text-gold sm:mt-1">•</span>
                 <span>Ambos devem acessar o <strong>mesmo link</strong> para participar</span>
               </li>
               <li className="flex items-start gap-2">
-                <span className="mt-1 text-gold">•</span>
+                <span className="mt-0.5 text-gold sm:mt-1">•</span>
                 <span>Cada time realiza suas ações quando for sua vez</span>
               </li>
               <li className="flex items-start gap-2">
-                <span className="mt-1 text-gold">•</span>
+                <span className="mt-0.5 text-gold sm:mt-1">•</span>
                 <span>As escolhas são salvas automaticamente no navegador</span>
               </li>
             </ul>
           </div>
 
           {/* Ordem do Pick & Ban */}
-          <div className="mb-6 rounded-lg border border-gold/20 bg-gold/5 p-6">
-            <p className="mb-3 text-sm font-medium text-gold">Ordem do Pick & Ban:</p>
-            <div className="flex flex-wrap gap-2">
-              <span className="rounded bg-red-900/50 px-3 py-1.5 text-sm font-bold text-red-200">A BAN</span>
-              <span className="rounded bg-red-900/50 px-3 py-1.5 text-sm font-bold text-red-200">B BAN</span>
-              <span className="rounded bg-green-900/50 px-3 py-1.5 text-sm font-bold text-green-200">A PICK</span>
-              <span className="rounded bg-green-900/50 px-3 py-1.5 text-sm font-bold text-green-200">B PICK</span>
-              <span className="rounded bg-red-900/50 px-3 py-1.5 text-sm font-bold text-red-200">B BAN</span>
-              <span className="rounded bg-red-900/50 px-3 py-1.5 text-sm font-bold text-red-200">A BAN</span>
-              <span className="rounded bg-gold/50 px-3 py-1.5 text-sm font-bold text-gold">DECIDER</span>
+          <div className="mb-4 rounded-lg border border-gold/20 bg-gold/5 p-4 sm:mb-6 sm:p-6">
+            <p className="mb-2 text-xs font-medium text-gold sm:mb-3 sm:text-sm">Ordem do Pick & Ban:</p>
+            <div className="flex flex-wrap gap-1.5 sm:gap-2">
+              <span className="rounded bg-red-900/50 px-2 py-1 text-xs font-bold text-red-200 sm:px-3 sm:py-1.5 sm:text-sm">A BAN</span>
+              <span className="rounded bg-red-900/50 px-2 py-1 text-xs font-bold text-red-200 sm:px-3 sm:py-1.5 sm:text-sm">B BAN</span>
+              <span className="rounded bg-green-900/50 px-2 py-1 text-xs font-bold text-green-200 sm:px-3 sm:py-1.5 sm:text-sm">A PICK</span>
+              <span className="rounded bg-green-900/50 px-2 py-1 text-xs font-bold text-green-200 sm:px-3 sm:py-1.5 sm:text-sm">B PICK</span>
+              <span className="rounded bg-red-900/50 px-2 py-1 text-xs font-bold text-red-200 sm:px-3 sm:py-1.5 sm:text-sm">B BAN</span>
+              <span className="rounded bg-red-900/50 px-2 py-1 text-xs font-bold text-red-200 sm:px-3 sm:py-1.5 sm:text-sm">A BAN</span>
+              <span className="rounded bg-gold/50 px-2 py-1 text-xs font-bold text-gold sm:px-3 sm:py-1.5 sm:text-sm">DECIDER</span>
             </div>
           </div>
 
           {/* Ações */}
-          <div className="flex gap-3">
+          <div className="flex flex-col gap-2 sm:flex-row sm:gap-3">
             <button
               onClick={openSession}
-              className="flex flex-1 items-center justify-center gap-2 rounded-lg bg-gold px-6 py-4 font-display text-lg font-bold uppercase tracking-wide text-ink transition-all hover:bg-gold-light"
+              className="flex flex-1 items-center justify-center gap-2 rounded-lg bg-gold px-4 py-3 font-display text-base font-bold uppercase tracking-wide text-ink transition-all hover:bg-gold-light sm:px-6 sm:py-4 sm:text-lg"
             >
-              <ExternalLink className="h-5 w-5" />
+              <ExternalLink className="h-4 w-4 sm:h-5 sm:w-5" />
               Abrir Sessão
             </button>
             <button
               onClick={createNewSession}
-              className="flex flex-1 items-center justify-center gap-2 rounded-lg border border-border bg-surface px-6 py-4 font-display text-lg font-bold uppercase tracking-wide text-paper transition-all hover:bg-surface/80"
+              className="flex flex-1 items-center justify-center gap-2 rounded-lg border border-border bg-surface px-4 py-3 font-display text-base font-bold uppercase tracking-wide text-paper transition-all hover:bg-surface/80 sm:px-6 sm:py-4 sm:text-lg"
             >
-              <ArrowLeft className="h-5 w-5" />
+              <ArrowLeft className="h-4 w-4 sm:h-5 sm:w-5" />
               Nova Sessão
             </button>
           </div>
@@ -313,47 +313,47 @@ export default function AdminPage() {
 
   // Tela de criação
   return (
-    <div className="min-h-screen bg-gradient-to-b from-ink via-navy to-ink p-4 sm:p-8">
+    <div className="min-h-screen bg-gradient-to-b from-ink via-navy to-ink p-4 sm:p-6 lg:p-8">
       <div className="mx-auto max-w-4xl">
-        <div className="mb-8 flex items-center justify-between">
+        <div className="mb-6 flex flex-col gap-4 sm:mb-8 sm:flex-row sm:items-center sm:justify-between">
           <div>
-            <h1 className="mb-2 font-display text-3xl font-bold uppercase tracking-tight text-paper sm:text-4xl">
+            <h1 className="mb-1 font-display text-2xl font-bold uppercase tracking-tight text-paper sm:mb-2 sm:text-3xl lg:text-4xl">
               Criar Sessão de Pick & Ban
             </h1>
-            <p className="text-muted">Selecione times cadastrados ou digite nomes manualmente</p>
+            <p className="text-xs text-muted sm:text-sm">Selecione times cadastrados ou digite nomes manualmente</p>
           </div>
           <button
             onClick={handleLogout}
-            className="flex items-center gap-2 rounded-lg border border-border bg-surface px-4 py-2 font-medium text-paper transition-all hover:bg-surface/80"
+            className="flex items-center justify-center gap-2 rounded-lg border border-border bg-surface px-4 py-2 font-medium text-paper transition-all hover:bg-surface/80 sm:justify-start"
           >
             <LogOut className="h-4 w-4" />
-            <span className="hidden sm:inline">Sair</span>
+            <span>Sair</span>
           </button>
         </div>
 
-        <div className="space-y-6 rounded-lg border border-border bg-surface p-4 sm:p-6">
+        <div className="space-y-4 rounded-lg border border-border bg-surface p-4 sm:space-y-6 sm:p-6">
           {/* Time A */}
           <div>
-            <label className="mb-3 block text-sm font-medium text-paper">
+            <label className="mb-2 block text-sm font-medium text-paper sm:mb-3">
               <Users className="mb-1 inline h-4 w-4" /> Time A
             </label>
             
             {teamASelected ? (
               <div className="flex items-center justify-between rounded-lg border-2 border-gold bg-gold/10 p-3">
-                <div className="flex items-center gap-3">
+                <div className="flex min-w-0 flex-1 items-center gap-2 sm:gap-3">
                   {teamASelected.logoUrl && (
-                    <div className="relative h-10 w-10 flex-shrink-0">
+                    <div className="relative h-8 w-8 flex-shrink-0 sm:h-10 sm:w-10">
                       <img src={teamASelected.logoUrl} alt={teamASelected.name} className="h-full w-full object-contain" />
                     </div>
                   )}
-                  <div>
-                    <p className="font-bold text-paper">{teamASelected.name}</p>
+                  <div className="min-w-0 flex-1">
+                    <p className="truncate text-sm font-bold text-paper sm:text-base">{teamASelected.name}</p>
                     <p className="text-xs text-muted">{teamASelected.tag}</p>
                   </div>
                 </div>
                 <button
                   onClick={() => setTeamASelected(null)}
-                  className="rounded bg-red-500/20 px-3 py-1 text-sm font-medium text-red-400 hover:bg-red-500/30"
+                  className="ml-2 flex-shrink-0 rounded bg-red-500/20 px-2 py-1 text-xs font-medium text-red-400 hover:bg-red-500/30 sm:px-3 sm:text-sm"
                 >
                   Remover
                 </button>
@@ -533,13 +533,13 @@ export default function AdminPage() {
           <button
             onClick={handleCreateSession}
             disabled={loading || (!getTeamAName() || !getTeamBName())}
-            className="w-full rounded-lg bg-gold px-6 py-4 font-display text-lg font-bold uppercase tracking-wide text-ink transition-all hover:bg-gold-light disabled:cursor-not-allowed disabled:opacity-50"
+            className="w-full rounded-lg bg-gold px-4 py-3 font-display text-base font-bold uppercase tracking-wide text-ink transition-all hover:bg-gold-light disabled:cursor-not-allowed disabled:opacity-50 sm:px-6 sm:py-4 sm:text-lg"
           >
             {loading ? (
               "Criando..."
             ) : (
               <>
-                <Plus className="mr-2 inline h-5 w-5" />
+                <Plus className="mr-2 inline h-4 w-4 sm:h-5 sm:w-5" />
                 Gerar Link da Sessão
               </>
             )}
@@ -547,13 +547,13 @@ export default function AdminPage() {
         </div>
 
         {/* Informações */}
-        <div className="mt-6 space-y-4">
-          <div className="rounded-lg border border-gold/20 bg-gold/5 p-4">
-            <p className="text-sm text-gold">
+        <div className="mt-4 space-y-3 sm:mt-6 sm:space-y-4">
+          <div className="rounded-lg border border-gold/20 bg-gold/5 p-3 sm:p-4">
+            <p className="text-xs text-gold sm:text-sm">
               <strong>💡 Como funciona:</strong> Você pode selecionar times já cadastrados na ECL ou criar uma sessão com nomes personalizados.
               O Pick & Ban acontecerá em tempo real seguindo a ordem:
             </p>
-            <div className="mt-3 flex flex-wrap gap-2">
+            <div className="mt-2 flex flex-wrap gap-1.5 sm:mt-3 sm:gap-2">
               <span className="rounded bg-red-900/50 px-2 py-1 text-xs font-bold text-red-200">A BAN</span>
               <span className="rounded bg-red-900/50 px-2 py-1 text-xs font-bold text-red-200">B BAN</span>
               <span className="rounded bg-green-900/50 px-2 py-1 text-xs font-bold text-green-200">A PICK</span>
