@@ -122,13 +122,6 @@ export default function LoginPage() {
               {loading ? "Entrando..." : "Entrar"}
             </button>
           </form>
-
-          {/* Dev Info */}
-          <div className="mt-6 rounded-lg border border-blue-500/20 bg-blue-500/5 p-3">
-            <p className="text-xs text-blue-300">
-              <strong>🔐 Desenvolvimento:</strong> Usuário: <code className="rounded bg-blue-500/20 px-1">admin</code> | Senha: <code className="rounded bg-blue-500/20 px-1">admin123</code>
-            </p>
-          </div>
         </div>
 
         {/* Footer */}
