@@ -20,15 +20,15 @@ export async function getTeams(): Promise<Team[]> {
 
     const data = await response.json();
     
-    // Garantir que as URLs sejam absolutas
-    const SUPABASE_URL = 'https://jzmfbjdcqvgyeeafvzep.supabase.co/storage/v1/object/public';
+    // Garantir que as URLs sejam absolutas do frontend da ECL
+    const ECL_FRONTEND_URL = 'https://ecl-official.vercel.app';
     
     const teams = (data.teams || []).map((team: Team) => {
       let logoUrl = team.logoUrl;
       
-      // Se a URL for relativa, converter para absoluta
+      // Se a URL for relativa, converter para absoluta do frontend da ECL
       if (logoUrl && logoUrl.startsWith('/images/')) {
-        logoUrl = `${SUPABASE_URL}${logoUrl}`;
+        logoUrl = `${ECL_FRONTEND_URL}${logoUrl}`;
       }
       
       return {

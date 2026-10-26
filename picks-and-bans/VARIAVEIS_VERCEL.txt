@@ -15,7 +15,11 @@ Adicionar variáveis:
 
 2. Name: ECL_API_URL
    Value: https://ecl-backend-six.vercel.app
-   (URL da API principal da ECL - CORRETA!)
+   (URL da API principal da ECL)
+
+3. Name: ECL_FRONTEND_URL
+   Value: https://ecl-official.vercel.app
+   (URL do frontend da ECL - para carregar imagens)
 
 
 📦 FRONTEND (Deploy DEPOIS)
