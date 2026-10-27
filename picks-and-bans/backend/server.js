@@ -2,6 +2,7 @@ const express = require('express');
 const cors = require('cors');
 const jwt = require('jsonwebtoken');
 const bcrypt = require('bcryptjs');
+const prisma = require('./prisma/client');
 
 // Carregar dotenv apenas em desenvolvimento
 if (process.env.NODE_ENV !== 'production' && process.env.VERCEL !== '1') {
@@ -12,32 +13,48 @@ const app = express();
 
 app.use(cors({
   origin: process.env.CLIENT_URL || 'http://localhost:3002',
-  methods: ['GET', 'POST'],
+  methods: ['GET', 'POST', 'PUT', 'DELETE'],
 }));
 
 app.use(express.json());
 
-// Armazenamento em memória das sessões
-// NOTA: Em produção Serverless, isso será perdido entre invocações
-// Para produção real, use um banco de dados (Redis, MongoDB, etc.)
-const sessions = new Map();
+// ==================== CONSTANTES ====================
 
-// Credenciais admin - suporte para múltiplos admins
-const ADMIN_USERS = [
-  {
-    username: 'ECL-master',
-    passwordHash: process.env.ADMIN_PASSWORD_HASH_1 || '$2a$10$kVoFrVjAAt1lgk9/0bKd9.CtQcELjmn2WRrd4.Hzcz8grkmxJWVgS', // ECL@2026
-  },
-  {
-    username: 'Nexus',
-    passwordHash: process.env.ADMIN_PASSWORD_HASH_2 || '$2a$10$y/OJZdZFCkeUTcPQEhCHoOFHty9niHw45efEYP40JLYPSXRYURUVG', // Nexus@2026
-  },
-];
-
-// Secret para JWT (DEVE ser definido em produção via variável de ambiente)
 const JWT_SECRET = process.env.JWT_SECRET || 'change-this-secret-in-production-urgently';
 
-// Middleware de autenticação
+const SEQUENCE = [
+  { team: 'A', action: 'BAN' },
+  { team: 'B', action: 'BAN' },
+  { team: 'A', action: 'PICK' },
+  { team: 'B', action: 'PICK' },
+  { team: 'B', action: 'BAN' },
+  { team: 'A', action: 'BAN' },
+];
+
+const MAPS = ['Breeze', 'Dune', 'Hanami', 'Prision', 'Province', 'Rust', 'Sandstone'];
+
+// ==================== FUNÇÕES AUXILIARES ====================
+
+function generateSessionId() {
+  return Math.random().toString(36).substring(2, 15);
+}
+
+async function logActivity(adminId, action, details = {}) {
+  try {
+    await prisma.activityLog.create({
+      data: {
+        adminId,
+        action,
+        details: details,
+      },
+    });
+  } catch (error) {
+    console.error('Erro ao registrar log:', error);
+  }
+}
+
+// ==================== MIDDLEWARES ====================
+
 const authenticateToken = (req, res, next) => {
   const authHeader = req.headers['authorization'];
   const token = authHeader && authHeader.split(' ')[1];
@@ -55,21 +72,22 @@ const authenticateToken = (req, res, next) => {
   });
 };
 
-// Mapa de sequência do Pick & Ban
-const SEQUENCE = [
-  { team: 'A', action: 'BAN' },
-  { team: 'B', action: 'BAN' },
-  { team: 'A', action: 'PICK' },
-  { team: 'B', action: 'PICK' },
-  { team: 'B', action: 'BAN' },
-  { team: 'A', action: 'BAN' },
-];
+const requireSuperAdmin = (req, res, next) => {
+  if (req.user.role !== 'SUPER_ADMIN') {
+    return res.status(403).json({ error: 'Acesso negado. Apenas Super Admin.' });
+  }
+  next();
+};
 
-const MAPS = ['Breeze', 'Dune', 'Hanami', 'Prision', 'Province', 'Rust', 'Sandstone'];
+const requireAdmin = (req, res, next) => {
+  if (req.user.role !== 'ADMIN' && req.user.role !== 'SUPER_ADMIN') {
+    return res.status(403).json({ error: 'Acesso negado. Requer permissões de administrador.' });
+  }
+  next();
+};
 
-// ==================== ROTAS HTTP ====================
+// ==================== ROTAS DE AUTENTICAÇÃO ====================
 
-// Login endpoint
 app.post('/api/auth/login', async (req, res) => {
   const { username, password } = req.body;
 
@@ -77,55 +95,282 @@ app.post('/api/auth/login', async (req, res) => {
     return res.status(400).json({ error: 'Usuário e senha são obrigatórios' });
   }
 
-  // Buscar admin pelo username
-  const admin = ADMIN_USERS.find(user => user.username === username);
-
-  if (!admin) {
-    return res.status(401).json({ error: 'Credenciais inválidas' });
-  }
-
-  // Verificar senha com bcrypt
-  let isValidPassword = false;
-  
   try {
-    isValidPassword = await bcrypt.compare(password, admin.passwordHash);
+    const admin = await prisma.admin.findUnique({
+      where: { username },
+    });
+
+    if (!admin) {
+      return res.status(401).json({ error: 'Credenciais inválidas' });
+    }
+
+    if (admin.status === 'SUSPENDED') {
+      return res.status(403).json({ error: 'Conta suspensa. Entre em contato com o Super Admin.' });
+    }
+
+    const isValidPassword = await bcrypt.compare(password, admin.passwordHash);
+
+    if (!isValidPassword) {
+      return res.status(401).json({ error: 'Credenciais inválidas' });
+    }
+
+    const token = jwt.sign(
+      { id: admin.id, username: admin.username, role: admin.role },
+      JWT_SECRET,
+      { expiresIn: '24h' }
+    );
+
+    await logActivity(admin.id, 'LOGIN', { username: admin.username });
+
+    res.json({ 
+      token,
+      user: { id: admin.id, username: admin.username, role: admin.role }
+    });
   } catch (error) {
-    console.error('Erro ao verificar senha:', error);
-    return res.status(500).json({ error: 'Erro ao validar credenciais' });
+    console.error('Erro no login:', error);
+    res.status(500).json({ error: 'Erro ao processar login' });
   }
-
-  if (!isValidPassword) {
-    return res.status(401).json({ error: 'Credenciais inválidas' });
-  }
-
-  // Gerar token JWT válido por 24 horas
-  const token = jwt.sign(
-    { username: admin.username, role: 'admin' },
-    JWT_SECRET,
-    { expiresIn: '24h' }
-  );
-
-  res.json({ 
-    token,
-    user: { username: admin.username, role: 'admin' }
-  });
 });
 
-// Verificar token
 app.get('/api/auth/verify', authenticateToken, (req, res) => {
   res.json({ valid: true, user: req.user });
 });
 
-// Health check
-app.get('/health', (req, res) => {
-  res.json({ status: 'ok', sessions: sessions.size });
+// ==================== ROTAS SUPER ADMIN ====================
+
+app.get('/api/super/metrics', authenticateToken, requireSuperAdmin, async (req, res) => {
+  try {
+    const [totalAdmins, activeAdmins, suspendedAdmins, totalSessions, completedSessions, inProgressSessions, totalLogs] = await Promise.all([
+      prisma.admin.count({ where: { role: 'ADMIN' } }),
+      prisma.admin.count({ where: { role: 'ADMIN', status: 'ACTIVE' } }),
+      prisma.admin.count({ where: { role: 'ADMIN', status: 'SUSPENDED' } }),
+      prisma.session.count(),
+      prisma.session.count({ where: { status: 'COMPLETED' } }),
+      prisma.session.count({ where: { status: 'IN_PROGRESS' } }),
+      prisma.activityLog.count(),
+    ]);
+
+    res.json({
+      sessions: {
+        total: totalSessions,
+        completed: completedSessions,
+        inProgress: inProgressSessions,
+      },
+      admins: {
+        total: totalAdmins,
+        active: activeAdmins,
+        suspended: suspendedAdmins,
+      },
+      logs: totalLogs,
+    });
+  } catch (error) {
+    console.error('Erro ao buscar métricas:', error);
+    res.status(500).json({ error: 'Erro ao buscar métricas' });
+  }
 });
 
-app.get('/api/health', (req, res) => {
-  res.json({ status: 'ok', sessions: sessions.size });
+app.get('/api/super/admins', authenticateToken, requireSuperAdmin, async (req, res) => {
+  try {
+    const admins = await prisma.admin.findMany({
+      where: { role: 'ADMIN' },
+      select: {
+        id: true,
+        username: true,
+        role: true,
+        status: true,
+        createdAt: true,
+        createdBy: true,
+      },
+      orderBy: { createdAt: 'desc' },
+    });
+
+    res.json({ admins });
+  } catch (error) {
+    console.error('Erro ao listar admins:', error);
+    res.status(500).json({ error: 'Erro ao listar admins' });
+  }
 });
 
-// Buscar times cadastrados da API principal da ECL
+app.post('/api/super/admins', authenticateToken, requireSuperAdmin, async (req, res) => {
+  const { username, password } = req.body;
+
+  if (!username || !password) {
+    return res.status(400).json({ error: 'Usuário e senha são obrigatórios' });
+  }
+
+  if (password.length < 6) {
+    return res.status(400).json({ error: 'Senha deve ter no mínimo 6 caracteres' });
+  }
+
+  try {
+    const existingAdmin = await prisma.admin.findUnique({ where: { username } });
+
+    if (existingAdmin) {
+      return res.status(400).json({ error: 'Nome de usuário já existe' });
+    }
+
+    const passwordHash = await bcrypt.hash(password, 10);
+
+    const newAdmin = await prisma.admin.create({
+      data: {
+        username,
+        passwordHash,
+        role: 'ADMIN',
+        status: 'ACTIVE',
+        createdBy: req.user.id,
+      },
+    });
+
+    await logActivity(req.user.id, 'CREATE_ADMIN', { 
+      newAdminId: newAdmin.id, 
+      newAdminUsername: username 
+    });
+
+    res.json({ 
+      success: true, 
+      admin: {
+        id: newAdmin.id,
+        username: newAdmin.username,
+        role: newAdmin.role,
+        status: newAdmin.status,
+        createdAt: newAdmin.createdAt,
+      }
+    });
+  } catch (error) {
+    console.error('Erro ao criar admin:', error);
+    res.status(500).json({ error: 'Erro ao criar admin' });
+  }
+});
+
+app.put('/api/super/admins/:id/suspend', authenticateToken, requireSuperAdmin, async (req, res) => {
+  const { id } = req.params;
+
+  try {
+    const admin = await prisma.admin.update({
+      where: { id },
+      data: { status: 'SUSPENDED' },
+    });
+
+    await logActivity(req.user.id, 'SUSPEND_ADMIN', { 
+      targetAdminId: id, 
+      targetAdminUsername: admin.username 
+    });
+
+    res.json({ success: true, admin: { id: admin.id, username: admin.username, status: admin.status } });
+  } catch (error) {
+    console.error('Erro ao suspender admin:', error);
+    res.status(500).json({ error: 'Erro ao suspender admin' });
+  }
+});
+
+app.put('/api/super/admins/:id/activate', authenticateToken, requireSuperAdmin, async (req, res) => {
+  const { id } = req.params;
+
+  try {
+    const admin = await prisma.admin.update({
+      where: { id },
+      data: { status: 'ACTIVE' },
+    });
+
+    await logActivity(req.user.id, 'ACTIVATE_ADMIN', { 
+      targetAdminId: id, 
+      targetAdminUsername: admin.username 
+    });
+
+    res.json({ success: true, admin: { id: admin.id, username: admin.username, status: admin.status } });
+  } catch (error) {
+    console.error('Erro ao reativar admin:', error);
+    res.status(500).json({ error: 'Erro ao reativar admin' });
+  }
+});
+
+app.delete('/api/super/admins/:id', authenticateToken, requireSuperAdmin, async (req, res) => {
+  const { id } = req.params;
+
+  try {
+    const admin = await prisma.admin.delete({
+      where: { id },
+    });
+
+    await logActivity(req.user.id, 'DELETE_ADMIN', { 
+      deletedAdminId: id, 
+      deletedAdminUsername: admin.username 
+    });
+
+    res.json({ success: true, message: 'Admin deletado com sucesso' });
+  } catch (error) {
+    console.error('Erro ao deletar admin:', error);
+    res.status(500).json({ error: 'Erro ao deletar admin' });
+  }
+});
+
+app.get('/api/super/sessions', authenticateToken, requireSuperAdmin, async (req, res) => {
+  try {
+    const sessions = await prisma.session.findMany({
+      include: {
+        actions: {
+          orderBy: { order: 'asc' },
+        },
+        admin: {
+          select: { username: true },
+        },
+      },
+      orderBy: { createdAt: 'desc' },
+    });
+
+    const formattedSessions = sessions.map(session => ({
+      id: session.id,
+      teamA: session.teamAName,
+      teamB: session.teamBName,
+      status: session.status,
+      createdAt: session.createdAt,
+      createdBy: session.admin.username,
+      completedAt: session.completedAt,
+      actions: session.actions.map(a => ({
+        map: a.map,
+        team: a.team,
+        action: a.action,
+      })),
+    }));
+
+    res.json({ sessions: formattedSessions });
+  } catch (error) {
+    console.error('Erro ao listar sessões:', error);
+    res.status(500).json({ error: 'Erro ao listar sessões' });
+  }
+});
+
+app.get('/api/super/logs', authenticateToken, requireSuperAdmin, async (req, res) => {
+  const { limit = 50 } = req.query;
+
+  try {
+    const logs = await prisma.activityLog.findMany({
+      include: {
+        admin: {
+          select: { username: true, role: true },
+        },
+      },
+      orderBy: { createdAt: 'desc' },
+      take: parseInt(limit),
+    });
+
+    const formattedLogs = logs.map(log => ({
+      timestamp: log.createdAt,
+      action: log.action,
+      username: log.admin.username,
+      role: log.admin.role,
+      details: log.details,
+    }));
+
+    res.json({ logs: formattedLogs, total: logs.length });
+  } catch (error) {
+    console.error('Erro ao buscar logs:', error);
+    res.status(500).json({ error: 'Erro ao buscar logs' });
+  }
+});
+
+// ==================== ROTAS DE TIMES ====================
+
 app.get('/api/teams', async (req, res) => {
   try {
     const ECL_API_URL = process.env.ECL_API_URL || 'https://ecl-backend-six.vercel.app';
@@ -139,11 +384,9 @@ app.get('/api/teams', async (req, res) => {
 
     const data = await response.json();
     
-    // Retornar apenas os campos necessários e converter URLs relativas para o frontend da ECL
     const teams = data.data.map(team => {
       let logoUrl = team.logoUrl;
       
-      // Se a URL for relativa (começa com /), converter para URL absoluta do frontend da ECL
       if (logoUrl && logoUrl.startsWith('/images/')) {
         logoUrl = `${ECL_FRONTEND_URL}${logoUrl}`;
       }
@@ -159,71 +402,157 @@ app.get('/api/teams', async (req, res) => {
     res.json({ teams });
   } catch (error) {
     console.error('Erro ao buscar times:', error);
-    // Retornar array vazio em caso de erro
     res.json({ teams: [] });
   }
 });
 
-// Criar nova sessão (PROTEGIDO - requer autenticação)
-app.post('/api/sessions', authenticateToken, (req, res) => {
+// ==================== ROTAS DE SESSÕES ====================
+
+app.post('/api/sessions', authenticateToken, async (req, res) => {
+  if (req.user.role === 'SUPER_ADMIN') {
+    return res.status(403).json({ error: 'Super Admin não tem permissão para criar sessões' });
+  }
+
+  if (req.user.role !== 'ADMIN') {
+    return res.status(403).json({ error: 'Apenas admins podem criar sessões' });
+  }
+
   const { teamAName, teamBName, teamALogo, teamBLogo, teamATag, teamBTag } = req.body;
 
   if (!teamAName || !teamBName) {
     return res.status(400).json({ error: 'Nomes dos times são obrigatórios' });
   }
 
-  const sessionId = generateSessionId();
-  const session = {
-    id: sessionId,
-    teamA: {
-      id: 'A',
-      name: teamAName,
-      tag: teamATag || teamAName.substring(0, 4).toUpperCase(),
-      logoUrl: teamALogo || null,
-      leader: null,
-    },
-    teamB: {
-      id: 'B',
-      name: teamBName,
-      tag: teamBTag || teamBName.substring(0, 4).toUpperCase(),
-      logoUrl: teamBLogo || null,
-      leader: null,
-    },
-    actions: [],
-    currentTurn: 'A',
-    currentAction: 'BAN',
-    status: 'IN_PROGRESS',
-    createdAt: new Date().toISOString(),
-    lastUpdate: Date.now(),
-  };
+  try {
+    const admin = await prisma.admin.findUnique({ where: { id: req.user.id } });
 
-  sessions.set(sessionId, session);
+    if (!admin || admin.status !== 'ACTIVE') {
+      return res.status(403).json({ error: 'Admin inativo ou suspenso' });
+    }
 
-  res.json({ sessionId, session });
-});
+    const sessionId = generateSessionId();
 
-// Buscar sessão por ID
-app.get('/api/sessions/:id', (req, res) => {
-  const { id } = req.params;
-  const session = sessions.get(id);
+    const session = await prisma.session.create({
+      data: {
+        id: sessionId,
+        teamAName,
+        teamBName,
+        teamATag: teamATag || teamAName.substring(0, 4).toUpperCase(),
+        teamBTag: teamBTag || teamBName.substring(0, 4).toUpperCase(),
+        teamALogo: teamALogo || null,
+        teamBLogo: teamBLogo || null,
+        status: 'IN_PROGRESS',
+        createdBy: req.user.id,
+      },
+    });
 
-  if (!session) {
-    return res.status(404).json({ error: 'Sessão não encontrada' });
+    await logActivity(req.user.id, 'CREATE_SESSION', {
+      sessionId,
+      teamA: teamAName,
+      teamB: teamBName,
+    });
+
+    // Formato compatível com frontend
+    const formattedSession = {
+      id: session.id,
+      teamA: {
+        id: 'A',
+        name: session.teamAName,
+        tag: session.teamATag,
+        logoUrl: session.teamALogo,
+        leader: null,
+      },
+      teamB: {
+        id: 'B',
+        name: session.teamBName,
+        tag: session.teamBTag,
+        logoUrl: session.teamBLogo,
+        leader: null,
+      },
+      actions: [],
+      currentTurn: 'A',
+      currentAction: 'BAN',
+      status: 'IN_PROGRESS',
+      createdAt: session.createdAt,
+      createdBy: req.user.username,
+      createdById: req.user.id,
+      lastUpdate: Date.now(),
+    };
+
+    res.json({ sessionId, session: formattedSession });
+  } catch (error) {
+    console.error('Erro ao criar sessão:', error);
+    res.status(500).json({ error: 'Erro ao criar sessão' });
   }
-
-  res.json(session);
 });
 
-// Entrar na sessão (definir líder e time)
-app.post('/api/sessions/:id/join', (req, res) => {
+app.get('/api/sessions/:id', async (req, res) => {
+  const { id } = req.params;
+
+  try {
+    const session = await prisma.session.findUnique({
+      where: { id },
+      include: {
+        actions: {
+          orderBy: { order: 'asc' },
+        },
+        admin: {
+          select: { username: true },
+        },
+      },
+    });
+
+    if (!session) {
+      return res.status(404).json({ error: 'Sessão não encontrada' });
+    }
+
+    // Calcular currentTurn e currentAction baseado nas ações
+    let currentTurn = 'A';
+    let currentAction = 'BAN';
+    
+    if (session.actions.length < 6) {
+      const nextIndex = session.actions.length;
+      currentTurn = SEQUENCE[nextIndex].team;
+      currentAction = SEQUENCE[nextIndex].action;
+    }
+
+    const formattedSession = {
+      id: session.id,
+      teamA: {
+        id: 'A',
+        name: session.teamAName,
+        tag: session.teamATag,
+        logoUrl: session.teamALogo,
+        leader: session.teamALeader,
+      },
+      teamB: {
+        id: 'B',
+        name: session.teamBName,
+        tag: session.teamBTag,
+        logoUrl: session.teamBLogo,
+        leader: session.teamBLeader,
+      },
+      actions: session.actions,
+      currentTurn,
+      currentAction,
+      status: session.status,
+      createdAt: session.createdAt,
+      createdBy: session.admin.username,
+      createdById: session.createdBy,
+      completedAt: session.completedAt,
+      lastUpdate: Date.now(),
+    };
+
+    res.json(formattedSession);
+  } catch (error) {
+    console.error('Erro ao buscar sessão:', error);
+    res.status(500).json({ error: 'Erro ao buscar sessão' });
+  }
+});
+
+app.post('/api/sessions/:id/join', async (req, res) => {
   const { id } = req.params;
   const { team, nickname } = req.body;
-
-  const session = sessions.get(id);
-
-  if (!session) {
-    return res.status(404).json({ error: 'Sessão não encontrada' });
-  }
 
   if (team !== 'A' && team !== 'B') {
     return res.status(400).json({ error: 'Time inválido' });
@@ -233,133 +562,367 @@ app.post('/api/sessions/:id/join', (req, res) => {
     return res.status(400).json({ error: 'Nickname é obrigatório' });
   }
 
-  // Definir líder do time (se ainda não tiver)
-  const teamKey = team === 'A' ? 'teamA' : 'teamB';
-  if (!session[teamKey].leader) {
-    session[teamKey].leader = nickname.trim();
-  }
+  try {
+    const session = await prisma.session.findUnique({
+      where: { id },
+      include: { actions: true, admin: { select: { username: true } } },
+    });
 
-  session.lastUpdate = Date.now();
-  sessions.set(id, session);
+    if (!session) {
+      return res.status(404).json({ error: 'Sessão não encontrada' });
+    }
 
-  res.json({ success: true, session });
-});
-
-// Fazer uma ação (BAN ou PICK)
-app.post('/api/sessions/:id/action', (req, res) => {
-  const { id } = req.params;
-  const { team, map } = req.body;
-
-  const session = sessions.get(id);
-
-  if (!session) {
-    return res.status(404).json({ error: 'Sessão não encontrada' });
-  }
-
-  if (session.status !== 'IN_PROGRESS') {
-    return res.status(400).json({ error: 'Sessão já finalizada' });
-  }
-
-  if (session.currentTurn !== team) {
-    return res.status(400).json({ error: 'Não é a vez deste time' });
-  }
-
-  // Verificar se o mapa já foi usado
-  const usedMaps = session.actions.map((a) => a.map);
-  if (usedMaps.includes(map)) {
-    return res.status(400).json({ error: 'Mapa já foi usado' });
-  }
-
-  // Adicionar ação
-  const newAction = {
-    map,
-    team: session.currentTurn,
-    action: session.currentAction,
-    order: session.actions.length + 1,
-  };
-
-  session.actions.push(newAction);
-
-  // Verificar se completou as 6 ações
-  if (session.actions.length === 6) {
-    // Encontrar o decider (mapa que sobrou) - 7 mapas total
-    const allUsedMaps = session.actions.map((a) => a.map);
-    const decider = MAPS.find((m) => !allUsedMaps.includes(m));
-
-    if (decider) {
-      session.actions.push({
-        map: decider,
-        team: 'A',
-        action: 'PICK',
-        order: 7,
+    const leaderField = team === 'A' ? 'teamALeader' : 'teamBLeader';
+    
+    // Só atualiza se ainda não tiver líder
+    if (!session[leaderField]) {
+      await prisma.session.update({
+        where: { id },
+        data: { [leaderField]: nickname.trim() },
       });
     }
 
-    session.status = 'COMPLETED';
-    session.completedAt = new Date().toISOString();
-  } else {
-    // Atualizar próxima jogada
+    // Buscar sessão atualizada
+    const updatedSession = await prisma.session.findUnique({
+      where: { id },
+      include: { actions: { orderBy: { order: 'asc' } }, admin: { select: { username: true } } },
+    });
+
+    let currentTurn = 'A';
+    let currentAction = 'BAN';
+    
+    if (updatedSession.actions.length < 6) {
+      const nextIndex = updatedSession.actions.length;
+      currentTurn = SEQUENCE[nextIndex].team;
+      currentAction = SEQUENCE[nextIndex].action;
+    }
+
+    const formattedSession = {
+      id: updatedSession.id,
+      teamA: {
+        id: 'A',
+        name: updatedSession.teamAName,
+        tag: updatedSession.teamATag,
+        logoUrl: updatedSession.teamALogo,
+        leader: updatedSession.teamALeader,
+      },
+      teamB: {
+        id: 'B',
+        name: updatedSession.teamBName,
+        tag: updatedSession.teamBTag,
+        logoUrl: updatedSession.teamBLogo,
+        leader: updatedSession.teamBLeader,
+      },
+      actions: updatedSession.actions,
+      currentTurn,
+      currentAction,
+      status: updatedSession.status,
+      createdAt: updatedSession.createdAt,
+      createdBy: updatedSession.admin.username,
+      lastUpdate: Date.now(),
+    };
+
+    res.json({ success: true, session: formattedSession });
+  } catch (error) {
+    console.error('Erro ao entrar na sessão:', error);
+    res.status(500).json({ error: 'Erro ao entrar na sessão' });
+  }
+});
+
+app.post('/api/sessions/:id/action', async (req, res) => {
+  const { id } = req.params;
+  const { team, map } = req.body;
+
+  try {
+    const session = await prisma.session.findUnique({
+      where: { id },
+      include: { actions: { orderBy: { order: 'asc' } }, admin: { select: { username: true } } },
+    });
+
+    if (!session) {
+      return res.status(404).json({ error: 'Sessão não encontrada' });
+    }
+
+    if (session.status !== 'IN_PROGRESS') {
+      return res.status(400).json({ error: 'Sessão já finalizada' });
+    }
+
+    // Verificar turno
     const nextIndex = session.actions.length;
-    session.currentTurn = SEQUENCE[nextIndex].team;
-    session.currentAction = SEQUENCE[nextIndex].action;
+    const expectedTeam = SEQUENCE[nextIndex].team;
+    const expectedAction = SEQUENCE[nextIndex].action;
+
+    if (team !== expectedTeam) {
+      return res.status(400).json({ error: 'Não é a vez deste time' });
+    }
+
+    // Verificar se mapa já foi usado
+    const usedMaps = session.actions.map(a => a.map);
+    if (usedMaps.includes(map)) {
+      return res.status(400).json({ error: 'Mapa já foi usado' });
+    }
+
+    // Adicionar ação
+    await prisma.sessionAction.create({
+      data: {
+        sessionId: id,
+        map,
+        team,
+        action: expectedAction,
+        order: session.actions.length + 1,
+      },
+    });
+
+    // Verificar se completou
+    if (session.actions.length + 1 === 6) {
+      const allUsedMaps = [...usedMaps, map];
+      const decider = MAPS.find(m => !allUsedMaps.includes(m));
+
+      if (decider) {
+        await prisma.sessionAction.create({
+          data: {
+            sessionId: id,
+            map: decider,
+            team: 'A',
+            action: 'PICK',
+            order: 7,
+          },
+        });
+      }
+
+      await prisma.session.update({
+        where: { id },
+        data: {
+          status: 'COMPLETED',
+          completedAt: new Date(),
+        },
+      });
+    }
+
+    // Buscar sessão atualizada
+    const updatedSession = await prisma.session.findUnique({
+      where: { id },
+      include: { actions: { orderBy: { order: 'asc' } }, admin: { select: { username: true } } },
+    });
+
+    let currentTurn = 'A';
+    let currentAction = 'BAN';
+    
+    if (updatedSession.status === 'IN_PROGRESS' && updatedSession.actions.length < 6) {
+      const idx = updatedSession.actions.length;
+      currentTurn = SEQUENCE[idx].team;
+      currentAction = SEQUENCE[idx].action;
+    }
+
+    const formattedSession = {
+      id: updatedSession.id,
+      teamA: {
+        id: 'A',
+        name: updatedSession.teamAName,
+        tag: updatedSession.teamATag,
+        logoUrl: updatedSession.teamALogo,
+        leader: updatedSession.teamALeader,
+      },
+      teamB: {
+        id: 'B',
+        name: updatedSession.teamBName,
+        tag: updatedSession.teamBTag,
+        logoUrl: updatedSession.teamBLogo,
+        leader: updatedSession.teamBLeader,
+      },
+      actions: updatedSession.actions,
+      currentTurn,
+      currentAction,
+      status: updatedSession.status,
+      createdAt: updatedSession.createdAt,
+      createdBy: updatedSession.admin.username,
+      completedAt: updatedSession.completedAt,
+      lastUpdate: Date.now(),
+    };
+
+    res.json({ success: true, session: formattedSession });
+  } catch (error) {
+    console.error('Erro ao executar ação:', error);
+    res.status(500).json({ error: 'Erro ao executar ação' });
   }
-
-  session.lastUpdate = Date.now();
-  sessions.set(id, session);
-
-  res.json({ success: true, session });
 });
 
-// Resetar sessão
-app.post('/api/sessions/:id/reset', (req, res) => {
+app.post('/api/sessions/:id/reset', async (req, res) => {
   const { id } = req.params;
-  const session = sessions.get(id);
 
-  if (!session) {
-    return res.status(404).json({ error: 'Sessão não encontrada' });
+  try {
+    await prisma.sessionAction.deleteMany({
+      where: { sessionId: id },
+    });
+
+    await prisma.session.update({
+      where: { id },
+      data: {
+        status: 'IN_PROGRESS',
+        completedAt: null,
+      },
+    });
+
+    const session = await prisma.session.findUnique({
+      where: { id },
+      include: { actions: true, admin: { select: { username: true } } },
+    });
+
+    const formattedSession = {
+      id: session.id,
+      teamA: {
+        id: 'A',
+        name: session.teamAName,
+        tag: session.teamATag,
+        logoUrl: session.teamALogo,
+        leader: session.teamALeader,
+      },
+      teamB: {
+        id: 'B',
+        name: session.teamBName,
+        tag: session.teamBTag,
+        logoUrl: session.teamBLogo,
+        leader: session.teamBLeader,
+      },
+      actions: [],
+      currentTurn: 'A',
+      currentAction: 'BAN',
+      status: 'IN_PROGRESS',
+      createdAt: session.createdAt,
+      createdBy: session.admin.username,
+      lastUpdate: Date.now(),
+    };
+
+    res.json({ success: true, session: formattedSession });
+  } catch (error) {
+    console.error('Erro ao resetar sessão:', error);
+    res.status(500).json({ error: 'Erro ao resetar sessão' });
   }
-
-  session.actions = [];
-  session.currentTurn = 'A';
-  session.currentAction = 'BAN';
-  session.status = 'IN_PROGRESS';
-  session.lastUpdate = Date.now();
-  delete session.completedAt;
-
-  sessions.set(id, session);
-
-  res.json({ success: true, session });
 });
 
-// Polling endpoint - substitui WebSocket
-app.get('/api/sessions/:id/poll', (req, res) => {
+app.get('/api/sessions/:id/poll', async (req, res) => {
   const { id } = req.params;
-  const session = sessions.get(id);
 
-  if (!session) {
-    return res.status(404).json({ error: 'Sessão não encontrada' });
+  try {
+    const session = await prisma.session.findUnique({
+      where: { id },
+      include: {
+        actions: {
+          orderBy: { order: 'asc' },
+        },
+        admin: {
+          select: { username: true },
+        },
+      },
+    });
+
+    if (!session) {
+      return res.status(404).json({ error: 'Sessão não encontrada' });
+    }
+
+    let currentTurn = 'A';
+    let currentAction = 'BAN';
+    
+    if (session.actions.length < 6) {
+      const nextIndex = session.actions.length;
+      currentTurn = SEQUENCE[nextIndex].team;
+      currentAction = SEQUENCE[nextIndex].action;
+    }
+
+    const formattedSession = {
+      id: session.id,
+      teamA: {
+        id: 'A',
+        name: session.teamAName,
+        tag: session.teamATag,
+        logoUrl: session.teamALogo,
+        leader: session.teamALeader,
+      },
+      teamB: {
+        id: 'B',
+        name: session.teamBName,
+        tag: session.teamBTag,
+        logoUrl: session.teamBLogo,
+        leader: session.teamBLeader,
+      },
+      actions: session.actions,
+      currentTurn,
+      currentAction,
+      status: session.status,
+      createdAt: session.createdAt,
+      createdBy: session.admin.username,
+      createdById: session.createdBy,
+      completedAt: session.completedAt,
+      lastUpdate: Date.now(),
+    };
+
+    res.json(formattedSession);
+  } catch (error) {
+    console.error('Erro no polling:', error);
+    res.status(500).json({ error: 'Erro no polling' });
   }
-
-  res.json(session);
 });
 
-// ==================== FUNÇÕES AUXILIARES ====================
+// ==================== HEALTH CHECK ====================
 
-function generateSessionId() {
-  return Math.random().toString(36).substring(2, 15);
-}
+app.get('/health', async (req, res) => {
+  try {
+    await prisma.$queryRaw`SELECT 1`;
+    const adminCount = await prisma.admin.count();
+    const sessionCount = await prisma.session.count();
+    
+    res.json({ 
+      status: 'ok', 
+      database: 'connected',
+      admins: adminCount,
+      sessions: sessionCount,
+    });
+  } catch (error) {
+    res.status(500).json({ status: 'error', database: 'disconnected' });
+  }
+});
+
+app.get('/api/health', async (req, res) => {
+  try {
+    await prisma.$queryRaw`SELECT 1`;
+    const adminCount = await prisma.admin.count();
+    const sessionCount = await prisma.session.count();
+    
+    res.json({ 
+      status: 'ok', 
+      database: 'connected',
+      admins: adminCount,
+      sessions: sessionCount,
+    });
+  } catch (error) {
+    res.status(500).json({ status: 'error', database: 'disconnected' });
+  }
+});
 
 // ==================== SERVIDOR ====================
 
 const PORT = process.env.PORT || 3003;
 
-// Somente inicia servidor local se não estiver no Vercel
 if (process.env.VERCEL !== '1') {
-  app.listen(PORT, () => {
+  app.listen(PORT, async () => {
     console.log(`🚀 Servidor Picks & Bans rodando na porta ${PORT}`);
-    console.log(`📡 Modo: Polling (compatível com Vercel)`);
+    console.log(`💾 Banco de dados: PostgreSQL (Supabase)`);
+    
+    try {
+      const superAdmin = await prisma.admin.findFirst({
+        where: { role: 'SUPER_ADMIN' },
+      });
+      
+      if (superAdmin) {
+        console.log(`👑 Super Admin: ${superAdmin.username}`);
+      }
+      
+      const adminCount = await prisma.admin.count({ where: { role: 'ADMIN' } });
+      console.log(`👥 Admins cadastrados: ${adminCount}`);
+    } catch (error) {
+      console.error('⚠️  Erro ao conectar ao banco:', error.message);
+    }
   });
 }
 
-// Exporta para Vercel Serverless
 module.exports = app;

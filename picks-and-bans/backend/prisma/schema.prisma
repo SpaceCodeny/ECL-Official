@@ -1,0 +1,114 @@
+// Prisma schema — ECL Picks & Bans
+// Banco: PostgreSQL (Supabase)
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
+}
+
+// ─────────────────────────────────────────────
+// Enums
+// ─────────────────────────────────────────────
+
+enum AdminRole {
+  SUPER_ADMIN
+  ADMIN
+}
+
+enum AdminStatus {
+  ACTIVE
+  SUSPENDED
+}
+
+enum SessionStatus {
+  IN_PROGRESS
+  COMPLETED
+}
+
+// ─────────────────────────────────────────────
+// Admins
+// ─────────────────────────────────────────────
+
+model Admin {
+  id           String      @id @default(uuid())
+  username     String      @unique
+  passwordHash String
+  role         AdminRole
+  status       AdminStatus @default(ACTIVE)
+  createdAt    DateTime    @default(now())
+  createdBy    String?     // ID do super admin que criou
+  updatedAt    DateTime    @updatedAt
+
+  sessions     Session[]   // Sessões criadas por este admin
+  activityLogs ActivityLog[] // Ações realizadas por este admin
+
+  @@index([username])
+  @@index([role])
+  @@index([status])
+}
+
+// ─────────────────────────────────────────────
+// Sessões de Picks & Bans
+// ─────────────────────────────────────────────
+
+model Session {
+  id           String        @id @default(cuid())
+  teamAName    String
+  teamBName    String
+  teamATag     String?
+  teamBTag     String?
+  teamALogo    String?
+  teamBLogo    String?
+  teamALeader  String?       // Nickname do líder do Team A
+  teamBLeader  String?       // Nickname do líder do Team B
+  status       SessionStatus @default(IN_PROGRESS)
+  createdBy    String        // Admin ID
+  createdAt    DateTime      @default(now())
+  completedAt  DateTime?
+  updatedAt    DateTime      @updatedAt
+
+  admin  Admin            @relation(fields: [createdBy], references: [id])
+  actions SessionAction[]
+
+  @@index([createdBy])
+  @@index([status])
+  @@index([createdAt])
+}
+
+model SessionAction {
+  id        String   @id @default(uuid())
+  sessionId String
+  map       String
+  team      String   // 'A' or 'B'
+  action    String   // 'BAN' or 'PICK'
+  order     Int
+  createdAt DateTime @default(now())
+
+  session Session @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+
+  @@index([sessionId])
+  @@index([order])
+}
+
+// ─────────────────────────────────────────────
+// Logs de Atividades
+// ─────────────────────────────────────────────
+
+model ActivityLog {
+  id        String   @id @default(uuid())
+  adminId   String
+  action    String   // LOGIN, CREATE_ADMIN, SUSPEND_ADMIN, etc.
+  details   Json?    // Detalhes adicionais da ação
+  createdAt DateTime @default(now())
+
+  admin Admin @relation(fields: [adminId], references: [id], onDelete: Cascade)
+
+  @@index([adminId])
+  @@index([action])
+  @@index([createdAt])
+}

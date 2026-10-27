@@ -7,14 +7,16 @@ export default function HomePage() {
   const router = useRouter();
 
   useEffect(() => {
-    // Verificar se já está autenticado
-    const token = localStorage.getItem('admin_token');
+    const token = localStorage.getItem('token');
+    const userRole = localStorage.getItem('userRole');
     
-    if (token) {
-      // Se autenticado, ir para admin
-      router.push('/admin');
+    if (token && userRole) {
+      if (userRole === 'SUPER_ADMIN') {
+        router.push('/super-admin');
+      } else {
+        router.push('/admin');
+      }
     } else {
-      // Se não autenticado, ir para login
       router.push('/login');
     }
   }, [router]);

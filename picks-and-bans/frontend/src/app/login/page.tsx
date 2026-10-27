@@ -35,12 +35,17 @@ export default function LoginPage() {
 
       const data = await response.json();
       
-      // Salvar token no localStorage
-      localStorage.setItem('admin_token', data.token);
-      localStorage.setItem('admin_user', JSON.stringify(data.user));
+      // Salvar token e role no localStorage
+      localStorage.setItem('token', data.token);
+      localStorage.setItem('userRole', data.user.role); // SUPER_ADMIN ou ADMIN
+      localStorage.setItem('username', data.user.username);
 
-      // Redirecionar para admin
-      router.push('/admin');
+      // Redirecionar baseado no role
+      if (data.user.role === 'SUPER_ADMIN') {
+        router.push('/super-admin');
+      } else {
+        router.push('/admin');
+      }
     } catch (err: any) {
       setError(err.message || 'Erro ao fazer login');
     } finally {

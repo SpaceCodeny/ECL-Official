@@ -1,0 +1,648 @@
+const express = require('express');
+const cors = require('cors');
+const jwt = require('jsonwebtoken');
+const bcrypt = require('bcryptjs');
+
+// Carregar dotenv apenas em desenvolvimento
+if (process.env.NODE_ENV !== 'production' && process.env.VERCEL !== '1') {
+  require('dotenv').config();
+}
+
+const app = express();
+
+app.use(cors({
+  origin: process.env.CLIENT_URL || 'http://localhost:3002',
+  methods: ['GET', 'POST', 'PUT', 'DELETE'],
+}));
+
+app.use(express.json());
+
+// ==================== ARMAZENAMENTO EM MEMÓRIA ====================
+
+// Sessões
+const sessions = new Map();
+
+// Admins dinâmicos (podem ser criados pelo super admin)
+const dynamicAdmins = new Map();
+
+// Logs de atividades
+const activityLogs = [];
+
+// ==================== SUPER ADMIN E ADMINS ====================
+
+// Super Admin (fixo, não pode ser deletado)
+const SUPER_ADMIN = {
+  id: 'super-1',
+  username: process.env.SUPER_ADMIN_USERNAME || 'ECL-master',
+  passwordHash: process.env.SUPER_ADMIN_PASSWORD_HASH || '$2a$10$kVoFrVjAAt1lgk9/0bKd9.CtQcELjmn2WRrd4.Hzcz8grkmxJWVgS', // ECL@2026
+  role: 'super_admin',
+  status: 'active',
+  createdAt: new Date().toISOString(),
+};
+
+// Inicializar com admins padrão (se houver nas env vars)
+if (process.env.ADMIN_1_USERNAME && process.env.ADMIN_1_PASSWORD_HASH) {
+  dynamicAdmins.set('admin-1', {
+    id: 'admin-1',
+    username: process.env.ADMIN_1_USERNAME,
+    passwordHash: process.env.ADMIN_1_PASSWORD_HASH,
+    role: 'admin',
+    status: 'active',
+    createdAt: new Date().toISOString(),
+    createdBy: 'super-1',
+  });
+}
+
+// ==================== SECRETS ====================
+
+const JWT_SECRET = process.env.JWT_SECRET || 'change-this-secret-in-production-urgently';
+
+// ==================== MIDDLEWARES ====================
+
+// Autenticação
+const authenticateToken = (req, res, next) => {
+  const authHeader = req.headers['authorization'];
+  const token = authHeader && authHeader.split(' ')[1];
+
+  if (!token) {
+    return res.status(401).json({ error: 'Token não fornecido' });
+  }
+
+  jwt.verify(token, JWT_SECRET, (err, user) => {
+    if (err) {
+      return res.status(403).json({ error: 'Token inválido ou expirado' });
+    }
+    req.user = user;
+    next();
+  });
+};
+
+// Autorização: Apenas Super Admin
+const requireSuperAdmin = (req, res, next) => {
+  if (req.user.role !== 'super_admin') {
+    return res.status(403).json({ error: 'Acesso negado. Apenas Super Admin.' });
+  }
+  next();
+};
+
+// Autorização: Admin ou Super Admin
+const requireAdmin = (req, res, next) => {
+  if (req.user.role !== 'admin' && req.user.role !== 'super_admin') {
+    return res.status(403).json({ error: 'Acesso negado. Requer permissões de administrador.' });
+  }
+  next();
+};
+
+// ==================== CONSTANTES ====================
+
+const SEQUENCE = [
+  { team: 'A', action: 'BAN' },
+  { team: 'B', action: 'BAN' },
+  { team: 'A', action: 'PICK' },
+  { team: 'B', action: 'PICK' },
+  { team: 'B', action: 'BAN' },
+  { team: 'A', action: 'BAN' },
+];
+
+const MAPS = ['Breeze', 'Dune', 'Hanami', 'Prision', 'Province', 'Rust', 'Sandstone'];
+
+// ==================== FUNÇÕES AUXILIARES ====================
+
+function generateSessionId() {
+  return Math.random().toString(36).substring(2, 15);
+}
+
+function generateAdminId() {
+  return 'admin-' + Date.now() + '-' + Math.random().toString(36).substring(2, 9);
+}
+
+function logActivity(action, userId, username, role, details = {}) {
+  activityLogs.push({
+    timestamp: new Date().toISOString(),
+    action,
+    userId,
+    username,
+    role,
+    details,
+  });
+}
+
+function findUserByUsername(username) {
+  // Verificar se é super admin
+  if (SUPER_ADMIN.username === username) {
+    return SUPER_ADMIN;
+  }
+  
+  // Verificar admins dinâmicos
+  for (const admin of dynamicAdmins.values()) {
+    if (admin.username === username) {
+      return admin;
+    }
+  }
+  
+  return null;
+}
+
+// ==================== ROTAS DE AUTENTICAÇÃO ====================
+
+// Login
+app.post('/api/auth/login', async (req, res) => {
+  const { username, password } = req.body;
+
+  if (!username || !password) {
+    return res.status(400).json({ error: 'Usuário e senha são obrigatórios' });
+  }
+
+  const user = findUserByUsername(username);
+
+  if (!user) {
+    return res.status(401).json({ error: 'Credenciais inválidas' });
+  }
+
+  // Verificar se está suspenso (não se aplica a super admin)
+  if (user.role !== 'super_admin' && user.status === 'suspended') {
+    return res.status(403).json({ error: 'Conta suspensa. Entre em contato com o Super Admin.' });
+  }
+
+  // Verificar senha
+  let isValidPassword = false;
+  try {
+    isValidPassword = await bcrypt.compare(password, user.passwordHash);
+  } catch (error) {
+    console.error('Erro ao verificar senha:', error);
+    return res.status(500).json({ error: 'Erro ao validar credenciais' });
+  }
+
+  if (!isValidPassword) {
+    return res.status(401).json({ error: 'Credenciais inválidas' });
+  }
+
+  // Gerar token JWT
+  const token = jwt.sign(
+    { 
+      id: user.id,
+      username: user.username, 
+      role: user.role 
+    },
+    JWT_SECRET,
+    { expiresIn: '24h' }
+  );
+
+  logActivity('LOGIN', user.id, user.username, user.role);
+
+  res.json({ 
+    token,
+    user: { 
+      id: user.id,
+      username: user.username, 
+      role: user.role 
+    }
+  });
+});
+
+// Verificar token
+app.get('/api/auth/verify', authenticateToken, (req, res) => {
+  res.json({ valid: true, user: req.user });
+});
+
+// ==================== ROTAS SUPER ADMIN - GESTÃO DE ADMINS ====================
+
+// Listar todos os admins
+app.get('/api/super/admins', authenticateToken, requireSuperAdmin, (req, res) => {
+  const admins = Array.from(dynamicAdmins.values()).map(admin => ({
+    id: admin.id,
+    username: admin.username,
+    role: admin.role,
+    status: admin.status,
+    createdAt: admin.createdAt,
+    createdBy: admin.createdBy,
+  }));
+
+  res.json({ admins });
+});
+
+// Criar novo admin
+app.post('/api/super/admins', authenticateToken, requireSuperAdmin, async (req, res) => {
+  const { username, password } = req.body;
+
+  if (!username || !password) {
+    return res.status(400).json({ error: 'Usuário e senha são obrigatórios' });
+  }
+
+  // Verificar se username já existe
+  if (findUserByUsername(username)) {
+    return res.status(400).json({ error: 'Nome de usuário já existe' });
+  }
+
+  // Gerar hash da senha
+  const passwordHash = await bcrypt.hash(password, 10);
+
+  const newAdmin = {
+    id: generateAdminId(),
+    username,
+    passwordHash,
+    role: 'admin',
+    status: 'active',
+    createdAt: new Date().toISOString(),
+    createdBy: req.user.id,
+  };
+
+  dynamicAdmins.set(newAdmin.id, newAdmin);
+
+  logActivity('CREATE_ADMIN', req.user.id, req.user.username, req.user.role, { 
+    newAdminId: newAdmin.id, 
+    newAdminUsername: username 
+  });
+
+  res.json({ 
+    success: true, 
+    admin: {
+      id: newAdmin.id,
+      username: newAdmin.username,
+      role: newAdmin.role,
+      status: newAdmin.status,
+      createdAt: newAdmin.createdAt,
+    }
+  });
+});
+
+// Suspender admin
+app.put('/api/super/admins/:id/suspend', authenticateToken, requireSuperAdmin, (req, res) => {
+  const { id } = req.params;
+
+  const admin = dynamicAdmins.get(id);
+
+  if (!admin) {
+    return res.status(404).json({ error: 'Admin não encontrado' });
+  }
+
+  admin.status = 'suspended';
+  dynamicAdmins.set(id, admin);
+
+  logActivity('SUSPEND_ADMIN', req.user.id, req.user.username, req.user.role, { 
+    targetAdminId: id, 
+    targetAdminUsername: admin.username 
+  });
+
+  res.json({ success: true, admin: { id: admin.id, username: admin.username, status: admin.status } });
+});
+
+// Reativar admin
+app.put('/api/super/admins/:id/activate', authenticateToken, requireSuperAdmin, (req, res) => {
+  const { id } = req.params;
+
+  const admin = dynamicAdmins.get(id);
+
+  if (!admin) {
+    return res.status(404).json({ error: 'Admin não encontrado' });
+  }
+
+  admin.status = 'active';
+  dynamicAdmins.set(id, admin);
+
+  logActivity('ACTIVATE_ADMIN', req.user.id, req.user.username, req.user.role, { 
+    targetAdminId: id, 
+    targetAdminUsername: admin.username 
+  });
+
+  res.json({ success: true, admin: { id: admin.id, username: admin.username, status: admin.status } });
+});
+
+// Deletar admin
+app.delete('/api/super/admins/:id', authenticateToken, requireSuperAdmin, (req, res) => {
+  const { id } = req.params;
+
+  const admin = dynamicAdmins.get(id);
+
+  if (!admin) {
+    return res.status(404).json({ error: 'Admin não encontrado' });
+  }
+
+  dynamicAdmins.delete(id);
+
+  logActivity('DELETE_ADMIN', req.user.id, req.user.username, req.user.role, { 
+    deletedAdminId: id, 
+    deletedAdminUsername: admin.username 
+  });
+
+  res.json({ success: true, message: 'Admin deletado com sucesso' });
+});
+
+// ==================== ROTAS SUPER ADMIN - MÉTRICAS ====================
+
+// Métricas gerais
+app.get('/api/super/metrics', authenticateToken, requireSuperAdmin, (req, res) => {
+  const totalSessions = sessions.size;
+  const completedSessions = Array.from(sessions.values()).filter(s => s.status === 'COMPLETED').length;
+  const inProgressSessions = Array.from(sessions.values()).filter(s => s.status === 'IN_PROGRESS').length;
+  const totalAdmins = dynamicAdmins.size;
+  const activeAdmins = Array.from(dynamicAdmins.values()).filter(a => a.status === 'active').length;
+  const suspendedAdmins = Array.from(dynamicAdmins.values()).filter(a => a.status === 'suspended').length;
+
+  res.json({
+    sessions: {
+      total: totalSessions,
+      completed: completedSessions,
+      inProgress: inProgressSessions,
+    },
+    admins: {
+      total: totalAdmins,
+      active: activeAdmins,
+      suspended: suspendedAdmins,
+    },
+    logs: activityLogs.length,
+  });
+});
+
+// Listar todas as sessões com detalhes
+app.get('/api/super/sessions', authenticateToken, requireSuperAdmin, (req, res) => {
+  const allSessions = Array.from(sessions.values()).map(session => ({
+    id: session.id,
+    teamA: session.teamA.name,
+    teamB: session.teamB.name,
+    status: session.status,
+    createdAt: session.createdAt,
+    createdBy: session.createdBy || 'Unknown',
+    completedAt: session.completedAt || null,
+    actions: session.actions.map(a => ({
+      map: a.map,
+      team: a.team,
+      action: a.action,
+    })),
+  }));
+
+  // Ordenar por data de criação (mais recente primeiro)
+  allSessions.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+
+  res.json({ sessions: allSessions });
+});
+
+// Logs de atividade
+app.get('/api/super/logs', authenticateToken, requireSuperAdmin, (req, res) => {
+  const { limit = 100 } = req.query;
+  
+  // Retornar logs mais recentes
+  const recentLogs = activityLogs.slice(-parseInt(limit)).reverse();
+
+  res.json({ logs: recentLogs, total: activityLogs.length });
+});
+
+// ==================== ROTAS DE TIMES ====================
+
+// Buscar times cadastrados da API principal da ECL
+app.get('/api/teams', async (req, res) => {
+  try {
+    const ECL_API_URL = process.env.ECL_API_URL || 'https://ecl-backend-six.vercel.app';
+    const ECL_FRONTEND_URL = process.env.ECL_FRONTEND_URL || 'https://ecl-official.vercel.app';
+    
+    const response = await fetch(`${ECL_API_URL}/api/v1/teams?limit=100`);
+    
+    if (!response.ok) {
+      throw new Error('Falha ao buscar times da API ECL');
+    }
+
+    const data = await response.json();
+    
+    const teams = data.data.map(team => {
+      let logoUrl = team.logoUrl;
+      
+      if (logoUrl && logoUrl.startsWith('/images/')) {
+        logoUrl = `${ECL_FRONTEND_URL}${logoUrl}`;
+      }
+      
+      return {
+        id: team.id,
+        name: team.name,
+        tag: team.tag || team.name.substring(0, 4).toUpperCase(),
+        logoUrl: logoUrl,
+      };
+    });
+
+    res.json({ teams });
+  } catch (error) {
+    console.error('Erro ao buscar times:', error);
+    res.json({ teams: [] });
+  }
+});
+
+// ==================== ROTAS DE SESSÕES ====================
+
+// Criar nova sessão (APENAS ADMIN - Super Admin NÃO pode criar sessões)
+app.post('/api/sessions', authenticateToken, (req, res) => {
+  // Super Admin não pode criar sessões
+  if (req.user.role === 'super_admin') {
+    return res.status(403).json({ error: 'Super Admin não tem permissão para criar sessões' });
+  }
+
+  // Verificar se é admin ativo
+  if (req.user.role !== 'admin') {
+    return res.status(403).json({ error: 'Apenas admins podem criar sessões' });
+  }
+
+  const admin = dynamicAdmins.get(req.user.id);
+  if (!admin || admin.status !== 'active') {
+    return res.status(403).json({ error: 'Admin inativo ou suspenso' });
+  }
+
+  const { teamAName, teamBName, teamALogo, teamBLogo, teamATag, teamBTag } = req.body;
+
+  if (!teamAName || !teamBName) {
+    return res.status(400).json({ error: 'Nomes dos times são obrigatórios' });
+  }
+
+  const sessionId = generateSessionId();
+  const session = {
+    id: sessionId,
+    teamA: {
+      id: 'A',
+      name: teamAName,
+      tag: teamATag || teamAName.substring(0, 4).toUpperCase(),
+      logoUrl: teamALogo || null,
+      leader: null,
+    },
+    teamB: {
+      id: 'B',
+      name: teamBName,
+      tag: teamBTag || teamBName.substring(0, 4).toUpperCase(),
+      logoUrl: teamBLogo || null,
+      leader: null,
+    },
+    actions: [],
+    currentTurn: 'A',
+    currentAction: 'BAN',
+    status: 'IN_PROGRESS',
+    createdAt: new Date().toISOString(),
+    createdBy: req.user.username,
+    createdById: req.user.id,
+    lastUpdate: Date.now(),
+  };
+
+  sessions.set(sessionId, session);
+
+  logActivity('CREATE_SESSION', req.user.id, req.user.username, req.user.role, {
+    sessionId,
+    teamA: teamAName,
+    teamB: teamBName,
+  });
+
+  res.json({ sessionId, session });
+});
+
+// Buscar sessão por ID
+app.get('/api/sessions/:id', (req, res) => {
+  const { id } = req.params;
+  const session = sessions.get(id);
+
+  if (!session) {
+    return res.status(404).json({ error: 'Sessão não encontrada' });
+  }
+
+  res.json(session);
+});
+
+// Entrar na sessão
+app.post('/api/sessions/:id/join', (req, res) => {
+  const { id } = req.params;
+  const { team, nickname } = req.body;
+
+  const session = sessions.get(id);
+
+  if (!session) {
+    return res.status(404).json({ error: 'Sessão não encontrada' });
+  }
+
+  if (team !== 'A' && team !== 'B') {
+    return res.status(400).json({ error: 'Time inválido' });
+  }
+
+  if (!nickname || nickname.trim().length === 0) {
+    return res.status(400).json({ error: 'Nickname é obrigatório' });
+  }
+
+  const teamKey = team === 'A' ? 'teamA' : 'teamB';
+  if (!session[teamKey].leader) {
+    session[teamKey].leader = nickname.trim();
+  }
+
+  session.lastUpdate = Date.now();
+  sessions.set(id, session);
+
+  res.json({ success: true, session });
+});
+
+// Fazer uma ação (BAN ou PICK)
+app.post('/api/sessions/:id/action', (req, res) => {
+  const { id } = req.params;
+  const { team, map } = req.body;
+
+  const session = sessions.get(id);
+
+  if (!session) {
+    return res.status(404).json({ error: 'Sessão não encontrada' });
+  }
+
+  if (session.status !== 'IN_PROGRESS') {
+    return res.status(400).json({ error: 'Sessão já finalizada' });
+  }
+
+  if (session.currentTurn !== team) {
+    return res.status(400).json({ error: 'Não é a vez deste time' });
+  }
+
+  const usedMaps = session.actions.map((a) => a.map);
+  if (usedMaps.includes(map)) {
+    return res.status(400).json({ error: 'Mapa já foi usado' });
+  }
+
+  const newAction = {
+    map,
+    team: session.currentTurn,
+    action: session.currentAction,
+    order: session.actions.length + 1,
+  };
+
+  session.actions.push(newAction);
+
+  if (session.actions.length === 6) {
+    const allUsedMaps = session.actions.map((a) => a.map);
+    const decider = MAPS.find((m) => !allUsedMaps.includes(m));
+
+    if (decider) {
+      session.actions.push({
+        map: decider,
+        team: 'A',
+        action: 'PICK',
+        order: 7,
+      });
+    }
+
+    session.status = 'COMPLETED';
+    session.completedAt = new Date().toISOString();
+  } else {
+    const nextIndex = session.actions.length;
+    session.currentTurn = SEQUENCE[nextIndex].team;
+    session.currentAction = SEQUENCE[nextIndex].action;
+  }
+
+  session.lastUpdate = Date.now();
+  sessions.set(id, session);
+
+  res.json({ success: true, session });
+});
+
+// Resetar sessão
+app.post('/api/sessions/:id/reset', (req, res) => {
+  const { id } = req.params;
+  const session = sessions.get(id);
+
+  if (!session) {
+    return res.status(404).json({ error: 'Sessão não encontrada' });
+  }
+
+  session.actions = [];
+  session.currentTurn = 'A';
+  session.currentAction = 'BAN';
+  session.status = 'IN_PROGRESS';
+  session.lastUpdate = Date.now();
+  delete session.completedAt;
+
+  sessions.set(id, session);
+
+  res.json({ success: true, session });
+});
+
+// Polling endpoint
+app.get('/api/sessions/:id/poll', (req, res) => {
+  const { id } = req.params;
+  const session = sessions.get(id);
+
+  if (!session) {
+    return res.status(404).json({ error: 'Sessão não encontrada' });
+  }
+
+  res.json(session);
+});
+
+// ==================== ROTAS DE HEALTH ====================
+
+app.get('/health', (req, res) => {
+  res.json({ status: 'ok', sessions: sessions.size, admins: dynamicAdmins.size });
+});
+
+app.get('/api/health', (req, res) => {
+  res.json({ status: 'ok', sessions: sessions.size, admins: dynamicAdmins.size });
+});
+
+// ==================== SERVIDOR ====================
+
+const PORT = process.env.PORT || 3003;
+
+if (process.env.VERCEL !== '1') {
+  app.listen(PORT, () => {
+    console.log(`🚀 Servidor Picks & Bans rodando na porta ${PORT}`);
+    console.log(`👑 Super Admin: ${SUPER_ADMIN.username}`);
+    console.log(`👥 Admins cadastrados: ${dynamicAdmins.size}`);
+  });
+}
+
+module.exports = app;

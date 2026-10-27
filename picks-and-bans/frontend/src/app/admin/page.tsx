@@ -41,7 +41,7 @@ export default function AdminPage() {
 
   const checkAuthentication = async () => {
     try {
-      const token = localStorage.getItem('admin_token');
+      const token = localStorage.getItem('token');
       
       if (!token) {
         router.push('/login');
@@ -56,8 +56,9 @@ export default function AdminPage() {
       });
 
       if (!response.ok) {
-        localStorage.removeItem('admin_token');
-        localStorage.removeItem('admin_user');
+        localStorage.removeItem('token');
+        localStorage.removeItem('userRole');
+        localStorage.removeItem('username');
         router.push('/login');
         return;
       }
@@ -72,8 +73,9 @@ export default function AdminPage() {
   };
 
   const handleLogout = () => {
-    localStorage.removeItem('admin_token');
-    localStorage.removeItem('admin_user');
+    localStorage.removeItem('token');
+    localStorage.removeItem('userRole');
+    localStorage.removeItem('username');
     router.push('/login');
   };
 

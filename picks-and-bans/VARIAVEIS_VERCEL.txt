@@ -1,20 +1,26 @@
 # ==========================================
 # VARIÁVEIS DE AMBIENTE - VERCEL
+# Sistema Super Admin v2.0
 # ==========================================
 
 # ========== BACKEND ==========
 # Projeto: peaks-and-bans-backend
 
+# URLs
 CLIENT_URL=https://peaks-and-bans.vercel.app
 ECL_API_URL=https://ecl-backend-six.vercel.app
 ECL_FRONTEND_URL=https://ecl-official.vercel.app
+
+# Segurança
 JWT_SECRET=ecl-picks-bans-2024-secret-key-very-secure-random-string
 
-# Admin 1: ECL-master / ECL@2026
-ADMIN_PASSWORD_HASH_1=$2a$10$kVoFrVjAAt1lgk9/0bKd9.CtQcELjmn2WRrd4.Hzcz8grkmxJWVgS
+# Super Admin (FIXO - NÃO PODE SER DELETADO)
+SUPER_ADMIN_USERNAME=ECL-master
+SUPER_ADMIN_PASSWORD_HASH=$2a$10$kVoFrVjAAt1lgk9/0bKd9.CtQcELjmn2WRrd4.Hzcz8grkmxJWVgS
 
-# Admin 2: Nexus / Nexus@2026
-ADMIN_PASSWORD_HASH_2=$2a$10$y/OJZdZFCkeUTcPQEhCHoOFHty9niHw45efEYP40JLYPSXRYURUVG
+# Admin Padrão 1 (OPCIONAL - pode ser criado via interface)
+ADMIN_1_USERNAME=Nexus
+ADMIN_1_PASSWORD_HASH=$2a$10$y/OJZdZFCkeUTcPQEhCHoOFHty9niHw45efEYP40JLYPSXRYURUVG
 
 
 # ========== FRONTEND ==========
@@ -27,36 +33,212 @@ NEXT_PUBLIC_API_URL=https://peaks-and-bans-backend.vercel.app
 # INSTRUÇÕES DE DEPLOY
 # ==========================================
 
+## 1. BACKEND
 1. Acesse https://vercel.com/dashboard
-2. Selecione o projeto backend (peaks-and-bans-backend)
+2. Selecione o projeto: peaks-and-bans-backend
 3. Vá em Settings > Environment Variables
-4. Adicione TODAS as variáveis do BACKEND acima
-5. Salve e faça redeploy do backend
+4. REMOVA variáveis antigas (se existirem):
+   - ADMIN_USERNAME
+   - ADMIN_PASSWORD_HASH
+   - ADMIN_PASSWORD_HASH_1
+   - ADMIN_PASSWORD_HASH_2
+   - ADMIN_STATUS_1
+   - ADMIN_STATUS_2
 
-6. Selecione o projeto frontend (peaks-and-bans)
-7. Vá em Settings > Environment Variables
-8. Adicione a variável do FRONTEND acima
-9. Salve e faça redeploy do frontend
+5. ADICIONE as novas variáveis (copie/cole os valores acima):
+   - CLIENT_URL
+   - ECL_API_URL
+   - ECL_FRONTEND_URL
+   - JWT_SECRET
+   - SUPER_ADMIN_USERNAME
+   - SUPER_ADMIN_PASSWORD_HASH
+   - ADMIN_1_USERNAME (opcional)
+   - ADMIN_1_PASSWORD_HASH (opcional)
+
+6. Salve
+7. Vá em Deployments > selecione o último > ••• > Redeploy
+
+## 2. FRONTEND
+1. Acesse https://vercel.com/dashboard
+2. Selecione o projeto: peaks-and-bans
+3. Vá em Settings > Environment Variables
+4. Confirme que existe:
+   - NEXT_PUBLIC_API_URL
+5. Se não existir, adicione
+6. Salve e faça redeploy se necessário
+
 
 # ==========================================
-# CREDENCIAIS DE ADMIN
+# CREDENCIAIS
 # ==========================================
 
-Admin 1:
+## Super Admin (NÃO PODE SER DELETADO)
 Usuário: ECL-master
 Senha: ECL@2026
+Role: super_admin
 Hash: $2a$10$kVoFrVjAAt1lgk9/0bKd9.CtQcELjmn2WRrd4.Hzcz8grkmxJWVgS
+URL: https://peaks-and-bans.vercel.app/super-admin
 
-Admin 2:
+Permissões:
+✅ Criar admins
+✅ Suspender admins
+✅ Reativar admins
+✅ Deletar admins
+✅ Ver métricas
+✅ Ver sessões
+✅ Ver logs
+❌ NÃO pode criar sessões
+
+## Admin Padrão 1 (Opcional)
 Usuário: Nexus
 Senha: Nexus@2026
+Role: admin
 Hash: $2a$10$y/OJZdZFCkeUTcPQEhCHoOFHty9niHw45efEYP40JLYPSXRYURUVG
+URL: https://peaks-and-bans.vercel.app/admin
+
+Permissões:
+✅ Criar sessões de picks & bans
+✅ Gerar links para times
+❌ NÃO pode gerenciar outros admins
+
+## Outros Admins
+Podem ser criados pelo Super Admin via interface
+Não precisam de variáveis de ambiente
+
+
+# ==========================================
+# HIERARQUIA DO SISTEMA
+# ==========================================
+
+👑 Super Admin (ECL-master)
+   └── Gerencia admins
+   └── Visualiza métricas
+   └── Monitora sessões
+   └── Ver logs
+   └── NÃO cria sessões
+
+👤 Admin (Nexus e outros criados)
+   └── Cria sessões
+   └── Gera links
+   └── NÃO gerencia admins
+
+🎮 Jogadores
+   └── Participam de sessões
+   └── Executam picks & bans
+
+
+# ==========================================
+# FLUXO COMPLETO
+# ==========================================
+
+1. Super Admin (ECL-master) faz login
+   ↓
+2. Cria novos admins via interface
+   ↓
+3. Admins fazem login e criam sessões
+   ↓
+4. Jogadores acessam links e jogam
+   ↓
+5. Super Admin monitora tudo
 
 
 # ==========================================
 # OBSERVAÇÕES IMPORTANTES
 # ==========================================
 
-- REMOVER as variáveis antigas ADMIN_USERNAME e ADMIN_PASSWORD_HASH da Vercel
-- ADICIONAR as novas variáveis ADMIN_PASSWORD_HASH_1 e ADMIN_PASSWORD_HASH_2
-- Ambos os admins têm acesso total ao painel administrativo
+⚠️ ARMAZENAMENTO EM MEMÓRIA
+- Admins dinâmicos são armazenados em memória (Map)
+- Sessões são armazenadas em memória
+- Em Vercel (serverless), dados são perdidos entre invocações
+- Para produção real, migrar para banco de dados
+
+✅ SUPER ADMIN SEMPRE DISPONÍVEL
+- Definido via variáveis de ambiente
+- Nunca é perdido
+- Sempre pode fazer login
+
+📝 ADMIN_1 OPCIONAL
+- Se definido nas env vars, será carregado automaticamente
+- Se não definido, Super Admin pode criar via interface
+- Recomendado: criar via interface para ter ID dinâmico
+
+
+# ==========================================
+# TESTES PÓS-DEPLOY
+# ==========================================
+
+1. Testar login Super Admin:
+   https://peaks-and-bans.vercel.app/login
+   User: ECL-master / Pass: ECL@2026
+   Deve redirecionar para: /super-admin
+
+2. Criar um admin de teste via interface
+
+3. Logout e login com novo admin
+   Deve redirecionar para: /admin
+
+4. Criar uma sessão como admin
+
+5. Voltar como Super Admin
+   Ver sessão criada na aba "Sessões"
+
+
+# ==========================================
+# TROUBLESHOOTING
+# ==========================================
+
+❌ "Token inválido" no login
+→ Verificar se JWT_SECRET está definido
+→ Limpar localStorage e tentar novamente
+
+❌ Super Admin não consegue fazer login
+→ Verificar SUPER_ADMIN_USERNAME e SUPER_ADMIN_PASSWORD_HASH
+→ Conferir se hash está correto
+
+❌ Admin criado desaparece
+→ Normal em serverless (memória)
+→ Recriar admin via interface
+→ Para produção: implementar banco de dados
+
+❌ "Acesso negado" ao tentar criar sessão como Super Admin
+→ Comportamento correto!
+→ Super Admin NÃO pode criar sessões
+→ Criar um admin e usar esse para criar sessões
+
+
+# ==========================================
+# PRÓXIMOS PASSOS (PRODUÇÃO REAL)
+# ==========================================
+
+Para sistema em produção com alta demanda:
+
+1. Adicionar banco de dados:
+   - MongoDB + Prisma
+   - PostgreSQL + Prisma
+   - Supabase
+
+2. Migrar armazenamento:
+   - dynamicAdmins Map → tabela Admins
+   - sessions Map → tabela Sessions
+   - activityLogs array → tabela Logs
+
+3. Implementar cache:
+   - Redis para sessões ativas
+   - Reduzir consultas ao banco
+
+4. Adicionar paginação:
+   - Logs (atualmente 50)
+   - Sessões (sem limite)
+
+5. Implementar WebSocket real:
+   - Substituir polling
+   - Atualizações em tempo real
+
+
+# ==========================================
+# FIM
+# ==========================================
+
+Versão: 2.0.0 (Super Admin System)
+Data: 26/10/2026
+Desenvolvido por: Elite Champions League
