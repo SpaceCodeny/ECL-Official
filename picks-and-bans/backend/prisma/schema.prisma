@@ -104,6 +104,21 @@ model SessionAction {
 }
 
 // ─────────────────────────────────────────────
+// Tokens Ativos (guardados ao fazer login)
+// ─────────────────────────────────────────────
+
+model ActiveToken {
+  id        String   @id @default(uuid())
+  adminId   String
+  token     String   @unique
+  createdAt DateTime @default(now())
+  expiresAt DateTime
+
+  @@index([token])
+  @@index([adminId])
+}
+
+// ─────────────────────────────────────────────
 // Token Blacklist (sessões derrubadas)
 // ─────────────────────────────────────────────
 

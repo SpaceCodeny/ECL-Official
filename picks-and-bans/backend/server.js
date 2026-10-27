@@ -131,20 +131,33 @@ const authenticateToken = async (req, res, next) => {
     return res.status(401).json({ error: 'Token não fornecido' });
   }
 
-  // Verificar se token foi revogado (login derrubado)
+  // Verificar se token foi revogado (blacklist)
   try {
     const revoked = await prisma.revokedToken.findUnique({ where: { token } });
     if (revoked) {
       return res.status(401).json({ error: 'Sessão encerrada pelo Super Admin.' });
     }
-  } catch (err) {
-    // Se falhar a checagem, continua — não bloqueia por falha de DB
-  }
+  } catch (err) { /* silencioso */ }
 
-  jwt.verify(token, JWT_SECRET, (err, user) => {
+  jwt.verify(token, JWT_SECRET, async (err, user) => {
     if (err) {
       return res.status(403).json({ error: 'Token inválido ou expirado' });
     }
+
+    // Dupla proteção: verificar suspension no banco em tempo real
+    // (garante que admin suspenso seja bloqueado imediatamente, mesmo sem revoke explícito)
+    if (user.role === 'ADMIN') {
+      try {
+        const admin = await prisma.admin.findUnique({
+          where: { id: user.id },
+          select: { status: true },
+        });
+        if (!admin || admin.status === 'SUSPENDED') {
+          return res.status(403).json({ error: 'Conta suspensa. Entre em contato com o Super Admin.' });
+        }
+      } catch { /* se falhar a checagem, continua — não bloqueia por falha de DB */ }
+    }
+
     req.user = user;
     req.token = token;
     next();
@@ -199,13 +212,15 @@ app.post('/api/auth/login', async (req, res) => {
       { expiresIn: '24h' }
     );
 
-    // Guardar token ativo no banco para possível revogação pelo Super Admin
+    // Salvar token ativo no banco (para poder revogar ao suspender)
+    const expiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000);
     try {
-      await prisma.revokedToken.deleteMany({
-        where: {
-          adminId: admin.id,
-          revokedAt: { lt: new Date(Date.now() - 25 * 60 * 60 * 1000) },
-        },
+      // Limpar tokens expirados desse admin antes de salvar o novo
+      await prisma.activeToken.deleteMany({
+        where: { adminId: admin.id, expiresAt: { lt: new Date() } },
+      });
+      await prisma.activeToken.create({
+        data: { adminId: admin.id, token, expiresAt },
       });
     } catch { /* silencioso */ }
 
@@ -342,9 +357,28 @@ app.put('/api/super/admins/:id/suspend', authenticateToken, requireSuperAdmin, a
       data: { status: 'SUSPENDED' },
     });
 
+    // Revogar TODOS os tokens ativos deste admin imediatamente
+    const activeTokens = await prisma.activeToken.findMany({ where: { adminId: id } });
+
+    if (activeTokens.length > 0) {
+      // Mover para blacklist
+      await prisma.revokedToken.createMany({
+        data: activeTokens.map(t => ({
+          adminId: t.adminId,
+          token: t.token,
+          revokedBy: req.user.id,
+        })),
+        skipDuplicates: true,
+      });
+
+      // Remover da tabela de ativos
+      await prisma.activeToken.deleteMany({ where: { adminId: id } });
+    }
+
     await logActivity(req.user.id, 'SUSPEND_ADMIN', { 
       targetAdminId: id, 
-      targetAdminUsername: admin.username 
+      targetAdminUsername: admin.username,
+      tokensRevoked: activeTokens.length,
     });
 
     res.json({ success: true, admin: { id: admin.id, username: admin.username, status: admin.status } });
@@ -362,6 +396,9 @@ app.put('/api/super/admins/:id/activate', authenticateToken, requireSuperAdmin, 
       where: { id },
       data: { status: 'ACTIVE' },
     });
+
+    // Limpar tokens revogados deste admin para que possa logar normalmente
+    await prisma.revokedToken.deleteMany({ where: { adminId: id } });
 
     await logActivity(req.user.id, 'ACTIVATE_ADMIN', { 
       targetAdminId: id, 
