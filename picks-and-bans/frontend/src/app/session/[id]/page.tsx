@@ -2,7 +2,7 @@
 
 import { use, useState, useEffect } from "react";
 import { RefreshCw, Copy, Check, X, CheckCircle, User, ShieldOff } from "lucide-react";
-import { MAPS, PickBanSession, MapName } from "@/types";
+import { MAPS, PickBanSession, MapName, SeriesFormat } from "@/types";
 import { cn } from "@/lib/utils";
 import { getSession, joinSession, makeAction, resetSession as apiResetSession } from "@/lib/api";
 
@@ -335,9 +335,9 @@ Bora jogar! 🔥`;
   }
 
   const usedMaps = session.actions.map((a) => a.map);
-  const pickedMaps = session.actions.filter((a) => a.action === "PICK" && a.team !== "DECIDER");
-  const decider = session.actions.find((a) => a.team === "DECIDER" || a.order === 7);
-  const seriesFormat = (session as any).seriesFormat as 'BO1' | 'BO3' | 'BO5' | undefined;
+  const pickedMaps = session.actions.filter((a) => a.action === "PICK" && a.team !== "DECIDER" as string);
+  const decider = session.actions.find((a) => (a.team as string) === "DECIDER" || a.order === 7);
+  const seriesFormat = session.seriesFormat as SeriesFormat | undefined;
 
   const seriesLabel: Record<string, string> = {
     BO1: 'BO1 — Melhor de 1',
