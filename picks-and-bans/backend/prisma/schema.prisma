@@ -28,6 +28,13 @@ enum AdminStatus {
 enum SessionStatus {
   IN_PROGRESS
   COMPLETED
+  TERMINATED
+}
+
+enum SeriesFormat {
+  BO1
+  BO3
+  BO5
 }
 
 // ─────────────────────────────────────────────
@@ -67,6 +74,7 @@ model Session {
   teamALeader  String?       // Nickname do líder do Team A
   teamBLeader  String?       // Nickname do líder do Team B
   status       SessionStatus @default(IN_PROGRESS)
+  seriesFormat SeriesFormat  @default(BO3)
   createdBy    String        // Admin ID
   createdAt    DateTime      @default(now())
   completedAt  DateTime?
@@ -93,6 +101,21 @@ model SessionAction {
 
   @@index([sessionId])
   @@index([order])
+}
+
+// ─────────────────────────────────────────────
+// Token Blacklist (sessões derrubadas)
+// ─────────────────────────────────────────────
+
+model RevokedToken {
+  id        String   @id @default(uuid())
+  adminId   String
+  token     String   @unique
+  revokedAt DateTime @default(now())
+  revokedBy String   // ID do super admin
+
+  @@index([token])
+  @@index([adminId])
 }
 
 // ─────────────────────────────────────────────

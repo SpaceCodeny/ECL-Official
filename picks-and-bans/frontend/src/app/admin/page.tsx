@@ -91,6 +91,8 @@ export default function AdminPage() {
     }
   };
 
+  const [seriesFormat, setSeriesFormat] = useState<'BO1' | 'BO3' | 'BO5' | ''>('');
+
   const filteredTeamsA = teams.filter(t => 
     t.name.toLowerCase().includes(teamASearch.toLowerCase()) ||
     t.tag.toLowerCase().includes(teamASearch.toLowerCase())
@@ -118,6 +120,11 @@ export default function AdminPage() {
       return;
     }
 
+    if (!seriesFormat) {
+      alert("Selecione o formato da série (BO1, BO3 ou BO5)!");
+      return;
+    }
+
     setLoading(true);
 
     try {
@@ -127,7 +134,8 @@ export default function AdminPage() {
         teamASelected?.logoUrl,
         teamBSelected?.logoUrl,
         teamASelected?.tag,
-        teamBSelected?.tag
+        teamBSelected?.tag,
+        seriesFormat
       );
       const link = `${window.location.origin}/session/${response.sessionId}`;
       setGeneratedLink(link);
@@ -163,6 +171,7 @@ export default function AdminPage() {
     setTeamBSelected(null);
     setTeamBCustomName("");
     setTeamBSearch("");
+    setSeriesFormat("");
     setCopied(false);
   };
 
@@ -532,9 +541,40 @@ export default function AdminPage() {
             )}
           </div>
 
+          {/* Formato da Série */}
+          <div>
+            <label className="mb-3 block text-sm font-medium text-paper">
+              Formato da Série <span className="text-red-400">*</span>
+            </label>
+            <div className="grid grid-cols-3 gap-3">
+              {([
+                { id: 'BO1', label: 'BO1', desc: 'Melhor de 1', detail: '6 bans → Decider' },
+                { id: 'BO3', label: 'BO3', desc: 'Melhor de 3', detail: '2 bans, 2 picks, 2 bans → Decider' },
+                { id: 'BO5', label: 'BO5', desc: 'Melhor de 5', detail: '2 picks, 2 bans, 2 picks → Decider' },
+              ] as const).map((fmt) => (
+                <button
+                  key={fmt.id}
+                  type="button"
+                  onClick={() => setSeriesFormat(fmt.id)}
+                  className={`rounded-lg border-2 p-3 text-left transition-all ${
+                    seriesFormat === fmt.id
+                      ? 'border-gold bg-gold/10 shadow-lg shadow-gold/20'
+                      : 'border-border bg-ink hover:border-gold/50'
+                  }`}
+                >
+                  <p className={`text-lg font-black uppercase ${seriesFormat === fmt.id ? 'text-gold' : 'text-paper'}`}>
+                    {fmt.label}
+                  </p>
+                  <p className="text-xs font-medium text-muted">{fmt.desc}</p>
+                  <p className="mt-1 hidden text-[10px] text-muted/60 sm:block">{fmt.detail}</p>
+                </button>
+              ))}
+            </div>
+          </div>
+
           <button
             onClick={handleCreateSession}
-            disabled={loading || (!getTeamAName() || !getTeamBName())}
+            disabled={loading || (!getTeamAName() || !getTeamBName()) || !seriesFormat}
             className="w-full rounded-lg bg-gold px-4 py-3 font-display text-base font-bold uppercase tracking-wide text-ink transition-all hover:bg-gold-light disabled:cursor-not-allowed disabled:opacity-50 sm:px-6 sm:py-4 sm:text-lg"
           >
             {loading ? (

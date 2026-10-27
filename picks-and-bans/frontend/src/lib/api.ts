@@ -50,7 +50,8 @@ export async function createSession(
   teamALogo?: string | null,
   teamBLogo?: string | null,
   teamATag?: string,
-  teamBTag?: string
+  teamBTag?: string,
+  seriesFormat?: 'BO1' | 'BO3' | 'BO5'
 ) {
   const token = localStorage.getItem('token');
   
@@ -66,7 +67,8 @@ export async function createSession(
       teamALogo,
       teamBLogo,
       teamATag,
-      teamBTag
+      teamBTag,
+      seriesFormat,
     }),
   });
 

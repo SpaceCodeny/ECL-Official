@@ -1,7 +1,7 @@
 "use client";
 
 import { use, useState, useEffect } from "react";
-import { RefreshCw, Copy, Check, X, CheckCircle, User } from "lucide-react";
+import { RefreshCw, Copy, Check, X, CheckCircle, User, ShieldOff } from "lucide-react";
 import { MAPS, PickBanSession, MapName } from "@/types";
 import { cn } from "@/lib/utils";
 import { getSession, joinSession, makeAction, resetSession as apiResetSession } from "@/lib/api";
@@ -16,6 +16,7 @@ export default function SessionPage({ params }: { params: Promise<{ id: string }
   const [resultsCopied, setResultsCopied] = useState(false);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [terminated, setTerminated] = useState(false);
 
   useEffect(() => {
     let pollingInterval: NodeJS.Timeout | null = null;
@@ -26,6 +27,14 @@ export default function SessionPage({ params }: { params: Promise<{ id: string }
         setError(null);
 
         const sessionData = await getSession(id);
+
+        // Verificar se já está derrubada ao carregar
+        if ((sessionData as any).status === 'TERMINATED') {
+          setTerminated(true);
+          setLoading(false);
+          return;
+        }
+
         setSession(sessionData);
 
         const savedTeam = localStorage.getItem(`session-${id}-team`);
@@ -42,6 +51,12 @@ export default function SessionPage({ params }: { params: Promise<{ id: string }
         pollingInterval = setInterval(async () => {
           try {
             const updatedSession = await getSession(id);
+            // Detectar se foi derrubada pelo super admin
+            if ((updatedSession as any).status === 'TERMINATED') {
+              setTerminated(true);
+              if (pollingInterval) clearInterval(pollingInterval);
+              return;
+            }
             setSession(updatedSession);
           } catch (err) {
             console.error("Erro no polling:", err);
@@ -150,6 +165,55 @@ Bora jogar! 🔥`;
           >
             Tentar Novamente
           </button>
+        </div>
+      </div>
+    );
+  }
+
+  // Tela: SESSÃO DERRUBADA PELO SUPER ADMIN
+  if (terminated) {
+    return (
+      <div className="relative flex min-h-screen items-center justify-center overflow-hidden bg-[#050d1a] p-4">
+        {/* Background glow */}
+        <div className="pointer-events-none absolute inset-0">
+          <div className="absolute left-1/2 top-1/2 h-[600px] w-[600px] -translate-x-1/2 -translate-y-1/2 rounded-full bg-red-600/10 blur-[120px]" />
+        </div>
+
+        <div className="relative z-10 w-full max-w-lg text-center">
+          {/* Ícone animado */}
+          <div className="relative mx-auto mb-8 flex h-28 w-28 items-center justify-center">
+            <div className="absolute inset-0 rounded-full border-2 border-red-500/30 animate-ping" />
+            <div className="absolute inset-0 rounded-full border border-red-500/50" />
+            <div className="flex h-full w-full items-center justify-center rounded-full bg-red-500/10">
+              <ShieldOff className="h-12 w-12 text-red-400" />
+            </div>
+          </div>
+
+          {/* Título */}
+          <h1
+            className="mb-3 text-4xl font-black uppercase tracking-widest text-red-400 sm:text-5xl"
+            style={{ fontFamily: 'Oswald, sans-serif' }}
+          >
+            Sessão Não Autorizada
+          </h1>
+
+          {/* Linha dourada */}
+          <div className="mx-auto mb-6 h-px w-24 bg-gradient-to-r from-transparent via-red-500 to-transparent" />
+
+          {/* Mensagem */}
+          <p className="mb-2 text-lg font-semibold text-white">
+            Esta sessão foi encerrada pelo Super Admin.
+          </p>
+          <p className="mb-8 text-sm text-gray-500 leading-relaxed">
+            A realização de picks e bans nesta sessão não é mais permitida.
+            Entre em contato com o administrador da liga para mais informações.
+          </p>
+
+          {/* Badge ECL */}
+          <div className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/5 px-4 py-2 text-xs text-gray-400">
+            <div className="h-1.5 w-1.5 rounded-full bg-red-500 animate-pulse" />
+            Elite Champions League — Acesso Revogado
+          </div>
         </div>
       </div>
     );
@@ -271,8 +335,15 @@ Bora jogar! 🔥`;
   }
 
   const usedMaps = session.actions.map((a) => a.map);
-  const pickedMaps = session.actions.filter((a) => a.action === "PICK");
-  const decider = session.actions.find((a) => a.order === 7);
+  const pickedMaps = session.actions.filter((a) => a.action === "PICK" && a.team !== "DECIDER");
+  const decider = session.actions.find((a) => a.team === "DECIDER" || a.order === 7);
+  const seriesFormat = (session as any).seriesFormat as 'BO1' | 'BO3' | 'BO5' | undefined;
+
+  const seriesLabel: Record<string, string> = {
+    BO1: 'BO1 — Melhor de 1',
+    BO3: 'BO3 — Melhor de 3',
+    BO5: 'BO5 — Melhor de 5',
+  };
 
   return (
     <div className="min-h-screen bg-ink">
@@ -282,11 +353,20 @@ Bora jogar! 🔥`;
           <h1 className="mb-2 font-display text-xl font-bold uppercase text-paper sm:mb-3 sm:text-2xl lg:text-3xl">
             Pick & Ban
           </h1>
-          <div className="inline-flex items-center gap-1.5 rounded-full border border-border bg-surface/50 px-3 py-1.5 backdrop-blur-sm sm:gap-2 sm:px-4">
-            <div className="h-1.5 w-1.5 animate-pulse rounded-full bg-green-500 sm:h-2 sm:w-2"></div>
-            <span className="text-xs font-medium text-muted sm:text-sm">
-              {leaderNick}
-            </span>
+          <div className="flex flex-wrap items-center justify-center gap-2">
+            <div className="inline-flex items-center gap-1.5 rounded-full border border-border bg-surface/50 px-3 py-1.5 backdrop-blur-sm sm:gap-2 sm:px-4">
+              <div className="h-1.5 w-1.5 animate-pulse rounded-full bg-green-500 sm:h-2 sm:w-2"></div>
+              <span className="text-xs font-medium text-muted sm:text-sm">
+                {leaderNick}
+              </span>
+            </div>
+            {seriesFormat && (
+              <div className="inline-flex items-center rounded-full border border-gold/40 bg-gold/10 px-3 py-1.5">
+                <span className="text-xs font-bold text-gold sm:text-sm">
+                  {seriesFormat}
+                </span>
+              </div>
+            )}
           </div>
         </header>
 

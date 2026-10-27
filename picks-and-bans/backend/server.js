@@ -22,16 +22,84 @@ app.use(express.json());
 
 const JWT_SECRET = process.env.JWT_SECRET || 'change-this-secret-in-production-urgently';
 
-const SEQUENCE = [
-  { team: 'A', action: 'BAN' },
-  { team: 'B', action: 'BAN' },
-  { team: 'A', action: 'PICK' },
-  { team: 'B', action: 'PICK' },
-  { team: 'B', action: 'BAN' },
-  { team: 'A', action: 'BAN' },
-];
-
 const MAPS = ['Breeze', 'Dune', 'Hanami', 'Prision', 'Province', 'Rust', 'Sandstone'];
+
+// Sequências por formato de série
+const SEQUENCES = {
+  // BO1: 6 bans (todos baniam), o último mapa que sobra é o decider
+  BO1: [
+    { team: 'A', action: 'BAN' },
+    { team: 'B', action: 'BAN' },
+    { team: 'A', action: 'BAN' },
+    { team: 'B', action: 'BAN' },
+    { team: 'A', action: 'BAN' },
+    { team: 'B', action: 'BAN' },
+  ],
+  // BO3: 2 bans, 2 picks, 2 bans → 1 decider
+  BO3: [
+    { team: 'A', action: 'BAN' },
+    { team: 'B', action: 'BAN' },
+    { team: 'A', action: 'PICK' },
+    { team: 'B', action: 'PICK' },
+    { team: 'B', action: 'BAN' },
+    { team: 'A', action: 'BAN' },
+  ],
+  // BO5: 2 picks, 2 bans, 2 picks → 1 decider
+  BO5: [
+    { team: 'A', action: 'PICK' },
+    { team: 'B', action: 'PICK' },
+    { team: 'A', action: 'BAN' },
+    { team: 'B', action: 'BAN' },
+    { team: 'A', action: 'PICK' },
+    { team: 'B', action: 'PICK' },
+  ],
+};
+
+// Helper para obter a sequência de uma sessão
+function getSequence(seriesFormat) {
+  return SEQUENCES[seriesFormat] || SEQUENCES.BO3;
+}
+
+// Helper para formatar sessão para o frontend
+function formatSession(session) {
+  const sequence = getSequence(session.seriesFormat);
+  let currentTurn = sequence[0].team;
+  let currentAction = sequence[0].action;
+
+  if (session.status === 'IN_PROGRESS' && session.actions.length < sequence.length) {
+    const nextIndex = session.actions.length;
+    currentTurn = sequence[nextIndex].team;
+    currentAction = sequence[nextIndex].action;
+  }
+
+  return {
+    id: session.id,
+    teamA: {
+      id: 'A',
+      name: session.teamAName,
+      tag: session.teamATag,
+      logoUrl: session.teamALogo,
+      leader: session.teamALeader,
+    },
+    teamB: {
+      id: 'B',
+      name: session.teamBName,
+      tag: session.teamBTag,
+      logoUrl: session.teamBLogo,
+      leader: session.teamBLeader,
+    },
+    actions: session.actions || [],
+    currentTurn,
+    currentAction,
+    seriesFormat: session.seriesFormat,
+    status: session.status,
+    createdAt: session.createdAt,
+    createdBy: session.admin?.username || session.createdBy,
+    createdById: session.createdBy,
+    completedAt: session.completedAt || null,
+    lastUpdate: Date.now(),
+  };
+}
 
 // ==================== FUNÇÕES AUXILIARES ====================
 
@@ -55,7 +123,7 @@ async function logActivity(adminId, action, details = {}) {
 
 // ==================== MIDDLEWARES ====================
 
-const authenticateToken = (req, res, next) => {
+const authenticateToken = async (req, res, next) => {
   const authHeader = req.headers['authorization'];
   const token = authHeader && authHeader.split(' ')[1];
 
@@ -63,11 +131,22 @@ const authenticateToken = (req, res, next) => {
     return res.status(401).json({ error: 'Token não fornecido' });
   }
 
+  // Verificar se token foi revogado (login derrubado)
+  try {
+    const revoked = await prisma.revokedToken.findUnique({ where: { token } });
+    if (revoked) {
+      return res.status(401).json({ error: 'Sessão encerrada pelo Super Admin.' });
+    }
+  } catch (err) {
+    // Se falhar a checagem, continua — não bloqueia por falha de DB
+  }
+
   jwt.verify(token, JWT_SECRET, (err, user) => {
     if (err) {
       return res.status(403).json({ error: 'Token inválido ou expirado' });
     }
     req.user = user;
+    req.token = token;
     next();
   });
 };
@@ -120,6 +199,16 @@ app.post('/api/auth/login', async (req, res) => {
       { expiresIn: '24h' }
     );
 
+    // Guardar token ativo no banco para possível revogação pelo Super Admin
+    try {
+      await prisma.revokedToken.deleteMany({
+        where: {
+          adminId: admin.id,
+          revokedAt: { lt: new Date(Date.now() - 25 * 60 * 60 * 1000) },
+        },
+      });
+    } catch { /* silencioso */ }
+
     await logActivity(admin.id, 'LOGIN', { username: admin.username });
 
     res.json({ 
@@ -140,13 +229,14 @@ app.get('/api/auth/verify', authenticateToken, (req, res) => {
 
 app.get('/api/super/metrics', authenticateToken, requireSuperAdmin, async (req, res) => {
   try {
-    const [totalAdmins, activeAdmins, suspendedAdmins, totalSessions, completedSessions, inProgressSessions, totalLogs] = await Promise.all([
+    const [totalAdmins, activeAdmins, suspendedAdmins, totalSessions, completedSessions, inProgressSessions, terminatedSessions, totalLogs] = await Promise.all([
       prisma.admin.count({ where: { role: 'ADMIN' } }),
       prisma.admin.count({ where: { role: 'ADMIN', status: 'ACTIVE' } }),
       prisma.admin.count({ where: { role: 'ADMIN', status: 'SUSPENDED' } }),
       prisma.session.count(),
       prisma.session.count({ where: { status: 'COMPLETED' } }),
       prisma.session.count({ where: { status: 'IN_PROGRESS' } }),
+      prisma.session.count({ where: { status: 'TERMINATED' } }),
       prisma.activityLog.count(),
     ]);
 
@@ -155,6 +245,7 @@ app.get('/api/super/metrics', authenticateToken, requireSuperAdmin, async (req, 
         total: totalSessions,
         completed: completedSessions,
         inProgress: inProgressSessions,
+        terminated: terminatedSessions,
       },
       admins: {
         total: totalAdmins,
@@ -304,6 +395,76 @@ app.delete('/api/super/admins/:id', authenticateToken, requireSuperAdmin, async 
   }
 });
 
+// ── Derrubar login de um admin (revogar token ativo) ──────────────────────────
+app.post('/api/super/admins/:id/revoke-token', authenticateToken, requireSuperAdmin, async (req, res) => {
+  const { id } = req.params;
+  const { token: tokenToRevoke } = req.body; // token enviado pelo frontend
+
+  try {
+    const admin = await prisma.admin.findUnique({ where: { id } });
+    if (!admin) return res.status(404).json({ error: 'Admin não encontrado' });
+
+    if (tokenToRevoke) {
+      // Revogar token específico passado pelo frontend
+      await prisma.revokedToken.upsert({
+        where: { token: tokenToRevoke },
+        update: {},
+        create: { adminId: id, token: tokenToRevoke, revokedBy: req.user.id },
+      });
+    }
+
+    await logActivity(req.user.id, 'REVOKE_TOKEN', {
+      targetAdminId: id,
+      targetAdminUsername: admin.username,
+    });
+
+    res.json({ success: true, message: `Login de "${admin.username}" encerrado` });
+  } catch (error) {
+    console.error('Erro ao revogar token:', error);
+    res.status(500).json({ error: 'Erro ao encerrar login' });
+  }
+});
+
+// ── Listar tokens ativos de um admin (para poder revogar) ─────────────────────
+// Como não guardamos tokens no DB ao logar, o super admin fornece o token
+// manualmente OU o admin page envia o token atual ao fazer a requisição.
+// Alternativa: buscar do header se o admin estiver logado via endpoint dedicado.
+
+// ── Derrubar sessão → status TERMINATED ──────────────────────────────────────
+app.post('/api/super/sessions/:id/terminate', authenticateToken, requireSuperAdmin, async (req, res) => {
+  const { id } = req.params;
+
+  try {
+    const session = await prisma.session.findUnique({
+      where: { id },
+      include: { admin: { select: { username: true } } },
+    });
+
+    if (!session) return res.status(404).json({ error: 'Sessão não encontrada' });
+    if (session.status === 'TERMINATED') return res.status(400).json({ error: 'Sessão já foi derrubada' });
+
+    await prisma.session.update({
+      where: { id },
+      data: {
+        status: 'TERMINATED',
+        completedAt: new Date(),
+      },
+    });
+
+    await logActivity(req.user.id, 'TERMINATE_SESSION', {
+      sessionId: id,
+      teamA: session.teamAName,
+      teamB: session.teamBName,
+      originalAdmin: session.admin.username,
+    });
+
+    res.json({ success: true, message: `Sessão ${session.teamAName} vs ${session.teamBName} derrubada` });
+  } catch (error) {
+    console.error('Erro ao encerrar sessão:', error);
+    res.status(500).json({ error: 'Erro ao encerrar sessão' });
+  }
+});
+
 app.get('/api/super/sessions', authenticateToken, requireSuperAdmin, async (req, res) => {
   try {
     const sessions = await prisma.session.findMany({
@@ -417,10 +578,14 @@ app.post('/api/sessions', authenticateToken, async (req, res) => {
     return res.status(403).json({ error: 'Apenas admins podem criar sessões' });
   }
 
-  const { teamAName, teamBName, teamALogo, teamBLogo, teamATag, teamBTag } = req.body;
+  const { teamAName, teamBName, teamALogo, teamBLogo, teamATag, teamBTag, seriesFormat } = req.body;
 
   if (!teamAName || !teamBName) {
     return res.status(400).json({ error: 'Nomes dos times são obrigatórios' });
+  }
+
+  if (!seriesFormat || !['BO1', 'BO3', 'BO5'].includes(seriesFormat)) {
+    return res.status(400).json({ error: 'Formato de série obrigatório: BO1, BO3 ou BO5' });
   }
 
   try {
@@ -441,6 +606,7 @@ app.post('/api/sessions', authenticateToken, async (req, res) => {
         teamBTag: teamBTag || teamBName.substring(0, 4).toUpperCase(),
         teamALogo: teamALogo || null,
         teamBLogo: teamBLogo || null,
+        seriesFormat,
         status: 'IN_PROGRESS',
         createdBy: req.user.id,
       },
@@ -450,7 +616,10 @@ app.post('/api/sessions', authenticateToken, async (req, res) => {
       sessionId,
       teamA: teamAName,
       teamB: teamBName,
+      seriesFormat,
     });
+
+    const sequence = getSequence(seriesFormat);
 
     // Formato compatível com frontend
     const formattedSession = {
@@ -470,8 +639,9 @@ app.post('/api/sessions', authenticateToken, async (req, res) => {
         leader: null,
       },
       actions: [],
-      currentTurn: 'A',
-      currentAction: 'BAN',
+      currentTurn: sequence[0].team,
+      currentAction: sequence[0].action,
+      seriesFormat: session.seriesFormat,
       status: 'IN_PROGRESS',
       createdAt: session.createdAt,
       createdBy: req.user.username,
@@ -488,62 +658,13 @@ app.post('/api/sessions', authenticateToken, async (req, res) => {
 
 app.get('/api/sessions/:id', async (req, res) => {
   const { id } = req.params;
-
   try {
     const session = await prisma.session.findUnique({
       where: { id },
-      include: {
-        actions: {
-          orderBy: { order: 'asc' },
-        },
-        admin: {
-          select: { username: true },
-        },
-      },
+      include: { actions: { orderBy: { order: 'asc' } }, admin: { select: { username: true } } },
     });
-
-    if (!session) {
-      return res.status(404).json({ error: 'Sessão não encontrada' });
-    }
-
-    // Calcular currentTurn e currentAction baseado nas ações
-    let currentTurn = 'A';
-    let currentAction = 'BAN';
-    
-    if (session.actions.length < 6) {
-      const nextIndex = session.actions.length;
-      currentTurn = SEQUENCE[nextIndex].team;
-      currentAction = SEQUENCE[nextIndex].action;
-    }
-
-    const formattedSession = {
-      id: session.id,
-      teamA: {
-        id: 'A',
-        name: session.teamAName,
-        tag: session.teamATag,
-        logoUrl: session.teamALogo,
-        leader: session.teamALeader,
-      },
-      teamB: {
-        id: 'B',
-        name: session.teamBName,
-        tag: session.teamBTag,
-        logoUrl: session.teamBLogo,
-        leader: session.teamBLeader,
-      },
-      actions: session.actions,
-      currentTurn,
-      currentAction,
-      status: session.status,
-      createdAt: session.createdAt,
-      createdBy: session.admin.username,
-      createdById: session.createdBy,
-      completedAt: session.completedAt,
-      lastUpdate: Date.now(),
-    };
-
-    res.json(formattedSession);
+    if (!session) return res.status(404).json({ error: 'Sessão não encontrada' });
+    res.json(formatSession(session));
   } catch (error) {
     console.error('Erro ao buscar sessão:', error);
     res.status(500).json({ error: 'Erro ao buscar sessão' });
@@ -582,47 +703,13 @@ app.post('/api/sessions/:id/join', async (req, res) => {
       });
     }
 
-    // Buscar sessão atualizada
+    // Buscar sessão atualizada após join
     const updatedSession = await prisma.session.findUnique({
       where: { id },
       include: { actions: { orderBy: { order: 'asc' } }, admin: { select: { username: true } } },
     });
 
-    let currentTurn = 'A';
-    let currentAction = 'BAN';
-    
-    if (updatedSession.actions.length < 6) {
-      const nextIndex = updatedSession.actions.length;
-      currentTurn = SEQUENCE[nextIndex].team;
-      currentAction = SEQUENCE[nextIndex].action;
-    }
-
-    const formattedSession = {
-      id: updatedSession.id,
-      teamA: {
-        id: 'A',
-        name: updatedSession.teamAName,
-        tag: updatedSession.teamATag,
-        logoUrl: updatedSession.teamALogo,
-        leader: updatedSession.teamALeader,
-      },
-      teamB: {
-        id: 'B',
-        name: updatedSession.teamBName,
-        tag: updatedSession.teamBTag,
-        logoUrl: updatedSession.teamBLogo,
-        leader: updatedSession.teamBLeader,
-      },
-      actions: updatedSession.actions,
-      currentTurn,
-      currentAction,
-      status: updatedSession.status,
-      createdAt: updatedSession.createdAt,
-      createdBy: updatedSession.admin.username,
-      lastUpdate: Date.now(),
-    };
-
-    res.json({ success: true, session: formattedSession });
+    res.json({ success: true, session: formatSession(updatedSession) });
   } catch (error) {
     console.error('Erro ao entrar na sessão:', error);
     res.status(500).json({ error: 'Erro ao entrar na sessão' });
@@ -644,13 +731,13 @@ app.post('/api/sessions/:id/action', async (req, res) => {
     }
 
     if (session.status !== 'IN_PROGRESS') {
-      return res.status(400).json({ error: 'Sessão já finalizada' });
+      return res.status(400).json({ error: 'Sessão já finalizada', status: session.status });
     }
 
-    // Verificar turno
+    const sequence = getSequence(session.seriesFormat);
     const nextIndex = session.actions.length;
-    const expectedTeam = SEQUENCE[nextIndex].team;
-    const expectedAction = SEQUENCE[nextIndex].action;
+    const expectedTeam = sequence[nextIndex].team;
+    const expectedAction = sequence[nextIndex].action;
 
     if (team !== expectedTeam) {
       return res.status(400).json({ error: 'Não é a vez deste time' });
@@ -673,8 +760,8 @@ app.post('/api/sessions/:id/action', async (req, res) => {
       },
     });
 
-    // Verificar se completou
-    if (session.actions.length + 1 === 6) {
+    // Verificar se completou (chegou ao fim da sequência)
+    if (session.actions.length + 1 === sequence.length) {
       const allUsedMaps = [...usedMaps, map];
       const decider = MAPS.find(m => !allUsedMaps.includes(m));
 
@@ -683,64 +770,26 @@ app.post('/api/sessions/:id/action', async (req, res) => {
           data: {
             sessionId: id,
             map: decider,
-            team: 'A',
+            team: 'DECIDER',
             action: 'PICK',
-            order: 7,
+            order: sequence.length + 1,
           },
         });
       }
 
       await prisma.session.update({
         where: { id },
-        data: {
-          status: 'COMPLETED',
-          completedAt: new Date(),
-        },
+        data: { status: 'COMPLETED', completedAt: new Date() },
       });
     }
 
-    // Buscar sessão atualizada
+    // Retornar sessão atualizada
     const updatedSession = await prisma.session.findUnique({
       where: { id },
       include: { actions: { orderBy: { order: 'asc' } }, admin: { select: { username: true } } },
     });
 
-    let currentTurn = 'A';
-    let currentAction = 'BAN';
-    
-    if (updatedSession.status === 'IN_PROGRESS' && updatedSession.actions.length < 6) {
-      const idx = updatedSession.actions.length;
-      currentTurn = SEQUENCE[idx].team;
-      currentAction = SEQUENCE[idx].action;
-    }
-
-    const formattedSession = {
-      id: updatedSession.id,
-      teamA: {
-        id: 'A',
-        name: updatedSession.teamAName,
-        tag: updatedSession.teamATag,
-        logoUrl: updatedSession.teamALogo,
-        leader: updatedSession.teamALeader,
-      },
-      teamB: {
-        id: 'B',
-        name: updatedSession.teamBName,
-        tag: updatedSession.teamBTag,
-        logoUrl: updatedSession.teamBLogo,
-        leader: updatedSession.teamBLeader,
-      },
-      actions: updatedSession.actions,
-      currentTurn,
-      currentAction,
-      status: updatedSession.status,
-      createdAt: updatedSession.createdAt,
-      createdBy: updatedSession.admin.username,
-      completedAt: updatedSession.completedAt,
-      lastUpdate: Date.now(),
-    };
-
-    res.json({ success: true, session: formattedSession });
+    res.json({ success: true, session: formatSession(updatedSession) });
   } catch (error) {
     console.error('Erro ao executar ação:', error);
     res.status(500).json({ error: 'Erro ao executar ação' });
@@ -765,33 +814,10 @@ app.post('/api/sessions/:id/reset', async (req, res) => {
 
     const session = await prisma.session.findUnique({
       where: { id },
-      include: { actions: true, admin: { select: { username: true } } },
+      include: { actions: { orderBy: { order: 'asc' } }, admin: { select: { username: true } } },
     });
 
-    const formattedSession = {
-      id: session.id,
-      teamA: {
-        id: 'A',
-        name: session.teamAName,
-        tag: session.teamATag,
-        logoUrl: session.teamALogo,
-        leader: session.teamALeader,
-      },
-      teamB: {
-        id: 'B',
-        name: session.teamBName,
-        tag: session.teamBTag,
-        logoUrl: session.teamBLogo,
-        leader: session.teamBLeader,
-      },
-      actions: [],
-      currentTurn: 'A',
-      currentAction: 'BAN',
-      status: 'IN_PROGRESS',
-      createdAt: session.createdAt,
-      createdBy: session.admin.username,
-      lastUpdate: Date.now(),
-    };
+    res.json({ success: true, session: formatSession(session) });
 
     res.json({ success: true, session: formattedSession });
   } catch (error) {
@@ -802,61 +828,13 @@ app.post('/api/sessions/:id/reset', async (req, res) => {
 
 app.get('/api/sessions/:id/poll', async (req, res) => {
   const { id } = req.params;
-
   try {
     const session = await prisma.session.findUnique({
       where: { id },
-      include: {
-        actions: {
-          orderBy: { order: 'asc' },
-        },
-        admin: {
-          select: { username: true },
-        },
-      },
+      include: { actions: { orderBy: { order: 'asc' } }, admin: { select: { username: true } } },
     });
-
-    if (!session) {
-      return res.status(404).json({ error: 'Sessão não encontrada' });
-    }
-
-    let currentTurn = 'A';
-    let currentAction = 'BAN';
-    
-    if (session.actions.length < 6) {
-      const nextIndex = session.actions.length;
-      currentTurn = SEQUENCE[nextIndex].team;
-      currentAction = SEQUENCE[nextIndex].action;
-    }
-
-    const formattedSession = {
-      id: session.id,
-      teamA: {
-        id: 'A',
-        name: session.teamAName,
-        tag: session.teamATag,
-        logoUrl: session.teamALogo,
-        leader: session.teamALeader,
-      },
-      teamB: {
-        id: 'B',
-        name: session.teamBName,
-        tag: session.teamBTag,
-        logoUrl: session.teamBLogo,
-        leader: session.teamBLeader,
-      },
-      actions: session.actions,
-      currentTurn,
-      currentAction,
-      status: session.status,
-      createdAt: session.createdAt,
-      createdBy: session.admin.username,
-      createdById: session.createdBy,
-      completedAt: session.completedAt,
-      lastUpdate: Date.now(),
-    };
-
-    res.json(formattedSession);
+    if (!session) return res.status(404).json({ error: 'Sessão não encontrada' });
+    res.json(formatSession(session));
   } catch (error) {
     console.error('Erro no polling:', error);
     res.status(500).json({ error: 'Erro no polling' });
