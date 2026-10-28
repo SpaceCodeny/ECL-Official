@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useRef, useEffect } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Gamepad2, Plus, Play, Trophy, Radio, CheckCircle2, Map, Check, Swords, Copy, ExternalLink, CheckCheck } from "lucide-react";
 import { Avatar } from "@/components/ui/avatar";
@@ -283,10 +283,45 @@ function ManageMatchModal({ match: initialMatch, open, onClose }: {
 // ─── Modal de Picks & Bans ────────────────────────────────────────────────────
 
 function PicksBansModal({ match, open, onClose }: { match: MatchListItem; open: boolean; onClose: () => void }) {
+  const queryClient = useQueryClient();
+  const [sessionId, setSessionId] = useState<string | null>(null);
   const [sessionLink, setSessionLink] = useState<string | null>(null);
+  const [sessionStatus, setSessionStatus] = useState<"pending" | "in_progress" | "completed">("pending");
   const [copied, setCopied] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const pollingRef = useRef<NodeJS.Timeout | null>(null);
+
+  // Limpar polling ao fechar
+  useEffect(() => {
+    if (!open) {
+      if (pollingRef.current) clearInterval(pollingRef.current);
+      setSessionId(null);
+      setSessionLink(null);
+      setSessionStatus("pending");
+      setError(null);
+    }
+  }, [open]);
+
+  // Polling via proxy do backend ECL para detectar conclusão
+  const startPolling = () => {
+    if (pollingRef.current) clearInterval(pollingRef.current);
+
+    pollingRef.current = setInterval(async () => {
+      try {
+        // Usa a API da ECL como proxy — não precisa expor URL do picks-and-bans no frontend
+        const data = await api.get<{ status: string }>(`/matches/${match.id}/picks-bans-status`);
+        if (data.status === "COMPLETED" || data.status === "TERMINATED") {
+          setSessionStatus("completed");
+          clearInterval(pollingRef.current!);
+          // Invalidar cache para o card de mapas atualizar automaticamente
+          void queryClient.invalidateQueries({ queryKey: ["admin-matches"] });
+          void queryClient.invalidateQueries({ queryKey: ["match-admin", match.id] });
+          void queryClient.invalidateQueries({ queryKey: ["match", match.id] });
+        }
+      } catch { /* silencioso */ }
+    }, 3000);
+  };
 
   const generate = async () => {
     setLoading(true);
@@ -297,12 +332,24 @@ function PicksBansModal({ match, open, onClose }: { match: MatchListItem; open: 
         {},
         true,
       );
+      setSessionId(data.sessionId);
       setSessionLink(data.sessionLink);
+      setSessionStatus("in_progress");
+      startPolling();
     } catch (e: any) {
       setError(e?.message ?? "Erro ao gerar sessão de picks & bans");
     } finally {
       setLoading(false);
     }
+  };
+
+  const resetAndGenerate = () => {
+    if (pollingRef.current) clearInterval(pollingRef.current);
+    setSessionId(null);
+    setSessionLink(null);
+    setSessionStatus("pending");
+    setError(null);
+    generate();
   };
 
   const copyLink = async () => {
@@ -331,13 +378,39 @@ function PicksBansModal({ match, open, onClose }: { match: MatchListItem; open: 
           </div>
         </div>
 
-        {/* Link gerado */}
-        {sessionLink ? (
+        {/* Estado: INICIAL — sem sessão */}
+        {sessionStatus === "pending" && (
           <div className="space-y-3">
-            <div className="rounded-lg border border-green-500/30 bg-green-500/5 p-3">
-              <p className="mb-1 flex items-center gap-1.5 text-xs font-semibold text-green-400">
-                <CheckCircle2 className="h-3.5 w-3.5" /> Sessão criada com sucesso!
-              </p>
+            <div className="rounded-lg border border-[#f59e0b]/20 bg-[#f59e0b]/5 p-3 text-xs text-muted space-y-1.5">
+              <p className="font-semibold text-paper">Como funciona:</p>
+              <p>1. Gere o link abaixo</p>
+              <p>2. Envie para os líderes de cada time</p>
+              <p>3. Os jogadores realizam os picks & bans em tempo real</p>
+              <p>4. Ao concluir, os mapas são salvos automaticamente ✅</p>
+            </div>
+            {error && (
+              <p className="text-xs text-red-400 bg-red-500/10 border border-red-500/20 rounded-lg px-3 py-2">{error}</p>
+            )}
+            <Button variant="primary" size="md" className="w-full" onClick={generate} disabled={loading}>
+              {loading
+                ? <span className="h-4 w-4 animate-spin rounded-full border-2 border-ink border-t-transparent" />
+                : <Swords className="h-4 w-4" />}
+              {loading ? "Gerando…" : "Gerar Link de Picks & Bans"}
+            </Button>
+          </div>
+        )}
+
+        {/* Estado: EM ANDAMENTO — aguardando picks & bans */}
+        {sessionStatus === "in_progress" && sessionLink && (
+          <div className="space-y-3">
+            {/* Link */}
+            <div className="rounded-lg border border-blue-500/30 bg-blue-500/5 p-3">
+              <div className="mb-2 flex items-center gap-2">
+                <span className="flex items-center gap-1.5 text-xs font-semibold text-blue-400">
+                  <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-blue-400" />
+                  Sessão ativa — aguardando picks & bans
+                </span>
+              </div>
               <p className="break-all text-[11px] text-muted">{sessionLink}</p>
             </div>
             <div className="flex gap-2">
@@ -350,24 +423,32 @@ function PicksBansModal({ match, open, onClose }: { match: MatchListItem; open: 
               </Button>
             </div>
             <p className="text-center text-[10px] text-muted">
-              Compartilhe o link com os líderes de cada time. Os mapas serão salvos automaticamente ao concluir os picks & bans.
+              Monitorando a sessão automaticamente a cada 3 segundos…
             </p>
           </div>
-        ) : (
+        )}
+
+        {/* Estado: CONCLUÍDO — picks & bans finalizados */}
+        {sessionStatus === "completed" && (
           <div className="space-y-3">
-            <div className="rounded-lg border border-[#f59e0b]/20 bg-[#f59e0b]/5 p-3 text-xs text-muted space-y-1.5">
-              <p className="font-semibold text-paper">Como funciona:</p>
-              <p>1. Gere o link abaixo</p>
-              <p>2. Envie para os líderes de cada time</p>
-              <p>3. Os jogadores realizam os picks & bans em tempo real</p>
-              <p>4. Ao concluir, os mapas são salvos automaticamente na partida ✅</p>
+            <div className="rounded-lg border border-green-500/30 bg-green-500/5 p-4 text-center">
+              <CheckCircle2 className="h-8 w-8 text-green-400 mx-auto mb-2" />
+              <p className="text-sm font-semibold text-green-400">Picks & Bans concluídos!</p>
+              <p className="text-xs text-muted mt-1">
+                Os mapas foram salvos automaticamente na partida.
+              </p>
             </div>
-            {error && (
-              <p className="text-xs text-red-400 bg-red-500/10 border border-red-500/20 rounded-lg px-3 py-2">{error}</p>
-            )}
-            <Button variant="primary" size="md" className="w-full" onClick={generate} disabled={loading}>
-              {loading ? <span className="h-4 w-4 animate-spin rounded-full border-2 border-ink border-t-transparent" /> : <Swords className="h-4 w-4" />}
-              {loading ? "Gerando…" : "Gerar Link de Picks & Bans"}
+            <div className="rounded-lg border border-[#f59e0b]/20 bg-[#f59e0b]/5 p-2.5 text-center">
+              <p className="text-[11px] text-muted">
+                Verifique a aba <strong className="text-paper">Mapas</strong> da partida — os picks e bans já estão registrados.
+              </p>
+            </div>
+            {/* Gerar nova sessão */}
+            <Button variant="secondary" size="md" className="w-full" onClick={resetAndGenerate} disabled={loading}>
+              {loading
+                ? <span className="h-4 w-4 animate-spin rounded-full border-2 border-muted border-t-transparent" />
+                : <Swords className="h-4 w-4" />}
+              {loading ? "Gerando…" : "Gerar Nova Sessão"}
             </Button>
           </div>
         )}

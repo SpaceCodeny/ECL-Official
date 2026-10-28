@@ -687,3 +687,33 @@ matchesRouter.post(
     }
   }
 );
+
+// ─── GET /matches/:id/picks-bans-status ──────────────────────────────────────
+// Proxy para checar o status da sessão de picks & bans sem expor a URL interna
+// no frontend. O admin frontend faz polling nesta rota.
+matchesRouter.get(
+  "/:id/picks-bans-status",
+  authenticate,
+  async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const matchId = getParam(req.params, "id");
+      const PICKS_BANS_API = process.env.PICKS_BANS_API_URL || "https://peaks-and-bans-backend.vercel.app";
+      const WEBHOOK_SECRET = process.env.ECL_WEBHOOK_SECRET || "ecl-picks-bans-webhook-secret";
+
+      // Buscar sessão pelo matchId no picks-and-bans
+      const response = await fetch(
+        `${PICKS_BANS_API}/api/sessions/by-match/${matchId}`,
+        { headers: { "x-ecl-secret": WEBHOOK_SECRET } },
+      );
+
+      if (!response.ok) {
+        return res.json({ status: "NOT_FOUND" });
+      }
+
+      const data = await response.json() as { status: string; sessionId?: string };
+      res.json(data);
+    } catch {
+      res.json({ status: "NOT_FOUND" });
+    }
+  }
+);

@@ -656,6 +656,33 @@ app.get('/api/teams', async (req, res) => {
   }
 });
 
+// ── Buscar sessão pelo matchId (para polling do frontend ECL) ────────────────
+app.get('/api/sessions/by-match/:matchId', async (req, res) => {
+  const secret = req.headers['x-ecl-secret'];
+  if (secret !== (process.env.ECL_WEBHOOK_SECRET || 'ecl-picks-bans-webhook-secret')) {
+    return res.status(401).json({ error: 'Não autorizado' });
+  }
+
+  const { matchId } = req.params;
+
+  try {
+    const session = await prisma.session.findFirst({
+      where: { matchId },
+      orderBy: { createdAt: 'desc' }, // a mais recente
+      select: { id: true, status: true },
+    });
+
+    if (!session) {
+      return res.status(404).json({ status: 'NOT_FOUND' });
+    }
+
+    res.json({ sessionId: session.id, status: session.status });
+  } catch (error) {
+    console.error('Erro ao buscar sessão por matchId:', error);
+    res.status(500).json({ error: 'Erro interno' });
+  }
+});
+
 // ==================== ROTA ECL → PICKS & BANS ====================
 
 // Criar sessão a partir de uma partida ECL (chamada pelo backend ECL)
