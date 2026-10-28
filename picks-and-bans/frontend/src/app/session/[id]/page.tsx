@@ -756,73 +756,120 @@ Bora jogar! 🔥`;
               <p className="text-xs text-muted sm:text-sm">Os mapas foram definidos</p>
             </div>
 
-            {/* Mapas Escolhidos */}
-            <div className="mb-3 space-y-2 sm:mb-4 sm:grid sm:grid-cols-3 sm:gap-3 sm:space-y-0">
-              {/* Mapa 1 */}
-              <div className="rounded-lg border-2 border-green-500/50 bg-green-950/30 p-3 backdrop-blur-sm">
-                <div className="mb-1.5 flex items-center justify-between">
-                  <span className="rounded-md bg-green-600 px-1.5 py-0.5 text-xs font-bold uppercase text-white">
-                    Mapa 1
-                  </span>
-                  <CheckCircle className="h-4 w-4 text-green-400" />
-                </div>
-                <p className="mb-0.5 font-display text-base font-bold text-white sm:text-lg lg:text-xl">
-                  {pickedMaps[0]?.map}
-                </p>
-                <p className="mb-1.5 text-xs text-green-200">
-                  {session.teamA.name}
-                </p>
-                <div className="flex items-center gap-1 rounded-lg bg-blue-600/80 px-1.5 py-1">
-                  <span className="text-xs">🛡️</span>
-                  <p className="text-xs font-bold leading-tight text-white">
-                    {session.teamB.name} CT
+            {/* Mapas Escolhidos — Layout condicional por formato */}
+            <div className="mb-3 space-y-2 sm:mb-4">
+              {/* BO1: Apenas o mapa decider */}
+              {seriesFormat === 'BO1' && (
+                <div className="rounded-lg border-2 border-gold bg-gradient-to-br from-yellow-900/40 to-gold/20 p-4 backdrop-blur-sm">
+                  <div className="mb-2 text-center">
+                    <span className="inline-block rounded-md bg-gold px-2 py-1 text-sm font-bold uppercase text-black">
+                      Mapa Escolhido
+                    </span>
+                  </div>
+                  <p className="mb-1 text-center font-display text-2xl font-bold text-white sm:text-3xl">
+                    {decider?.map}
                   </p>
+                  <p className="text-center text-xs text-muted">Mapa decisivo</p>
+                  <div className="mt-3 flex items-center justify-center gap-2 rounded-lg bg-white/10 px-3 py-2">
+                    <span className="text-sm">🎲</span>
+                    <p className="text-xs font-medium leading-tight text-white">
+                      Lado CT definido pela organização
+                    </p>
+                  </div>
                 </div>
-              </div>
+              )}
 
-              {/* Mapa 2 */}
-              <div className="rounded-lg border-2 border-green-500/50 bg-green-950/30 p-3 backdrop-blur-sm">
-                <div className="mb-1.5 flex items-center justify-between">
-                  <span className="rounded-md bg-green-600 px-1.5 py-0.5 text-xs font-bold uppercase text-white">
-                    Mapa 2
-                  </span>
-                  <CheckCircle className="h-4 w-4 text-green-400" />
-                </div>
-                <p className="mb-0.5 font-display text-base font-bold text-white sm:text-lg lg:text-xl">
-                  {pickedMaps[1]?.map}
-                </p>
-                <p className="mb-1.5 text-xs text-green-200">
-                  {session.teamB.name}
-                </p>
-                <div className="flex items-center gap-1 rounded-lg bg-blue-600/80 px-1.5 py-1">
-                  <span className="text-xs">🛡️</span>
-                  <p className="text-xs font-bold leading-tight text-white">
-                    {session.teamA.name} CT
-                  </p>
-                </div>
-              </div>
+              {/* BO3: 2 picks + decider */}
+              {seriesFormat === 'BO3' && (
+                <div className="grid gap-2 sm:grid-cols-3 sm:gap-3">
+                  {/* Mapa 1 */}
+                  <div className="rounded-lg border-2 border-green-500/50 bg-green-950/30 p-3 backdrop-blur-sm">
+                    <div className="mb-1.5 flex items-center justify-between">
+                      <span className="rounded-md bg-green-600 px-1.5 py-0.5 text-xs font-bold uppercase text-white">Mapa 1</span>
+                      <CheckCircle className="h-4 w-4 text-green-400" />
+                    </div>
+                    <p className="mb-0.5 font-display text-base font-bold text-white sm:text-lg">{pickedMaps[0]?.map}</p>
+                    <p className="mb-1.5 text-xs text-green-200">{session.teamA.name}</p>
+                    <div className="flex items-center gap-1 rounded-lg bg-blue-600/80 px-1.5 py-1">
+                      <span className="text-xs">🛡️</span>
+                      <p className="text-xs font-bold leading-tight text-white">{session.teamB.name} CT</p>
+                    </div>
+                  </div>
 
-              {/* Decider */}
-              <div className="rounded-lg border-2 border-gold bg-gradient-to-br from-yellow-900/40 to-gold/20 p-3 backdrop-blur-sm">
-                <div className="mb-1.5 flex items-center justify-between">
-                  <span className="rounded-md bg-gold px-1.5 py-0.5 text-xs font-bold uppercase text-black">
-                    Decider
-                  </span>
-                  <span className="text-lg">🏆</span>
+                  {/* Mapa 2 */}
+                  <div className="rounded-lg border-2 border-green-500/50 bg-green-950/30 p-3 backdrop-blur-sm">
+                    <div className="mb-1.5 flex items-center justify-between">
+                      <span className="rounded-md bg-green-600 px-1.5 py-0.5 text-xs font-bold uppercase text-white">Mapa 2</span>
+                      <CheckCircle className="h-4 w-4 text-green-400" />
+                    </div>
+                    <p className="mb-0.5 font-display text-base font-bold text-white sm:text-lg">{pickedMaps[1]?.map}</p>
+                    <p className="mb-1.5 text-xs text-green-200">{session.teamB.name}</p>
+                    <div className="flex items-center gap-1 rounded-lg bg-blue-600/80 px-1.5 py-1">
+                      <span className="text-xs">🛡️</span>
+                      <p className="text-xs font-bold leading-tight text-white">{session.teamA.name} CT</p>
+                    </div>
+                  </div>
+
+                  {/* Decider */}
+                  <div className="rounded-lg border-2 border-gold bg-gradient-to-br from-yellow-900/40 to-gold/20 p-3 backdrop-blur-sm">
+                    <div className="mb-1.5 flex items-center justify-between">
+                      <span className="rounded-md bg-gold px-1.5 py-0.5 text-xs font-bold uppercase text-black">Mapa 3</span>
+                      <span className="text-lg">🏆</span>
+                    </div>
+                    <p className="mb-0.5 font-display text-base font-bold text-gold sm:text-lg">{decider?.map}</p>
+                    <p className="mb-1.5 text-xs text-yellow-200">Mapa decisivo</p>
+                    <div className="flex items-center gap-1 rounded-lg bg-black/50 px-1.5 py-1">
+                      <span className="text-xs">🛡️</span>
+                      <p className="text-xs font-bold leading-tight text-yellow-300">Vencedor {pickedMaps[0]?.map} CT</p>
+                    </div>
+                  </div>
                 </div>
-                <p className="mb-0.5 font-display text-base font-bold text-gold sm:text-lg lg:text-xl">
-                  {decider?.map}
-                </p>
-                <p className="mb-1.5 text-xs text-yellow-200">
-                  Mapa decisivo
-                </p>
-                <div className="flex items-center gap-1 rounded-lg bg-black/50 px-1.5 py-1">
-                  <span className="text-xs">🛡️</span>
-                  <p className="text-xs font-bold leading-tight text-yellow-300">
-                    Vencedor {pickedMaps[0]?.map} CT
-                  </p>
+              )}
+
+              {/* BO5: 4 picks + decider */}
+              {seriesFormat === 'BO5' && (
+                <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
+                  {/* Mapas 1-4 */}
+                  {[0, 1, 2, 3].map((idx) => {
+                    const map = pickedMaps[idx];
+                    const isTeamA = idx % 2 === 0;
+                    return (
+                      <div key={idx} className="rounded-lg border-2 border-green-500/50 bg-green-950/30 p-3 backdrop-blur-sm">
+                        <div className="mb-1.5 flex items-center justify-between">
+                          <span className="rounded-md bg-green-600 px-1.5 py-0.5 text-xs font-bold uppercase text-white">
+                            Mapa {idx + 1}
+                          </span>
+                          <CheckCircle className="h-4 w-4 text-green-400" />
+                        </div>
+                        <p className="mb-0.5 font-display text-base font-bold text-white sm:text-lg">{map?.map ?? '—'}</p>
+                        <p className="mb-1.5 text-xs text-green-200">
+                          {isTeamA ? session.teamA.name : session.teamB.name}
+                        </p>
+                        <div className="flex items-center gap-1 rounded-lg bg-blue-600/80 px-1.5 py-1">
+                          <span className="text-xs">🛡️</span>
+                          <p className="text-xs font-bold leading-tight text-white">
+                            {isTeamA ? session.teamB.name : session.teamA.name} CT
+                          </p>
+                        </div>
+                      </div>
+                    );
+                  })}
+
+                  {/* Mapa 5 Decider */}
+                  <div className="rounded-lg border-2 border-gold bg-gradient-to-br from-yellow-900/40 to-gold/20 p-3 backdrop-blur-sm sm:col-span-2 lg:col-span-1">
+                    <div className="mb-1.5 flex items-center justify-between">
+                      <span className="rounded-md bg-gold px-1.5 py-0.5 text-xs font-bold uppercase text-black">Mapa 5</span>
+                      <span className="text-lg">🏆</span>
+                    </div>
+                    <p className="mb-0.5 font-display text-base font-bold text-gold sm:text-lg">{decider?.map}</p>
+                    <p className="mb-1.5 text-xs text-yellow-200">Mapa decisivo</p>
+                    <div className="flex items-center gap-1 rounded-lg bg-black/50 px-1.5 py-1">
+                      <span className="text-xs">🛡️</span>
+                      <p className="text-xs font-bold leading-tight text-yellow-300">Vencedor {pickedMaps[0]?.map} CT</p>
+                    </div>
+                  </div>
                 </div>
-              </div>
+              )}
             </div>
 
             {/* Botão Copiar */}
