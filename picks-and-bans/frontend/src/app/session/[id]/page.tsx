@@ -115,24 +115,93 @@ export default function SessionPage({ params }: { params: Promise<{ id: string }
 
   const copyResults = () => {
     if (!session) return;
-    
-    const resultText = `🎮 *ECL PICKS & BANS - RESULTADO* 🎮
 
-⚔️ *${session.teamA.name}* vs *${session.teamB.name}*
+    const fmt = seriesFormat ?? 'BO3';
+    const tA = session.teamA.name;
+    const tB = session.teamB.name;
 
-📍 *MAPAS ESCOLHIDOS:*
+    let resultText = '';
 
-1️⃣ Mapa 1: *${pickedMaps[0]?.map}* (${session.teamA.name})
-   🛡️ ${session.teamB.name} começa de CT
+    if (fmt === 'BO1') {
+      // BO1: só o mapa decider (único mapa que resta após 6 bans)
+      const map = decider?.map ?? pickedMaps[0]?.map ?? '—';
+      resultText =
+`🎮 *ECL PICKS & BANS - RESULTADO* 🎮
 
-2️⃣ Mapa 2: *${pickedMaps[1]?.map}* (${session.teamB.name})
-   🛡️ ${session.teamA.name} começa de CT
+⚔️ *${tA}* vs *${tB}*
+📋 Formato: *BO1*
 
-🏆 Decider: *${decider?.map}*
-   🛡️ Vencedor de ${pickedMaps[0]?.map} começa de CT
+🗺️ *MAPA:*
+🏆 *${map}*
+   🎲(ORG Decide)
 
 ---
 Bora jogar! 🔥`;
+
+    } else if (fmt === 'BO5') {
+      // BO5: 2 picks A + 2 picks B + decider (5 mapas no total)
+      // Sequência: A pick, B pick, A ban, B ban, A pick, B pick → decider
+      const picksA = pickedMaps.filter((a) => a.team === 'A');
+      const picksB = pickedMaps.filter((a) => a.team === 'B');
+
+      const map1 = picksA[0]?.map ?? '—';  // A escolheu → B CT
+      const map2 = picksB[0]?.map ?? '—';  // B escolheu → A CT
+      const map3 = picksA[1]?.map ?? '—';  // A escolheu → B CT
+      const map4 = picksB[1]?.map ?? '—';  // B escolheu → A CT
+      const map5 = decider?.map ?? '—';    // Decider
+
+      resultText =
+`🎮 *ECL PICKS & BANS - RESULTADO* 🎮
+
+⚔️ *${tA}* vs *${tB}*
+📋 Formato: *BO5*
+
+📍 *MAPAS:*
+
+1️⃣ Mapa 1: *${map1}* (escolha de ${tA})
+   🛡️ ${tB} começa de CT
+
+2️⃣ Mapa 2: *${map2}* (escolha de ${tB})
+   🛡️ ${tA} começa de CT
+
+3️⃣ Mapa 3: *${map3}* (escolha de ${tA})
+   🛡️ ${tB} começa de CT
+
+4️⃣ Mapa 4: *${map4}* (escolha de ${tB})
+   🛡️ ${tA} começa de CT
+
+🏆 Mapa 5 Decider: *${map5}*
+   🛡️ Vencedor de ${map1} começa de CT
+
+---
+Bora jogar! 🔥`;
+
+    } else {
+      // BO3 (padrão): 2 picks + decider
+      const map1 = pickedMaps[0]?.map ?? '—';  // A escolheu → B CT
+      const map2 = pickedMaps[1]?.map ?? '—';  // B escolheu → A CT
+      const map3 = decider?.map ?? '—';        // Decider
+
+      resultText =
+`🎮 *ECL PICKS & BANS - RESULTADO* 🎮
+
+⚔️ *${tA}* vs *${tB}*
+📋 Formato: *BO3*
+
+📍 *MAPAS ESCOLHIDOS:*
+
+1️⃣ Mapa 1: *${map1}* (escolha de ${tA})
+   🛡️ ${tB} começa de CT
+
+2️⃣ Mapa 2: *${map2}* (escolha de ${tB})
+   🛡️ ${tA} começa de CT
+
+🏆 Mapa 3 Decider: *${map3}*
+   🛡️ Vencedor de ${map1} começa de CT
+
+---
+Bora jogar! 🔥`;
+    }
 
     navigator.clipboard.writeText(resultText);
     setResultsCopied(true);

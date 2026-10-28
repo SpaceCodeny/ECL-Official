@@ -492,14 +492,23 @@ export default function SuperAdminPage() {
                         </tr>
                       </thead>
                       <tbody>
-                        {sessions.slice(0, 5).map((s, i) => (
+                        {sessions.slice(0, 5).map((s: any, i) => (
                           <tr key={s.id} className="border-b border-white/5 last:border-0 hover:bg-white/2 transition-colors">
                             <td className="px-6 py-4">
-                              <p className="text-sm font-medium text-white">{s.teamA} <span className="text-[#f59e0b]">vs</span> {s.teamB}</p>
-                              <p className="text-xs text-gray-500 mt-0.5">{s.actions?.length || 0} ações</p>
+                              <div className="flex items-center gap-2 flex-wrap">
+                                <p className="text-sm font-medium text-white">{s.teamA} <span className="text-[#f59e0b]">vs</span> {s.teamB}</p>
+                                {s.source === 'ECL' && (
+                                  <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-bold bg-blue-500/15 text-blue-400 border border-blue-500/25">
+                                    <LinkIcon className="h-2 w-2" />ECL
+                                  </span>
+                                )}
+                              </div>
+                              <p className="text-xs text-gray-500 mt-0.5">{s.actions?.length || 0} ações{s.seriesFormat ? ` · ${s.seriesFormat}` : ''}</p>
                             </td>
                             <td className="px-6 py-4 hidden sm:table-cell">
-                              <span className="text-xs text-gray-400">{s.createdBy}</span>
+                              <span className="text-xs text-gray-400">
+                                {s.source === 'ECL' ? 'ECL Portal' : s.createdBy}
+                              </span>
                             </td>
                             <td className="px-6 py-4 hidden md:table-cell">
                               <span className="text-xs text-gray-500">{new Date(s.createdAt).toLocaleString('pt-BR')}</span>
@@ -690,7 +699,13 @@ export default function SuperAdminPage() {
             <div className="space-y-6">
               <div>
                 <h1 className="text-2xl font-bold text-white" style={{ fontFamily: 'Oswald, sans-serif' }}>Sessões</h1>
-                <p className="text-sm text-gray-500 mt-0.5">{sessions.length} sessão{sessions.length !== 1 ? 'ões' : ''} registrada{sessions.length !== 1 ? 's' : ''}</p>
+                <p className="text-sm text-gray-500 mt-0.5">
+                  {sessions.length} sessão{sessions.length !== 1 ? 'ões' : ''} registrada{sessions.length !== 1 ? 's' : ''}
+                  {' · '}
+                  <span className="text-blue-400">{sessions.filter((s: any) => s.source === 'ECL').length} via ECL</span>
+                  {' · '}
+                  <span className="text-gray-400">{sessions.filter((s: any) => s.source !== 'ECL').length} manuais</span>
+                </p>
               </div>
 
               <div className="space-y-3">
@@ -699,8 +714,10 @@ export default function SuperAdminPage() {
                     <Map className="h-10 w-10 mx-auto mb-3 opacity-30" />
                     <p className="text-sm">Nenhuma sessão criada ainda</p>
                   </div>
-                ) : sessions.map(session => (
-                  <div key={session.id} className="rounded-2xl bg-[#0a192f] border border-white/5 hover:border-white/10 transition-colors overflow-hidden">
+                ) : sessions.map((session: any) => (
+                  <div key={session.id} className={`rounded-2xl bg-[#0a192f] border hover:border-white/10 transition-colors overflow-hidden ${
+                    session.source === 'ECL' ? 'border-blue-500/20' : 'border-white/5'
+                  }`}>
                     <div className="p-5">
                       <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3">
                         <div className="flex-1">
@@ -708,29 +725,66 @@ export default function SuperAdminPage() {
                             <h3 className="text-base font-bold text-white">
                               {session.teamA} <span className="text-[#f59e0b] font-normal">vs</span> {session.teamB}
                             </h3>
+
+                            {/* Badge de origem */}
+                            {session.source === 'ECL' ? (
+                              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-blue-500/15 text-blue-400 border border-blue-500/25">
+                                <LinkIcon className="h-2.5 w-2.5" />ECL
+                              </span>
+                            ) : (
+                              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-white/5 text-gray-500 border border-white/10">
+                                Manual
+                              </span>
+                            )}
+
+                            {/* Badge de série */}
+                            {session.seriesFormat && (
+                              <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold bg-[#f59e0b]/10 text-[#f59e0b] border border-[#f59e0b]/20">
+                                {session.seriesFormat}
+                              </span>
+                            )}
+
+                            {/* Badge de status */}
                             <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium ${
-                              session.status === 'COMPLETED' ? 'bg-green-500/10 text-green-400 border border-green-500/20' : session.status === 'TERMINATED' ? 'bg-red-500/10 text-red-400 border border-red-500/20' : 'bg-yellow-500/10 text-yellow-400 border border-yellow-500/20'
+                              session.status === 'COMPLETED' ? 'bg-green-500/10 text-green-400 border border-green-500/20'
+                              : session.status === 'TERMINATED' ? 'bg-red-500/10 text-red-400 border border-red-500/20'
+                              : 'bg-yellow-500/10 text-yellow-400 border border-yellow-500/20'
                             }`}>
                               <Circle className="h-1.5 w-1.5 fill-current" />
                               {session.status === 'COMPLETED' ? 'Concluída' : session.status === 'TERMINATED' ? 'Derrubada' : 'Em Andamento'}
                             </span>
-                            {session.status !== 'COMPLETED' && (
+
+                            {/* Botão encerrar */}
+                            {session.status !== 'COMPLETED' && session.status !== 'TERMINATED' && (
                               <button
                                 onClick={() => handleTerminateSession(session.id, session.teamA, session.teamB)}
                                 className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-red-500/10 hover:bg-red-500/20 text-red-400 text-xs font-medium border border-red-500/20 transition-colors"
                                 title="Encerra a sessão imediatamente"
                               >
-                                <StopCircle className="h-3 w-3" />Encerrar Sessão
+                                <StopCircle className="h-3 w-3" />Encerrar
                               </button>
                             )}
                           </div>
+
                           <div className="flex flex-wrap gap-4 mt-2 text-xs text-gray-500">
                             <span className="flex items-center gap-1.5">
-                              <Users className="h-3 w-3" />{session.createdBy}
+                              <Users className="h-3 w-3" />
+                              {session.source === 'ECL' ? 'Via ECL Portal' : session.createdBy}
                             </span>
                             <span className="flex items-center gap-1.5">
                               <Clock className="h-3 w-3" />{new Date(session.createdAt).toLocaleString('pt-BR')}
                             </span>
+                            {/* Link para a partida ECL */}
+                            {session.matchId && (
+                              <a
+                                href={`https://ecl-official.vercel.app/matches/${session.matchId}`}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="flex items-center gap-1 text-blue-400 hover:text-blue-300 transition-colors"
+                              >
+                                <LinkIcon className="h-3 w-3" />Ver partida ECL
+                              </a>
+                            )}
                           </div>
                         </div>
                       </div>
@@ -742,11 +796,11 @@ export default function SuperAdminPage() {
                               <span key={idx} className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-[11px] font-medium ${
                                 action.action === 'BAN'
                                   ? 'bg-red-500/10 text-red-400 border border-red-500/15'
-                                  : idx === 6
+                                  : action.team === 'DECIDER'
                                   ? 'bg-[#f59e0b]/10 text-[#f59e0b] border border-[#f59e0b]/20'
                                   : 'bg-green-500/10 text-green-400 border border-green-500/15'
                               }`}>
-                                {action.action === 'BAN' ? <Ban className="h-2.5 w-2.5" /> : idx === 6 ? <Star className="h-2.5 w-2.5" /> : <CheckCircle className="h-2.5 w-2.5" />}
+                                {action.action === 'BAN' ? <Ban className="h-2.5 w-2.5" /> : action.team === 'DECIDER' ? <Star className="h-2.5 w-2.5" /> : <CheckCircle className="h-2.5 w-2.5" />}
                                 {action.map}
                               </span>
                             ))}

@@ -544,7 +544,7 @@ app.post('/api/super/sessions/:id/terminate', authenticateToken, requireSuperAdm
       sessionId: id,
       teamA: session.teamAName,
       teamB: session.teamBName,
-      originalAdmin: session.admin.username,
+      originalAdmin: session.admin?.username || session.createdBy || 'ECL',
     });
 
     res.json({ success: true, message: `Sessão ${session.teamAName} vs ${session.teamBName} derrubada` });
@@ -572,10 +572,13 @@ app.get('/api/super/sessions', authenticateToken, requireSuperAdmin, async (req,
       id: session.id,
       teamA: session.teamAName,
       teamB: session.teamBName,
+      seriesFormat: session.seriesFormat,
       status: session.status,
       createdAt: session.createdAt,
-      createdBy: session.admin.username,
+      createdBy: session.admin?.username || session.createdBy || 'ECL',
       completedAt: session.completedAt,
+      matchId: session.matchId || null,  // ID da partida ECL se criada via integração
+      source: session.matchId ? 'ECL' : 'MANUAL', // origem da sessão
       actions: session.actions.map(a => ({
         map: a.map,
         team: a.team,
