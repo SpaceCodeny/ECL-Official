@@ -1,0 +1,305 @@
+// ECL Draw System - Database Schema
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// ENUMS
+// ═══════════════════════════════════════════════════════════════════════════
+
+enum UserRole {
+  SUPER_ADMIN
+  ADMIN
+  OPERATOR
+}
+
+enum UserStatus {
+  ACTIVE
+  SUSPENDED
+  INACTIVE
+}
+
+enum TournamentStatus {
+  DRAFT
+  PUBLISHED
+  IN_PROGRESS
+  COMPLETED
+  CANCELED
+}
+
+enum DrawMethod {
+  RANDOM           // Distribuição aleatória simples
+  BALANCED         // Distribuição equilibrada
+  POT_BASED        // Sorteio por potes com restrições
+  SNAKE            // Serpentina (1-8, 16-9, etc)
+}
+
+enum DrawStatus {
+  PENDING          // Configurado, aguardando execução
+  EXECUTING        // Gerando resultado
+  REVEALING        // Revelando times individualmente
+  COMPLETED        // Todas as revelações concluídas
+  PUBLISHED        // Publicado oficialmente
+  CANCELED         // Cancelado
+}
+
+enum AuditAction {
+  CREATE
+  UPDATE
+  DELETE
+  EXECUTE
+  REVEAL
+  PUBLISH
+  CANCEL
+  LOGIN
+  LOGOUT
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// MODELS
+// ═══════════════════════════════════════════════════════════════════════════
+
+model User {
+  id           String       @id @default(uuid())
+  username     String       @unique
+  email        String?      @unique
+  passwordHash String
+  role         UserRole     @default(ADMIN)
+  status       UserStatus   @default(ACTIVE)
+  createdAt    DateTime     @default(now())
+  updatedAt    DateTime     @updatedAt
+  lastLoginAt  DateTime?
+  
+  tournaments  Tournament[]
+  drawSessions DrawSession[]
+  auditEvents  AuditEvent[]
+
+  @@index([username])
+  @@index([role])
+  @@index([status])
+}
+
+model Tournament {
+  id          String           @id @default(cuid())
+  name        String
+  slug        String           @unique
+  game        String           // "Standoff 2", "CS2", etc
+  edition     String           // "2024 Season 1", "Winter 2024"
+  description String?
+  status      TournamentStatus @default(DRAFT)
+  externalId  String?          @unique // ID no portal ECL
+  metadata    Json?            // Dados extras flexíveis
+  
+  createdById String
+  createdBy   User             @relation(fields: [createdById], references: [id])
+  createdAt   DateTime         @default(now())
+  updatedAt   DateTime         @updatedAt
+  
+  teams        TournamentTeam[]
+  drawSessions DrawSession[]
+  groups       TournamentGroup[]
+  matches      Match[]
+
+  @@index([slug])
+  @@index([status])
+  @@index([externalId])
+  @@index([createdById])
+}
+
+model Team {
+  id          String   @id @default(cuid())
+  name        String
+  slug        String   @unique
+  shortName   String?  // Sigla ou nome abreviado
+  logoUrl     String?
+  externalId  String?  @unique // ID no portal ECL
+  metadata    Json?
+  
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  
+  tournaments TournamentTeam[]
+  drawResults DrawResult[]
+  groupMemberships GroupMembership[]
+
+  @@index([slug])
+  @@index([externalId])
+}
+
+model TournamentTeam {
+  id           String   @id @default(uuid())
+  tournamentId String
+  teamId       String
+  pot          Int?     // Pote para sorteio (1 = mais forte, 4 = mais fraco)
+  seed         Int?     // Cabeça de chave
+  status       String   @default("ACTIVE") // ACTIVE, ELIMINATED, WITHDRAWN
+  
+  tournament   Tournament @relation(fields: [tournamentId], references: [id], onDelete: Cascade)
+  team         Team       @relation(fields: [teamId], references: [id], onDelete: Cascade)
+  
+  @@unique([tournamentId, teamId])
+  @@index([tournamentId])
+  @@index([teamId])
+  @@index([pot])
+}
+
+model DrawSession {
+  id            String     @id @default(cuid())
+  tournamentId  String
+  tournament    Tournament @relation(fields: [tournamentId], references: [id], onDelete: Cascade)
+  
+  name          String     // "Sorteio Fase de Grupos"
+  description   String?
+  method        DrawMethod
+  groupCount    Int
+  teamsPerGroup Int?       // Null = distribuir igualmente
+  status        DrawStatus @default(PENDING)
+  
+  // Commit-Reveal Cryptographic Protocol
+  commitHash    String?    // SHA-256(secret + canonicalData) publicado ANTES
+  revealSecret  String?    // Revelado DEPOIS, permite verificação
+  commitData    Json?      // Dados canonicalizados do commit
+  
+  // Controle
+  executedAt    DateTime?
+  publishedAt   DateTime?
+  canceledAt    DateTime?
+  cancelReason  String?
+  
+  createdById   String
+  createdBy     User       @relation(fields: [createdById], references: [id])
+  createdAt     DateTime   @default(now())
+  updatedAt     DateTime   @updatedAt
+  
+  participants  DrawParticipant[]
+  results       DrawResult[]
+  auditEvents   AuditEvent[]
+
+  @@index([tournamentId])
+  @@index([status])
+  @@index([createdById])
+}
+
+model DrawParticipant {
+  id        String      @id @default(uuid())
+  sessionId String
+  session   DrawSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  
+  teamId    String
+  pot       Int?        // Pote do time neste sorteio
+  
+  @@unique([sessionId, teamId])
+  @@index([sessionId])
+}
+
+model DrawResult {
+  id          String      @id @default(uuid())
+  sessionId   String
+  session     DrawSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  
+  teamId      String
+  team        Team        @relation(fields: [teamId], references: [id], onDelete: Cascade)
+  
+  groupIndex  Int         // 0, 1, 2, 3 para grupos A, B, C, D
+  groupName   String      // "Grupo A"
+  position    Int         // Posição dentro do grupo (1, 2, 3, 4)
+  revealOrder Int         // Ordem de revelação (1 = primeiro revelado)
+  revealedAt  DateTime?   // Momento da revelação
+  
+  @@unique([sessionId, teamId])
+  @@index([sessionId])
+  @@index([teamId])
+  @@index([revealOrder])
+}
+
+model TournamentGroup {
+  id           String      @id @default(cuid())
+  tournamentId String
+  tournament   Tournament  @relation(fields: [tournamentId], references: [id], onDelete: Cascade)
+  
+  name         String      // "Grupo A", "Grupo B"
+  order        Int         // 0, 1, 2, 3
+  
+  members      GroupMembership[]
+  homeMatches  Match[]     @relation("HomeGroup")
+  awayMatches  Match[]     @relation("AwayGroup")
+
+  @@unique([tournamentId, order])
+  @@index([tournamentId])
+}
+
+model GroupMembership {
+  id       String          @id @default(uuid())
+  groupId  String
+  group    TournamentGroup @relation(fields: [groupId], references: [id], onDelete: Cascade)
+  
+  teamId   String
+  team     Team            @relation(fields: [teamId], references: [id], onDelete: Cascade)
+  
+  position Int             // 1, 2, 3, 4
+  
+  @@unique([groupId, teamId])
+  @@unique([groupId, position])
+  @@index([groupId])
+  @@index([teamId])
+}
+
+model Match {
+  id           String          @id @default(cuid())
+  tournamentId String
+  tournament   Tournament      @relation(fields: [tournamentId], references: [id], onDelete: Cascade)
+  
+  homeGroupId  String?
+  homeGroup    TournamentGroup? @relation("HomeGroup", fields: [homeGroupId], references: [id])
+  
+  awayGroupId  String?
+  awayGroup    TournamentGroup? @relation("AwayGroup", fields: [awayGroupId], references: [id])
+  
+  round        Int             // 1, 2, 3 (grupos), 101, 102 (playoffs)
+  matchNumber  Int             // Número sequencial
+  
+  homeTeamId   String?         // Null = TBD
+  awayTeamId   String?
+  
+  scheduledAt  DateTime?
+  status       String          @default("SCHEDULED") // SCHEDULED, LIVE, COMPLETED
+  
+  homeScore    Int?
+  awayScore    Int?
+  
+  createdAt    DateTime        @default(now())
+  updatedAt    DateTime        @updatedAt
+
+  @@index([tournamentId])
+  @@index([round])
+}
+
+model AuditEvent {
+  id         String      @id @default(uuid())
+  userId     String
+  user       User        @relation(fields: [userId], references: [id])
+  
+  action     AuditAction
+  resource   String      // "Tournament", "DrawSession", etc
+  resourceId String      // ID do recurso afetado
+  details    Json?       // Dados adicionais
+  ipAddress  String?
+  userAgent  String?
+  
+  timestamp  DateTime    @default(now())
+  
+  // Relação opcional com DrawSession para auditoria específica
+  drawSessionId String?
+  drawSession   DrawSession? @relation(fields: [drawSessionId], references: [id], onDelete: SetNull)
+
+  @@index([userId])
+  @@index([resource, resourceId])
+  @@index([timestamp])
+  @@index([drawSessionId])
+}

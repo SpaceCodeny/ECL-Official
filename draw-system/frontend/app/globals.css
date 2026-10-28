@@ -1,0 +1,277 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=Rajdhani:wght@400;500;600;700&display=swap');
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    --font-sans: "Inter", system-ui, sans-serif;
+    --font-display: "Rajdhani", system-ui, sans-serif;
+  }
+
+  * {
+    border-color: #1E2B40;
+  }
+
+  html {
+    scroll-behavior: smooth;
+  }
+
+  body {
+    background-color: #070B14;
+    color: #F4F7FC;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    font-feature-settings: "kern" 1, "liga" 1, "calt" 1;
+  }
+
+  /* Scrollbar customizado */
+  ::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+  }
+
+  ::-webkit-scrollbar-track {
+    background-color: #0B1220;
+  }
+
+  ::-webkit-scrollbar-thumb {
+    background-color: #1E2B40;
+    border-radius: 999px;
+  }
+
+  ::-webkit-scrollbar-thumb:hover {
+    background-color: #1677FF;
+  }
+}
+
+@layer components {
+  /* Container principal */
+  .container-ecl {
+    @apply mx-auto w-full max-w-[1600px] px-6 lg:px-8;
+  }
+
+  /* Header compacto */
+  .header-ecl {
+    position: sticky;
+    top: 0;
+    z-index: 50;
+    border-bottom: 1px solid #1E2B40;
+    background-color: rgba(7, 11, 20, 0.8);
+    backdrop-filter: blur(12px);
+  }
+
+  /* Surface cards */
+  .surface-card {
+    @apply rounded-lg p-6;
+    border: 1px solid #1E2B40;
+    background-color: #101A2B;
+  }
+
+  .surface-card-hover {
+    @apply surface-card transition-all duration-300;
+  }
+
+  .surface-card-hover:hover {
+    border-color: rgba(22, 119, 255, 0.5);
+    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.5);
+  }
+
+  /* Buttons */
+  .btn-primary {
+    @apply inline-flex items-center justify-center gap-2 rounded-md px-6 py-3 font-semibold transition-all duration-200 active:scale-95;
+    background-color: #1677FF;
+    color: #F4F7FC;
+  }
+
+  .btn-primary:hover:not(:disabled) {
+    background-color: #39A0FF;
+    box-shadow: 0 0 30px rgba(22, 119, 255, 0.3);
+  }
+
+  .btn-primary:disabled {
+    cursor: not-allowed;
+    opacity: 0.4;
+  }
+
+  .btn-secondary {
+    @apply inline-flex items-center justify-center gap-2 rounded-md px-6 py-3 font-semibold transition-all duration-200 active:scale-95;
+    border: 2px solid #1E2B40;
+    background-color: transparent;
+    color: #F4F7FC;
+  }
+
+  .btn-secondary:hover {
+    border-color: #1677FF;
+    background-color: rgba(22, 119, 255, 0.1);
+  }
+
+  .btn-ghost {
+    @apply inline-flex items-center justify-center gap-2 rounded-md px-4 py-2 text-sm font-medium transition-colors;
+    color: #8B98AC;
+  }
+
+  .btn-ghost:hover {
+    background-color: #101A2B;
+    color: #F4F7FC;
+  }
+
+  .btn-gold {
+    @apply inline-flex items-center justify-center gap-2 rounded-md px-6 py-3 font-bold transition-all duration-200 active:scale-95;
+    background-color: #F5B942;
+    color: #070B14;
+  }
+
+  .btn-gold:hover {
+    background-color: #FFD76E;
+    box-shadow: 0 0 40px rgba(245, 185, 66, 0.4);
+  }
+
+  /* Typography */
+  .text-display {
+    @apply font-display font-bold uppercase tracking-wider;
+  }
+
+  .text-gradient-electric {
+    background: linear-gradient(to right, #39A0FF, #1677FF);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+  }
+
+  .text-gradient-gold {
+    background: linear-gradient(to right, #FFD76E, #F5B942);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+  }
+
+  /* Indicador de estado */
+  .status-live {
+    @apply flex items-center gap-2 rounded-full px-3 py-1 text-xs font-bold uppercase tracking-wider;
+    background-color: rgba(239, 68, 68, 0.2);
+    color: rgb(248, 113, 113);
+  }
+
+  .status-live::before {
+    content: "";
+    width: 8px;
+    height: 8px;
+    border-radius: 9999px;
+    background-color: rgb(239, 68, 68);
+    animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+  }
+
+  /* Roulette container */
+  .roulette-container {
+    @apply relative w-full overflow-hidden rounded-xl;
+    border: 1px solid #1E2B40;
+    background-color: #0B1220;
+  }
+
+  /* Team card na roleta */
+  .team-card-roulette {
+    @apply flex flex-shrink-0 flex-col items-center justify-center gap-3 rounded-lg p-6 transition-all duration-300;
+    border: 1px solid #1E2B40;
+    background-color: #101A2B;
+  }
+
+  .team-card-focused {
+    transform: scale(1.1);
+    border-color: #1677FF;
+    box-shadow: 0 0 30px rgba(22, 119, 255, 0.3);
+  }
+
+  /* Group panel */
+  .group-panel {
+    @apply rounded-lg p-5;
+    border: 1px solid #1E2B40;
+    background-color: #101A2B;
+  }
+
+  .group-header {
+    @apply mb-4 flex items-center justify-between pb-3;
+    border-bottom: 1px solid #1E2B40;
+  }
+
+  /* Team item no grupo */
+  .team-item {
+    @apply flex items-center gap-3 rounded-md p-3 transition-colors;
+    border: 1px solid rgba(30, 43, 64, 0.5);
+    background-color: rgba(11, 18, 32, 0.5);
+  }
+
+  .team-item:hover {
+    border-color: rgba(22, 119, 255, 0.3);
+  }
+
+  /* Progress bar */
+  .progress-bar {
+    @apply h-2 w-full overflow-hidden rounded-full;
+    background-color: #1E2B40;
+  }
+
+  .progress-fill {
+    @apply h-full transition-all duration-500;
+    background: linear-gradient(to right, #1677FF, #39A0FF);
+  }
+
+  /* Reveal overlay */
+  .reveal-overlay {
+    @apply fixed inset-0 z-[100] flex items-center justify-center;
+    background-color: rgba(0, 0, 0, 0.9);
+    backdrop-filter: blur(4px);
+  }
+
+  /* Glow effects */
+  .glow-electric {
+    box-shadow: 0 0 30px rgba(22, 119, 255, 0.3);
+  }
+
+  .glow-gold {
+    box-shadow: 0 0 40px rgba(245, 185, 66, 0.4);
+  }
+
+  /* Scan line effect */
+  .scan-lines {
+    @apply pointer-events-none absolute inset-0 overflow-hidden opacity-10;
+    background: repeating-linear-gradient(
+      0deg,
+      transparent,
+      transparent 2px,
+      rgba(22, 119, 255, 0.03) 2px,
+      rgba(22, 119, 255, 0.03) 4px
+    );
+  }
+
+  /* Lighting effect */
+  .lighting-top {
+    @apply pointer-events-none absolute left-0 right-0 top-0 h-64;
+    background: linear-gradient(to bottom, rgba(22, 119, 255, 0.05), transparent);
+  }
+}
+
+@layer utilities {
+  /* Text utilities */
+  .text-balance {
+    text-wrap: balance;
+  }
+
+  /* Backdrop utilities */
+  .backdrop-panel {
+    backdrop-filter: blur(12px) saturate(1.5);
+  }
+
+  /* Motion safe */
+  @media (prefers-reduced-motion: reduce) {
+    *,
+    *::before,
+    *::after {
+      animation-duration: 0.01ms !important;
+      animation-iteration-count: 1 !important;
+      transition-duration: 0.01ms !important;
+      scroll-behavior: auto !important;
+    }
+  }
+}
