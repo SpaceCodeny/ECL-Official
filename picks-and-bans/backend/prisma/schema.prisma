@@ -51,7 +51,7 @@ model Admin {
   createdBy    String?     // ID do super admin que criou
   updatedAt    DateTime    @updatedAt
 
-  sessions     Session[]   // Sessões criadas por este admin (nullable via matchId path)
+  sessions     Session[]   @relation // Sessões criadas por este admin (via createdById)
   activityLogs ActivityLog[] // Ações realizadas por este admin
 
   @@index([username])
@@ -76,12 +76,13 @@ model Session {
   status       SessionStatus @default(IN_PROGRESS)
   seriesFormat SeriesFormat  @default(BO3)
   matchId      String?       // ID da partida no sistema ECL (se criada via integração)
-  createdBy    String        // Admin ID (ou 'system-ecl' para integração)
+  createdBy    String        // Admin ID (ou 'system-ecl' para integração) — sem FK para suportar system-ecl
+  createdById  String?       // FK real para Admin (null quando criada via integração ECL)
   createdAt    DateTime      @default(now())
   completedAt  DateTime?
   updatedAt    DateTime      @updatedAt
 
-  admin  Admin?           @relation(fields: [createdBy], references: [id])
+  admin  Admin?           @relation(fields: [createdById], references: [id])
   actions SessionAction[]
 
   @@index([createdBy])

@@ -712,8 +712,9 @@ app.post('/api/sessions/from-match', async (req, res) => {
         teamBLogo: resolveLogoUrl(teamBLogo),
         seriesFormat,
         status: 'IN_PROGRESS',
-        matchId,     // FK para a partida ECL
-        createdBy: 'system-ecl', // ID especial para sessões criadas via ECL
+        matchId,
+        createdBy: 'system-ecl',    // texto livre, sem FK
+        createdById: null,          // null para sessões via integração ECL
       },
     });
 
@@ -765,7 +766,8 @@ app.post('/api/sessions', authenticateToken, async (req, res) => {
         teamBLogo: teamBLogo || null,
         seriesFormat,
         status: 'IN_PROGRESS',
-        createdBy: req.user.id,
+        createdBy: req.user.username,   // texto livre para exibição
+        createdById: req.user.id,       // FK real para Admin
       },
     });
 
