@@ -289,10 +289,11 @@ function PicksBansModal({ match, open, onClose }: { match: MatchListItem; open: 
   const [sessionStatus, setSessionStatus] = useState<"pending" | "in_progress" | "completed">("pending");
   const [copied, setCopied] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [checking, setChecking] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const pollingRef = useRef<NodeJS.Timeout | null>(null);
 
-  // Limpar polling ao fechar
+  // Ao abrir, verificar se já há sessão concluída para esta partida
   useEffect(() => {
     if (!open) {
       if (pollingRef.current) clearInterval(pollingRef.current);
@@ -300,7 +301,24 @@ function PicksBansModal({ match, open, onClose }: { match: MatchListItem; open: 
       setSessionLink(null);
       setSessionStatus("pending");
       setError(null);
+      return;
     }
+    // Checar status atual ao abrir
+    const checkExisting = async () => {
+      setChecking(true);
+      try {
+        const data = await api.get<{ status: string; sessionId?: string }>(`/matches/${match.id}/picks-bans-status`);
+        if (data.status === "COMPLETED" || data.status === "TERMINATED") {
+          setSessionStatus("completed");
+        } else if (data.status === "IN_PROGRESS") {
+          // Retomar link se já existia sessão ativa
+          setSessionStatus("in_progress");
+          startPolling();
+        }
+      } catch { /* sem sessão ainda — estado pending */ }
+      finally { setChecking(false); }
+    };
+    void checkExisting();
   }, [open]);
 
   // Polling via proxy do backend ECL para detectar conclusão
@@ -378,8 +396,16 @@ function PicksBansModal({ match, open, onClose }: { match: MatchListItem; open: 
           </div>
         </div>
 
+        {/* Verificando estado inicial */}
+        {checking && (
+          <div className="flex items-center justify-center py-8 gap-3 text-gray-400">
+            <span className="h-5 w-5 animate-spin rounded-full border-2 border-[#f59e0b]/30 border-t-[#f59e0b]" />
+            <span className="text-sm">Verificando sessão...</span>
+          </div>
+        )}
+
         {/* Estado: INICIAL — sem sessão */}
-        {sessionStatus === "pending" && (
+        {!checking && sessionStatus === "pending" && (
           <div className="space-y-3">
             <div className="rounded-lg border border-[#f59e0b]/20 bg-[#f59e0b]/5 p-3 text-xs text-muted space-y-1.5">
               <p className="font-semibold text-paper">Como funciona:</p>
@@ -401,7 +427,7 @@ function PicksBansModal({ match, open, onClose }: { match: MatchListItem; open: 
         )}
 
         {/* Estado: EM ANDAMENTO — aguardando picks & bans */}
-        {sessionStatus === "in_progress" && sessionLink && (
+        {!checking && sessionStatus === "in_progress" && sessionLink && (
           <div className="space-y-3">
             {/* Link */}
             <div className="rounded-lg border border-blue-500/30 bg-blue-500/5 p-3">
@@ -429,7 +455,7 @@ function PicksBansModal({ match, open, onClose }: { match: MatchListItem; open: 
         )}
 
         {/* Estado: CONCLUÍDO — picks & bans finalizados */}
-        {sessionStatus === "completed" && (
+        {!checking && sessionStatus === "completed" && (
           <div className="space-y-3">
             <div className="rounded-lg border border-green-500/30 bg-green-500/5 p-4 text-center">
               <CheckCircle2 className="h-8 w-8 text-green-400 mx-auto mb-2" />
@@ -547,10 +573,20 @@ export function AdminMatchesClient() {
                     <Map className="h-3 w-3" /> Mapas
                   </button>
                   {(m.status === "SCHEDULED" || m.status === "READY" || m.status === "LIVE") && (
-                    <button type="button" onClick={(e) => { e.stopPropagation(); setPicksBans(m); }}
-                      className="flex items-center gap-1 rounded border border-[#f59e0b]/40 bg-[#f59e0b]/5 px-2 py-1 text-[10px] text-[#f59e0b] transition-colors hover:bg-[#f59e0b]/15">
-                      <Swords className="h-3 w-3" /> Picks & Bans
-                    </button>
+                    (() => {
+                      // Verifica se já há mapas com picks definidos (sessão concluída)
+                      const hasPicks = m.maps && m.maps.some(mp => mp.action === "PICKED" || mp.action === "DECIDER");
+                      return hasPicks ? (
+                        <span className="flex items-center gap-1 rounded border border-green-500/40 bg-green-500/5 px-2 py-1 text-[10px] text-green-400 cursor-default">
+                          <CheckCircle2 className="h-3 w-3" /> P&B Realizado
+                        </span>
+                      ) : (
+                        <button type="button" onClick={(e) => { e.stopPropagation(); setPicksBans(m); }}
+                          className="flex items-center gap-1 rounded border border-[#f59e0b]/40 bg-[#f59e0b]/5 px-2 py-1 text-[10px] text-[#f59e0b] transition-colors hover:bg-[#f59e0b]/15">
+                          <Swords className="h-3 w-3" /> Picks & Bans
+                        </button>
+                      );
+                    })()
                   )}
                   {(m.status === "SCHEDULED" || m.status === "READY" || m.status === "LIVE" || m.status === "AWAITING_RESULT") && (
                     <span className="text-gold/70">Clique para gerenciar →</span>

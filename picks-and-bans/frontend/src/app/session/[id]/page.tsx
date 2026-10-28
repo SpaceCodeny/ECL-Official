@@ -409,10 +409,20 @@ Bora jogar! 🔥`;
 
   const usedMaps = session.actions.map((a) => a.map);
   const pickedMaps = session.actions.filter((a) => a.action === "PICK" && (a.team as string) !== "DECIDER");
-  // Decider = última ação com team === 'DECIDER', ou order === sequência+1
+  // Decider = última ação com team === 'DECIDER'
   const decider = session.actions.find((a) => (a.team as string) === "DECIDER");
-  // seriesFormat vem da sessão — fallback para BO3
-  const seriesFormat = (session.seriesFormat ?? (session as any).seriesFormat ?? 'BO3') as SeriesFormat;
+
+  // seriesFormat: usa o valor da sessão se disponível.
+  // Fallback inteligente baseado na quantidade de picks (para versões antigas sem o campo):
+  // 0 picks = BO1 | 4+ picks = BO5 | outros = BO3
+  const rawFmt = (session.seriesFormat as string) || "";
+  const seriesFormat: SeriesFormat =
+    rawFmt === "BO1" ? "BO1"
+    : rawFmt === "BO5" ? "BO5"
+    : rawFmt === "BO3" ? "BO3"
+    : pickedMaps.length === 0 ? "BO1"
+    : pickedMaps.length >= 4 ? "BO5"
+    : "BO3";
 
   const seriesLabel: Record<string, string> = {
     BO1: 'BO1 — Melhor de 1',
