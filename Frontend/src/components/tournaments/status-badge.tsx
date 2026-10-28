@@ -9,7 +9,7 @@ const variantByStatus: Record<TournamentStatus, BadgeProps["variant"]> = {
   REGISTRATION_CLOSED: "warning",
   IN_PROGRESS: "live",
   COMPLETED: "neutral",
-  CANCELLED: "neutral",
+  CANCELLED: "danger",
 };
 
 export function TournamentStatusBadge({ status }: { status: TournamentStatus }) {

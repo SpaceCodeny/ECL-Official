@@ -12,6 +12,7 @@ const badgeVariants = cva(
         live: "border-red-500/40 bg-red-500/10 text-red-400",
         success: "border-emerald-500/30 bg-emerald-500/10 text-emerald-400",
         warning: "border-amber-500/30 bg-amber-500/10 text-amber-400",
+        danger: "border-red-700/40 bg-red-700/10 text-red-400",
       },
     },
     defaultVariants: { variant: "neutral" },

@@ -421,6 +421,119 @@ tournamentsRouter.post(
   }
 );
 
+// ─── POST /tournaments/:id/close-registrations ───────────────────────────────
+tournamentsRouter.post(
+  "/:id/close-registrations",
+  authenticate,
+  authorize(UserRole.SUPER_ADMIN, UserRole.ADMINISTRATOR, UserRole.TOURNAMENT_ORGANIZER),
+  async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const tournament = await prisma.tournament.findFirst({
+        where: { id: getParam(req.params, "id"), deletedAt: null },
+      });
+      if (!tournament) throw AppError.notFound("Torneio não encontrado");
+      if (tournament.status !== TournamentStatus.REGISTRATION_OPEN) {
+        throw AppError.badRequest("Apenas torneios com inscrições abertas podem ter as inscrições encerradas");
+      }
+
+      const updated = await prisma.tournament.update({
+        where: { id: getParam(req.params, "id") },
+        data: { status: TournamentStatus.REGISTRATION_CLOSED },
+      });
+
+      res.json(updated);
+    } catch (error) {
+      next(error);
+    }
+  }
+);
+
+// ─── POST /tournaments/:id/start ─────────────────────────────────────────────
+tournamentsRouter.post(
+  "/:id/start",
+  authenticate,
+  authorize(UserRole.SUPER_ADMIN, UserRole.ADMINISTRATOR, UserRole.TOURNAMENT_ORGANIZER),
+  async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const tournament = await prisma.tournament.findFirst({
+        where: { id: getParam(req.params, "id"), deletedAt: null },
+      });
+      if (!tournament) throw AppError.notFound("Torneio não encontrado");
+      if (tournament.status !== TournamentStatus.REGISTRATION_CLOSED) {
+        throw AppError.badRequest("Apenas torneios com inscrições encerradas podem ser iniciados");
+      }
+
+      const updated = await prisma.tournament.update({
+        where: { id: getParam(req.params, "id") },
+        data: { status: TournamentStatus.IN_PROGRESS },
+      });
+
+      res.json(updated);
+    } catch (error) {
+      next(error);
+    }
+  }
+);
+
+// ─── POST /tournaments/:id/complete ──────────────────────────────────────────
+tournamentsRouter.post(
+  "/:id/complete",
+  authenticate,
+  authorize(UserRole.SUPER_ADMIN, UserRole.ADMINISTRATOR, UserRole.TOURNAMENT_ORGANIZER),
+  async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const tournament = await prisma.tournament.findFirst({
+        where: { id: getParam(req.params, "id"), deletedAt: null },
+      });
+      if (!tournament) throw AppError.notFound("Torneio não encontrado");
+      if (tournament.status !== TournamentStatus.IN_PROGRESS) {
+        throw AppError.badRequest("Apenas torneios em andamento podem ser finalizados");
+      }
+
+      const updated = await prisma.tournament.update({
+        where: { id: getParam(req.params, "id") },
+        data: { status: TournamentStatus.COMPLETED },
+      });
+
+      res.json(updated);
+    } catch (error) {
+      next(error);
+    }
+  }
+);
+
+// ─── POST /tournaments/:id/cancel ────────────────────────────────────────────
+// Cancela o torneio sem soft delete: permanece visível no admin como CANCELLED
+// e invisível para usuários (a listagem pública filtra por status ativos).
+tournamentsRouter.post(
+  "/:id/cancel",
+  authenticate,
+  authorize(UserRole.SUPER_ADMIN, UserRole.ADMINISTRATOR, UserRole.TOURNAMENT_ORGANIZER),
+  async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const tournament = await prisma.tournament.findFirst({
+        where: { id: getParam(req.params, "id"), deletedAt: null },
+      });
+      if (!tournament) throw AppError.notFound("Torneio não encontrado");
+      if (tournament.status === TournamentStatus.CANCELLED) {
+        throw AppError.badRequest("Torneio já está cancelado");
+      }
+      if (tournament.status === TournamentStatus.COMPLETED) {
+        throw AppError.badRequest("Torneios finalizados não podem ser cancelados");
+      }
+
+      const updated = await prisma.tournament.update({
+        where: { id: getParam(req.params, "id") },
+        data: { status: TournamentStatus.CANCELLED },
+      });
+
+      res.json(updated);
+    } catch (error) {
+      next(error);
+    }
+  }
+);
+
 // ─── GET /tournaments/:id/bracket ────────────────────────────────────────────
 // Retorna as fases do torneio com suas partidas para montar o chaveamento.
 // Fases de grupo (type=GROUP) incluem standings; fases eliminatórias incluem
