@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { Gamepad2, Plus, Play, Trophy, Radio, CheckCircle2, Map, Check } from "lucide-react";
+import { Gamepad2, Plus, Play, Trophy, Radio, CheckCircle2, Map, Check, Swords, Copy, ExternalLink, CheckCheck } from "lucide-react";
 import { Avatar } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -280,6 +280,102 @@ function ManageMatchModal({ match: initialMatch, open, onClose }: {
   );
 }
 
+// ─── Modal de Picks & Bans ────────────────────────────────────────────────────
+
+function PicksBansModal({ match, open, onClose }: { match: MatchListItem; open: boolean; onClose: () => void }) {
+  const [sessionLink, setSessionLink] = useState<string | null>(null);
+  const [copied, setCopied] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const generate = async () => {
+    setLoading(true);
+    setError(null);
+    try {
+      const data = await api.post<{ sessionId: string; sessionLink: string; alreadyExists: boolean }>(
+        `/matches/${match.id}/picks-bans`,
+        {},
+        true,
+      );
+      setSessionLink(data.sessionLink);
+    } catch (e: any) {
+      setError(e?.message ?? "Erro ao gerar sessão de picks & bans");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const copyLink = async () => {
+    if (!sessionLink) return;
+    await navigator.clipboard.writeText(sessionLink);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
+  };
+
+  return (
+    <Modal open={open} onClose={onClose} title="Picks & Bans" description={`${match.teamA.name} vs ${match.teamB.name} · ${match.seriesFormat}`} size="sm">
+      <div className="space-y-5">
+        {/* Times */}
+        <div className="flex items-center justify-center gap-4 rounded-xl bg-ink/60 px-4 py-4">
+          <div className="flex flex-col items-center gap-1.5">
+            <Avatar name={match.teamA.name} src={match.teamA.logoUrl} size="md" />
+            <p className="text-xs font-bold text-paper truncate max-w-[80px] text-center">{match.teamA.name}</p>
+          </div>
+          <div className="flex flex-col items-center gap-1">
+            <Swords className="h-5 w-5 text-gold" />
+            <span className="text-[10px] uppercase tracking-widest text-muted">{match.seriesFormat}</span>
+          </div>
+          <div className="flex flex-col items-center gap-1.5">
+            <Avatar name={match.teamB.name} src={match.teamB.logoUrl} size="md" />
+            <p className="text-xs font-bold text-paper truncate max-w-[80px] text-center">{match.teamB.name}</p>
+          </div>
+        </div>
+
+        {/* Link gerado */}
+        {sessionLink ? (
+          <div className="space-y-3">
+            <div className="rounded-lg border border-green-500/30 bg-green-500/5 p-3">
+              <p className="mb-1 flex items-center gap-1.5 text-xs font-semibold text-green-400">
+                <CheckCircle2 className="h-3.5 w-3.5" /> Sessão criada com sucesso!
+              </p>
+              <p className="break-all text-[11px] text-muted">{sessionLink}</p>
+            </div>
+            <div className="flex gap-2">
+              <Button variant="secondary" size="sm" className="flex-1" onClick={copyLink}>
+                {copied ? <CheckCheck className="h-3.5 w-3.5 text-green-400" /> : <Copy className="h-3.5 w-3.5" />}
+                {copied ? "Copiado!" : "Copiar Link"}
+              </Button>
+              <Button variant="secondary" size="sm" className="flex-1" onClick={() => window.open(sessionLink, "_blank")}>
+                <ExternalLink className="h-3.5 w-3.5" /> Abrir
+              </Button>
+            </div>
+            <p className="text-center text-[10px] text-muted">
+              Compartilhe o link com os líderes de cada time. Os mapas serão salvos automaticamente ao concluir os picks & bans.
+            </p>
+          </div>
+        ) : (
+          <div className="space-y-3">
+            <div className="rounded-lg border border-[#f59e0b]/20 bg-[#f59e0b]/5 p-3 text-xs text-muted space-y-1.5">
+              <p className="font-semibold text-paper">Como funciona:</p>
+              <p>1. Gere o link abaixo</p>
+              <p>2. Envie para os líderes de cada time</p>
+              <p>3. Os jogadores realizam os picks & bans em tempo real</p>
+              <p>4. Ao concluir, os mapas são salvos automaticamente na partida ✅</p>
+            </div>
+            {error && (
+              <p className="text-xs text-red-400 bg-red-500/10 border border-red-500/20 rounded-lg px-3 py-2">{error}</p>
+            )}
+            <Button variant="primary" size="md" className="w-full" onClick={generate} disabled={loading}>
+              {loading ? <span className="h-4 w-4 animate-spin rounded-full border-2 border-ink border-t-transparent" /> : <Swords className="h-4 w-4" />}
+              {loading ? "Gerando…" : "Gerar Link de Picks & Bans"}
+            </Button>
+          </div>
+        )}
+      </div>
+    </Modal>
+  );
+}
+
 // ─── Lista principal ──────────────────────────────────────────────────────────
 
 const STATUS_FILTERS = [
@@ -301,6 +397,7 @@ export function AdminMatchesClient() {
   const [showCreate, setShowCreate] = useState(false);
   const [managing, setManaging] = useState<MatchListItem | null>(null);
   const [managingMaps, setManagingMaps] = useState<MatchListItem | null>(null);
+  const [picksBans, setPicksBans] = useState<MatchListItem | null>(null);
 
   const { data, isLoading, isError, refetch } = useQuery({
     queryKey: ["admin-matches", filter],
@@ -368,6 +465,12 @@ export function AdminMatchesClient() {
                     className="flex items-center gap-1 rounded border border-border px-2 py-1 text-[10px] text-muted transition-colors hover:border-gold/40 hover:text-gold">
                     <Map className="h-3 w-3" /> Mapas
                   </button>
+                  {(m.status === "SCHEDULED" || m.status === "READY" || m.status === "LIVE") && (
+                    <button type="button" onClick={(e) => { e.stopPropagation(); setPicksBans(m); }}
+                      className="flex items-center gap-1 rounded border border-[#f59e0b]/40 bg-[#f59e0b]/5 px-2 py-1 text-[10px] text-[#f59e0b] transition-colors hover:bg-[#f59e0b]/15">
+                      <Swords className="h-3 w-3" /> Picks & Bans
+                    </button>
+                  )}
                   {(m.status === "SCHEDULED" || m.status === "READY" || m.status === "LIVE" || m.status === "AWAITING_RESULT") && (
                     <span className="text-gold/70">Clique para gerenciar →</span>
                   )}
@@ -388,6 +491,10 @@ export function AdminMatchesClient() {
         <ManageMapsModal open={Boolean(managingMaps)} onClose={() => setManagingMaps(null)}
           matchId={managingMaps.id} seriesFormat={managingMaps.seriesFormat}
           teamA={managingMaps.teamA} teamB={managingMaps.teamB} currentMaps={managingMaps.maps} />
+      )}
+
+      {picksBans && (
+        <PicksBansModal match={picksBans} open={Boolean(picksBans)} onClose={() => setPicksBans(null)} />
       )}
     </div>
   );

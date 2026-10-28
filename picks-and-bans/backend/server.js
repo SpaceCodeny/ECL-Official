@@ -60,6 +60,58 @@ function getSequence(seriesFormat) {
   return SEQUENCES[seriesFormat] || SEQUENCES.BO3;
 }
 
+// Notificar o backend ECL quando uma sessão de picks/bans for concluída
+async function notifyECLMatchComplete(session, actions) {
+  if (!session.matchId) return; // Sessão não veio do ECL
+
+  const ECL_API_URL = process.env.ECL_API_URL || 'https://ecl-backend-six.vercel.app';
+  const ECL_WEBHOOK_SECRET = process.env.ECL_WEBHOOK_SECRET || 'ecl-picks-bans-webhook-secret';
+  const ECL_FRONTEND_URL = process.env.ECL_FRONTEND_URL || 'https://ecl-official.vercel.app';
+
+  // Converter ações do picks-and-bans para o formato MatchMap da ECL
+  // Picks & Bans: BAN → ECL: BANNED | PICK → ECL: PICKED | DECIDER → ECL: DECIDER
+  const maps = actions.map((action, idx) => {
+    const eclAction = action.action === 'BAN' ? 'BANNED'
+      : action.team === 'DECIDER' ? 'DECIDER'
+      : 'PICKED';
+
+    // actionTeamId: no ECL usamos o ID do time, mas aqui só temos 'A' ou 'B'
+    // O backend ECL vai receber teamSide ('A'/'B') e resolver no próprio endpoint
+    return {
+      mapName: action.map,
+      order: idx + 1,
+      action: eclAction,
+      actionTeamSide: action.team === 'DECIDER' ? null : action.team, // 'A', 'B' ou null
+    };
+  });
+
+  const payload = {
+    matchId: session.matchId,
+    sessionId: session.id,
+    maps,
+  };
+
+  try {
+    const response = await fetch(`${ECL_API_URL}/api/v1/matches/${session.matchId}/picks-bans-complete`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'x-picks-bans-secret': ECL_WEBHOOK_SECRET,
+      },
+      body: JSON.stringify(payload),
+    });
+
+    if (!response.ok) {
+      const err = await response.text();
+      console.error(`Webhook ECL falhou (${response.status}): ${err}`);
+    } else {
+      console.log(`✅ Webhook ECL enviado para partida ${session.matchId}`);
+    }
+  } catch (error) {
+    console.error('Erro ao enviar webhook ECL:', error);
+  }
+}
+
 // Helper para formatar sessão para o frontend
 function formatSession(session) {
   const sequence = getSequence(session.seriesFormat);
@@ -94,7 +146,7 @@ function formatSession(session) {
     seriesFormat: session.seriesFormat,
     status: session.status,
     createdAt: session.createdAt,
-    createdBy: session.admin?.username || session.createdBy,
+    createdBy: session.admin?.username || session.createdBy || 'ECL',
     createdById: session.createdBy,
     completedAt: session.completedAt || null,
     lastUpdate: Date.now(),
@@ -604,6 +656,74 @@ app.get('/api/teams', async (req, res) => {
   }
 });
 
+// ==================== ROTA ECL → PICKS & BANS ====================
+
+// Criar sessão a partir de uma partida ECL (chamada pelo backend ECL)
+// Não requer autenticação de admin local — usa chave compartilhada (ECL_WEBHOOK_SECRET)
+app.post('/api/sessions/from-match', async (req, res) => {
+  const secret = req.headers['x-ecl-secret'];
+  if (secret !== (process.env.ECL_WEBHOOK_SECRET || 'ecl-picks-bans-webhook-secret')) {
+    return res.status(401).json({ error: 'Não autorizado' });
+  }
+
+  const {
+    matchId,
+    teamAName, teamBName,
+    teamALogo, teamBLogo,
+    teamATag,  teamBTag,
+    seriesFormat,
+    createdByAdminId, // ID do admin ECL que gerou (para log)
+  } = req.body;
+
+  if (!matchId || !teamAName || !teamBName || !seriesFormat) {
+    return res.status(400).json({ error: 'matchId, teamAName, teamBName e seriesFormat são obrigatórios' });
+  }
+
+  if (!['BO1', 'BO3', 'BO5'].includes(seriesFormat)) {
+    return res.status(400).json({ error: 'seriesFormat deve ser BO1, BO3 ou BO5' });
+  }
+
+  // Verificar se já existe sessão ativa para essa partida
+  try {
+    const existing = await prisma.session.findFirst({
+      where: { matchId, status: 'IN_PROGRESS' },
+    });
+    if (existing) {
+      return res.json({ sessionId: existing.id, alreadyExists: true });
+    }
+
+    const sessionId = generateSessionId();
+    const ECL_FRONTEND_URL = process.env.ECL_FRONTEND_URL || 'https://ecl-official.vercel.app';
+
+    // Resolver logos relativas para absolutas
+    const resolveLogoUrl = (url) => {
+      if (url && url.startsWith('/images/')) return `${ECL_FRONTEND_URL}${url}`;
+      return url || null;
+    };
+
+    await prisma.session.create({
+      data: {
+        id: sessionId,
+        teamAName,
+        teamBName,
+        teamATag: teamATag || teamAName.substring(0, 4).toUpperCase(),
+        teamBTag: teamBTag || teamBName.substring(0, 4).toUpperCase(),
+        teamALogo: resolveLogoUrl(teamALogo),
+        teamBLogo: resolveLogoUrl(teamBLogo),
+        seriesFormat,
+        status: 'IN_PROGRESS',
+        matchId,     // FK para a partida ECL
+        createdBy: 'system-ecl', // ID especial para sessões criadas via ECL
+      },
+    });
+
+    res.json({ sessionId });
+  } catch (error) {
+    console.error('Erro ao criar sessão from-match:', error);
+    res.status(500).json({ error: 'Erro ao criar sessão' });
+  }
+});
+
 // ==================== ROTAS DE SESSÕES ====================
 
 app.post('/api/sessions', authenticateToken, async (req, res) => {
@@ -801,6 +921,7 @@ app.post('/api/sessions/:id/action', async (req, res) => {
     if (session.actions.length + 1 === sequence.length) {
       const allUsedMaps = [...usedMaps, map];
       const decider = MAPS.find(m => !allUsedMaps.includes(m));
+      let deciderMap = null;
 
       if (decider) {
         await prisma.sessionAction.create({
@@ -812,12 +933,23 @@ app.post('/api/sessions/:id/action', async (req, res) => {
             order: sequence.length + 1,
           },
         });
+        deciderMap = decider;
       }
 
       await prisma.session.update({
         where: { id },
         data: { status: 'COMPLETED', completedAt: new Date() },
       });
+
+      // Montar lista completa de ações para o webhook
+      const completedActions = [
+        ...session.actions,
+        { map, team, action: expectedAction, order: session.actions.length + 1 },
+        ...(deciderMap ? [{ map: deciderMap, team: 'DECIDER', action: 'PICK', order: sequence.length + 1 }] : []),
+      ];
+
+      // Notificar backend ECL assincronamente (não bloqueia a resposta)
+      notifyECLMatchComplete(session, completedActions).catch(e => console.error('Webhook ECL falhou:', e));
     }
 
     // Retornar sessão atualizada

@@ -534,3 +534,156 @@ matchesRouter.post(
     }
   }
 );
+
+// ─── POST /matches/:id/picks-bans ────────────────────────────────────────────
+// Cria uma sessão de picks & bans no sistema externo para esta partida.
+// Retorna o link da sessão para o admin compartilhar com os times.
+matchesRouter.post(
+  "/:id/picks-bans",
+  authenticate,
+  authorize(UserRole.SUPER_ADMIN, UserRole.ADMINISTRATOR, UserRole.TOURNAMENT_ORGANIZER, UserRole.REFEREE),
+  async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const matchId = getParam(req.params, "id");
+
+      const match = await prisma.match.findUnique({
+        where: { id: matchId },
+        include: {
+          teamA: { select: { id: true, name: true, tag: true, logoUrl: true } },
+          teamB: { select: { id: true, name: true, tag: true, logoUrl: true } },
+        },
+      });
+
+      if (!match) throw AppError.notFound("Partida não encontrada");
+
+      const PICKS_BANS_API = process.env.PICKS_BANS_API_URL || "https://peaks-and-bans-backend.vercel.app";
+      const PICKS_BANS_FRONTEND = process.env.PICKS_BANS_FRONTEND_URL || "https://peaks-and-bans.vercel.app";
+      const WEBHOOK_SECRET = process.env.ECL_WEBHOOK_SECRET || "ecl-picks-bans-webhook-secret";
+
+      const ECL_FRONTEND_URL = process.env.FRONTEND_URL || "https://ecl-official.vercel.app";
+
+      // Resolver logoUrl para URL absoluta
+      const resolveLogoUrl = (url: string | null) => {
+        if (url && url.startsWith("/images/")) return `${ECL_FRONTEND_URL}${url}`;
+        return url;
+      };
+
+      const payload = {
+        matchId,
+        teamAName: match.teamA.name,
+        teamBName: match.teamB.name,
+        teamALogo: resolveLogoUrl(match.teamA.logoUrl),
+        teamBLogo: resolveLogoUrl(match.teamB.logoUrl),
+        teamATag: match.teamA.tag,
+        teamBTag: match.teamB.tag,
+        seriesFormat: match.seriesFormat,
+      };
+
+      const response = await fetch(`${PICKS_BANS_API}/api/sessions/from-match`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "x-ecl-secret": WEBHOOK_SECRET,
+        },
+        body: JSON.stringify(payload),
+      });
+
+      if (!response.ok) {
+        const err = await response.text();
+        throw AppError.badRequest(`Erro ao criar sessão de picks & bans: ${err}`);
+      }
+
+      const data = (await response.json()) as { sessionId: string; alreadyExists?: boolean };
+
+      const sessionLink = `${PICKS_BANS_FRONTEND}/session/${data.sessionId}`;
+
+      res.json({
+        sessionId: data.sessionId,
+        sessionLink,
+        alreadyExists: data.alreadyExists ?? false,
+      });
+    } catch (error) {
+      next(error);
+    }
+  }
+);
+
+// ─── POST /matches/:id/picks-bans-complete ───────────────────────────────────
+// Webhook chamado pelo sistema de picks & bans quando a sessão é concluída.
+// Salva automaticamente os mapas na partida.
+matchesRouter.post(
+  "/:id/picks-bans-complete",
+  async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      // Autenticação via secret compartilhado
+      const secret = req.headers["x-picks-bans-secret"] as string;
+      const WEBHOOK_SECRET = process.env.ECL_WEBHOOK_SECRET || "ecl-picks-bans-webhook-secret";
+
+      if (secret !== WEBHOOK_SECRET) {
+        return res.status(401).json({ error: "Não autorizado" });
+      }
+
+      const matchId = getParam(req.params, "id");
+
+      const match = await prisma.match.findUnique({
+        where: { id: matchId },
+        include: {
+          teamA: { select: { id: true } },
+          teamB: { select: { id: true } },
+        },
+      });
+
+      if (!match) throw AppError.notFound("Partida não encontrada");
+
+      const { maps } = req.body as {
+        maps: Array<{
+          mapName: string;
+          order: number;
+          action: "PICKED" | "BANNED" | "DECIDER";
+          actionTeamSide: "A" | "B" | null;
+        }>;
+      };
+
+      if (!Array.isArray(maps) || maps.length === 0) {
+        throw AppError.badRequest("Lista de mapas obrigatória");
+      }
+
+      // Resolver teamSide ('A'/'B') para o ID real do time
+      const resolveTeamId = (side: "A" | "B" | null): string | null => {
+        if (side === "A") return match.teamAId;
+        if (side === "B") return match.teamBId;
+        return null;
+      };
+
+      await prisma.$transaction(async (tx) => {
+        // Substituir todos os mapas da partida
+        await tx.matchMap.deleteMany({ where: { matchId } });
+        await tx.matchMap.createMany({
+          data: maps.map((m) => ({
+            matchId,
+            mapName: m.mapName,
+            order: m.order,
+            action: m.action,
+            actionTeamId: resolveTeamId(m.actionTeamSide),
+            scoreA: null,
+            scoreB: null,
+            winnerId: null,
+            played: false,
+          })),
+        });
+
+        // Marcar a partida como READY (picks feitos, aguardando jogar)
+        if (match.status === "SCHEDULED") {
+          await tx.match.update({
+            where: { id: matchId },
+            data: { status: MatchStatus.READY },
+          });
+        }
+      });
+
+      res.json({ success: true, mapsCount: maps.length });
+    } catch (error) {
+      next(error);
+    }
+  }
+);
