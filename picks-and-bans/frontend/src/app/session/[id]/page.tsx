@@ -120,11 +120,17 @@ export default function SessionPage({ params }: { params: Promise<{ id: string }
     const tA = session.teamA.name;
     const tB = session.teamB.name;
 
+    // Todas as ações da sessão em ordem
+    const allActions = [...session.actions].sort((a, b) => a.order - b.order);
+    // Picks reais (não decider), em ordem de execução
+    const picks = allActions.filter((a) => a.action === "PICK" && (a.team as string) !== "DECIDER");
+    // Mapa decider (tem team === 'DECIDER')
+    const deciderMap = allActions.find((a) => (a.team as string) === "DECIDER")?.map ?? '—';
+
     let resultText = '';
 
     if (fmt === 'BO1') {
-      // BO1: só o mapa decider (único mapa que resta após 6 bans)
-      const map = decider?.map ?? pickedMaps[0]?.map ?? '—';
+      // BO1: 6 bans → sobra 1 mapa = decider, lado CT pela organização
       resultText =
 `🎮 *ECL PICKS & BANS - RESULTADO* 🎮
 
@@ -132,23 +138,20 @@ export default function SessionPage({ params }: { params: Promise<{ id: string }
 📋 Formato: *BO1*
 
 🗺️ *MAPA:*
-🏆 *${map}*
-   🎲(ORG Decide)
+🏆 *${deciderMap}*
+   🎲 Lado CT definido pela organização (ORG Decide)
 
 ---
 Bora jogar! 🔥`;
 
     } else if (fmt === 'BO5') {
-      // BO5: 2 picks A + 2 picks B + decider (5 mapas no total)
-      // Sequência: A pick, B pick, A ban, B ban, A pick, B pick → decider
-      const picksA = pickedMaps.filter((a) => a.team === 'A');
-      const picksB = pickedMaps.filter((a) => a.team === 'B');
-
-      const map1 = picksA[0]?.map ?? '—';  // A escolheu → B CT
-      const map2 = picksB[0]?.map ?? '—';  // B escolheu → A CT
-      const map3 = picksA[1]?.map ?? '—';  // A escolheu → B CT
-      const map4 = picksB[1]?.map ?? '—';  // B escolheu → A CT
-      const map5 = decider?.map ?? '—';    // Decider
+      // BO5: A pick, B pick, A ban, B ban, A pick, B pick → decider
+      // picks[0] = A pick (map1), picks[1] = B pick (map2),
+      // picks[2] = A pick (map3), picks[3] = B pick (map4)
+      const map1 = picks[0]?.map ?? '—';  // A pick → B CT
+      const map2 = picks[1]?.map ?? '—';  // B pick → A CT
+      const map3 = picks[2]?.map ?? '—';  // A pick → B CT
+      const map4 = picks[3]?.map ?? '—';  // B pick → A CT
 
       resultText =
 `🎮 *ECL PICKS & BANS - RESULTADO* 🎮
@@ -170,17 +173,18 @@ Bora jogar! 🔥`;
 4️⃣ Mapa 4: *${map4}* (escolha de ${tB})
    🛡️ ${tA} começa de CT
 
-🏆 Mapa 5 Decider: *${map5}*
+🏆 Mapa 5 Decider: *${deciderMap}*
    🛡️ Vencedor de ${map1} começa de CT
 
 ---
 Bora jogar! 🔥`;
 
     } else {
-      // BO3 (padrão): 2 picks + decider
-      const map1 = pickedMaps[0]?.map ?? '—';  // A escolheu → B CT
-      const map2 = pickedMaps[1]?.map ?? '—';  // B escolheu → A CT
-      const map3 = decider?.map ?? '—';        // Decider
+      // BO3: A ban, B ban, A pick, B pick, B ban, A ban → decider
+      // picks[0] = A pick (map1) → B CT
+      // picks[1] = B pick (map2) → A CT
+      const map1 = picks[0]?.map ?? '—';
+      const map2 = picks[1]?.map ?? '—';
 
       resultText =
 `🎮 *ECL PICKS & BANS - RESULTADO* 🎮
@@ -196,7 +200,7 @@ Bora jogar! 🔥`;
 2️⃣ Mapa 2: *${map2}* (escolha de ${tB})
    🛡️ ${tA} começa de CT
 
-🏆 Mapa 3 Decider: *${map3}*
+🏆 Mapa 3 Decider: *${deciderMap}*
    🛡️ Vencedor de ${map1} começa de CT
 
 ---
@@ -404,9 +408,11 @@ Bora jogar! 🔥`;
   }
 
   const usedMaps = session.actions.map((a) => a.map);
-  const pickedMaps = session.actions.filter((a) => a.action === "PICK" && a.team !== "DECIDER" as string);
-  const decider = session.actions.find((a) => (a.team as string) === "DECIDER" || a.order === 7);
-  const seriesFormat = session.seriesFormat as SeriesFormat | undefined;
+  const pickedMaps = session.actions.filter((a) => a.action === "PICK" && (a.team as string) !== "DECIDER");
+  // Decider = última ação com team === 'DECIDER', ou order === sequência+1
+  const decider = session.actions.find((a) => (a.team as string) === "DECIDER");
+  // seriesFormat vem da sessão — fallback para BO3
+  const seriesFormat = (session.seriesFormat ?? (session as any).seriesFormat ?? 'BO3') as SeriesFormat;
 
   const seriesLabel: Record<string, string> = {
     BO1: 'BO1 — Melhor de 1',
