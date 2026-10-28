@@ -120,6 +120,9 @@ export default function SessionPage({ params }: { params: Promise<{ id: string }
     const tA = session.teamA.name;
     const tB = session.teamB.name;
 
+    // DEBUG: Logar para verificar o formato detectado
+    console.log('[COPY RESULTS] Formato detectado:', fmt, '| seriesFormat:', session.seriesFormat, '| pickedMaps:', pickedMaps.length);
+
     // Todas as ações da sessão em ordem
     const allActions = [...session.actions].sort((a, b) => a.order - b.order);
     // Picks reais (não decider), em ordem de execução
@@ -129,10 +132,9 @@ export default function SessionPage({ params }: { params: Promise<{ id: string }
 
     let resultText = '';
 
+    // BO1: 6 bans → sobra 1 mapa = decider
     if (fmt === 'BO1') {
-      // BO1: 6 bans → sobra 1 mapa = decider, lado CT pela organização
-      resultText =
-`🎮 *ECL PICKS & BANS - RESULTADO* 🎮
+      resultText = `🎮 *ECL PICKS & BANS - RESULTADO* 🎮
 
 ⚔️ *${tA}* vs *${tB}*
 📋 Formato: *BO1*
@@ -143,18 +145,15 @@ export default function SessionPage({ params }: { params: Promise<{ id: string }
 
 ---
 Bora jogar! 🔥`;
+    }
+    // BO5: 4 picks + decider
+    else if (fmt === 'BO5') {
+      const map1 = picks[0]?.map ?? '—';
+      const map2 = picks[1]?.map ?? '—';
+      const map3 = picks[2]?.map ?? '—';
+      const map4 = picks[3]?.map ?? '—';
 
-    } else if (fmt === 'BO5') {
-      // BO5: A pick, B pick, A ban, B ban, A pick, B pick → decider
-      // picks[0] = A pick (map1), picks[1] = B pick (map2),
-      // picks[2] = A pick (map3), picks[3] = B pick (map4)
-      const map1 = picks[0]?.map ?? '—';  // A pick → B CT
-      const map2 = picks[1]?.map ?? '—';  // B pick → A CT
-      const map3 = picks[2]?.map ?? '—';  // A pick → B CT
-      const map4 = picks[3]?.map ?? '—';  // B pick → A CT
-
-      resultText =
-`🎮 *ECL PICKS & BANS - RESULTADO* 🎮
+      resultText = `🎮 *ECL PICKS & BANS - RESULTADO* 🎮
 
 ⚔️ *${tA}* vs *${tB}*
 📋 Formato: *BO5*
@@ -178,16 +177,13 @@ Bora jogar! 🔥`;
 
 ---
 Bora jogar! 🔥`;
-
-    } else {
-      // BO3: A ban, B ban, A pick, B pick, B ban, A ban → decider
-      // picks[0] = A pick (map1) → B CT
-      // picks[1] = B pick (map2) → A CT
+    }
+    // BO3: 2 picks + decider (padrão)
+    else {
       const map1 = picks[0]?.map ?? '—';
       const map2 = picks[1]?.map ?? '—';
 
-      resultText =
-`🎮 *ECL PICKS & BANS - RESULTADO* 🎮
+      resultText = `🎮 *ECL PICKS & BANS - RESULTADO* 🎮
 
 ⚔️ *${tA}* vs *${tB}*
 📋 Formato: *BO3*
@@ -207,6 +203,7 @@ Bora jogar! 🔥`;
 Bora jogar! 🔥`;
     }
 
+    console.log('[COPY RESULTS] Texto gerado:', resultText.substring(0, 100));
     navigator.clipboard.writeText(resultText);
     setResultsCopied(true);
     setTimeout(() => setResultsCopied(false), 3000);
