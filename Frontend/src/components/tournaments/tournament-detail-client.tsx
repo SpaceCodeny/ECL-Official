@@ -128,11 +128,11 @@ export function TournamentDetailClient({ slug }: { slug: string }) {
     queryFn: () => api.get<{ data: Array<{ teamId: string; position: number }> }>("/rankings"),
   });
 
-  // Buscar equipes convidadas (usadas na aba Equipes)
+  // Buscar equipes convidadas (usadas na aba Equipes E no Bracket)
   const { data: invitedTeams, isLoading: isLoadingInvited } = useQuery({
     queryKey: ["invited-teams", tournament?.id],
     queryFn: () => api.get<Array<{ id: string; team: { id: string; name: string; tag: string | null; slug: string; logoUrl: string | null }; bracketSlot: number; createdAt: string }>>(`/tournaments/${tournament!.id}/invited`),
-    enabled: Boolean(tournament?.id) && (activeTab === "teams" || isAdmin),
+    enabled: Boolean(tournament?.id), // SEMPRE buscar, não só quando aba está ativa
   });
 
   if (isLoading) return <LoadingState label="Carregando campeonato…" className="min-h-[60vh]" />;
@@ -292,21 +292,42 @@ export function TournamentDetailClient({ slug }: { slug: string }) {
             ) : bracketData ? (
               <div className="space-y-6">
                 <InvitedTeamsPanel
-                  invitedTeams={bracketData.invitedTeams}
+                  invitedTeams={invitedTeams ?? bracketData.invitedTeams ?? []}
                   tournamentId={tournament.id}
                   isAdmin={isAdmin}
                   onUpdate={() => void refetchBracket()}
                 />
-                <PlayoffBracketView data={bracketData} />
+                <PlayoffBracketView 
+                  data={{
+                    ...bracketData,
+                    // Usar dados de invitedTeams da query separada se disponível (tem team completo)
+                    invitedTeams: (() => {
+                      const merged = invitedTeams?.map(inv => ({
+                        id: inv.id,
+                        bracketSlot: inv.bracketSlot,
+                        team: inv.team
+                      })) ?? bracketData.invitedTeams;
+                      
+                      console.log('[TournamentDetail] Passando invitedTeams para bracket:', {
+                        fromQuery: invitedTeams?.length,
+                        fromBracket: bracketData.invitedTeams?.length,
+                        merged: merged?.length,
+                        mergedData: merged
+                      });
+                      
+                      return merged;
+                    })()
+                  }} 
+                />
               </div>
             ) : (
               <div className="rounded-xl border border-border bg-surface/40 p-12 text-center">
                 <GitBranch className="mx-auto mb-4 h-12 w-12 text-muted/30" />
                 <p className="font-display text-lg font-bold uppercase text-muted/60">
-                  Chaveamento não disponível
+                  Erro ao carregar chaveamento
                 </p>
                 <p className="mt-2 text-sm text-muted/40">
-                  Configure as equipes convidadas para visualizar o bracket
+                  Tente recarregar a página ou entre em contato com o suporte
                 </p>
               </div>
             )}

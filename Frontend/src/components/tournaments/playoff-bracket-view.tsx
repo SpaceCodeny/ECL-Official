@@ -110,7 +110,7 @@ function TeamSlot({
           flip && "text-right",
         )}
       >
-        {isPlaceholder ? (label ?? "A definir") : (team.tag || team.name)}
+        {isPlaceholder ? (label ?? "A definir") : (team.name)}
       </span>
 
       {/* Badge convidado */}
@@ -203,12 +203,14 @@ function MatchCard({ match, compact = false }: { match: PlayoffMatch; compact?: 
 
 const CARD_W = 208; // w-52
 const CARD_H = 82;  // header(26) + row(28) + divider(1) + row(28) = ~83px
-const COL_GAP = 48;
+const COL_GAP = 64; // Aumentado para melhor espaçamento visual
 
 function computeLayout(counts: number[]) {
-  const BASE_VERTICAL = CARD_H + 20;
+  const BASE_VERTICAL = CARD_H + 40; // Aumentado para 40 para mais espaço entre cards
   const firstPositions: number[] = [];
-  for (let i = 0; i < counts[0]!; i++) {
+  const firstCount = counts[0] ?? 0;
+  
+  for (let i = 0; i < firstCount; i++) {
     firstPositions.push(i * BASE_VERTICAL + CARD_H / 2);
   }
 
@@ -225,7 +227,7 @@ function computeLayout(counts: number[]) {
   }
 
   const allY = positions.flat();
-  const totalHeight = Math.max(...allY) + CARD_H / 2 + 16;
+  const totalHeight = allY.length > 0 ? Math.max(...allY) + CARD_H / 2 + 16 : CARD_H + 50;
   const colX = counts.map((_, si) => si * (CARD_W + COL_GAP));
 
   return { positions, totalHeight, colX };
@@ -243,8 +245,187 @@ const PHASE_LABELS = [
 // ── Componente principal ───────────────────────────────────────────────────────
 
 export function PlayoffBracketView({ data }: { data: PlayoffBracketData }) {
+  // Debug: verificar dados recebidos
+  console.log('[PlayoffBracket] Data recebida:', {
+    invitedTeamsCount: data.invitedTeams?.length ?? 0,
+    invitedTeams: data.invitedTeams,
+    ro16Count: data.ro16?.length ?? 0,
+  });
+
+  // SEMPRE montar 8 matches das oitavas, mesmo que o backend não tenha gerado ainda
+  // Se data.ro16 estiver vazio, criar matches virtuais com placeholders
+  
+  let ro16Matches = data.ro16 ?? [];
+  let qfMatches = data.qf ?? [];
+  let sfMatches = data.sf ?? [];
+  let finalMatches = data.final ?? [];
+  
+  // Se não há matches reais, criar 8 matches virtuais para as oitavas
+  if (ro16Matches.length === 0) {
+    ro16Matches = Array.from({ length: 8 }, (_, i) => ({
+      id: `virtual-RO16-${i + 1}`,
+      bracketPosition: `RO16-${i + 1}`,
+      status: "SCHEDULED",
+      seriesFormat: "BO3",
+      scoreA: null,
+      scoreB: null,
+      winnerTeamId: null,
+      teamA: null,
+      teamB: null,
+      teamALabel: null,
+      teamBLabel: null,
+      isInvitedA: false,
+      isInvitedB: false,
+      scheduledAt: null,
+    }));
+    
+    // Agora preencher com convidados e placeholders baseado nos seeds
+    // Mapeamento de posição RO16 para seeds (definido no backend)
+    const SEED_BY_POSITION: Record<number, number> = {
+      1: 1, 2: 16, 3: 8, 4: 9, 5: 4, 6: 13, 7: 5, 8: 12,
+      9: 2, 10: 15, 11: 7, 12: 10, 13: 3, 14: 14, 15: 6, 16: 11,
+    };
+    const INVITED_SEEDS = [1, 8, 4, 5]; // Seeds dos convidados
+    
+    // Criar mapa de convidados por bracketSlot
+    console.log('[PlayoffBracket] invitedTeams detalhado:', 
+      (data.invitedTeams ?? []).map(inv => ({
+        id: inv.id,
+        bracketSlot: inv.bracketSlot,
+        hasTeam: !!inv.team,
+        team: inv.team
+      }))
+    );
+    
+    const invitedByBracketSlot = new Map(
+      (data.invitedTeams ?? [])
+        .filter(inv => inv.team) // Apenas convidados com team definido
+        .map(inv => [inv.bracketSlot, inv.team])
+    );
+    
+    console.log('[PlayoffBracket] Mapa de convidados:', {
+      total: data.invitedTeams?.length ?? 0,
+      comTeam: invitedByBracketSlot.size,
+      detalhes: Object.fromEntries(invitedByBracketSlot),
+    });
+    
+    // Preencher cada match virtual
+    for (let matchIdx = 0; matchIdx < 8; matchIdx++) {
+      const match = ro16Matches[matchIdx]!;
+      const posA = matchIdx * 2 + 1;  // 1, 3, 5, 7, 9, 11, 13, 15
+      const posB = matchIdx * 2 + 2;  // 2, 4, 6, 8, 10, 12, 14, 16
+      const seedA = SEED_BY_POSITION[posA]!;
+      const seedB = SEED_BY_POSITION[posB]!;
+      
+      // Verificar se seedA é convidado
+      const invitedSlotA = INVITED_SEEDS.indexOf(seedA) + 1;
+      if (invitedSlotA > 0) {
+        const invitedTeam = invitedByBracketSlot.get(invitedSlotA);
+        if (invitedTeam) {
+          match.teamA = invitedTeam;
+          match.isInvitedA = true;
+        } else {
+          match.teamALabel = `Convidado ${invitedSlotA}`;
+        }
+      } else {
+        // Classificado Swiss
+        const swissPosition = [2,3,6,7,9,10,11,12,13,14,15,16].indexOf(seedA) + 1;
+        match.teamALabel = `${swissPosition}º Classificado`;
+      }
+      
+      // Verificar se seedB é convidado
+      const invitedSlotB = INVITED_SEEDS.indexOf(seedB) + 1;
+      if (invitedSlotB > 0) {
+        const invitedTeam = invitedByBracketSlot.get(invitedSlotB);
+        if (invitedTeam) {
+          match.teamB = invitedTeam;
+          match.isInvitedB = true;
+        } else {
+          match.teamBLabel = `Convidado ${invitedSlotB}`;
+        }
+      } else {
+        // Classificado Swiss
+        const swissPosition = [2,3,6,7,9,10,11,12,13,14,15,16].indexOf(seedB) + 1;
+        match.teamBLabel = `${swissPosition}º Classificado`;
+      }
+    }
+    
+    console.log('[PlayoffBracket] Matches RO16 criados:', ro16Matches.map(m => ({
+      id: m.id,
+      teamA: m.teamA?.name ?? m.teamALabel,
+      teamB: m.teamB?.name ?? m.teamBLabel,
+      isInvitedA: m.isInvitedA,
+      isInvitedB: m.isInvitedB,
+    })));
+  }
+  
+  // Criar matches virtuais para QF se não existirem
+  if (qfMatches.length === 0) {
+    qfMatches = Array.from({ length: 4 }, (_, i) => ({
+      id: `virtual-QF-${i + 1}`,
+      bracketPosition: `QF-${i + 1}`,
+      status: "SCHEDULED",
+      seriesFormat: "BO3",
+      scoreA: null,
+      scoreB: null,
+      winnerTeamId: null,
+      teamA: null,
+      teamB: null,
+      teamALabel: `Vencedor Oitava ${i * 2 + 1}`,
+      teamBLabel: `Vencedor Oitava ${i * 2 + 2}`,
+      isInvitedA: false,
+      isInvitedB: false,
+      scheduledAt: null,
+    }));
+  }
+  
+  // Criar matches virtuais para SF se não existirem
+  if (sfMatches.length === 0) {
+    sfMatches = Array.from({ length: 2 }, (_, i) => ({
+      id: `virtual-SF-${i + 1}`,
+      bracketPosition: `SF-${i + 1}`,
+      status: "SCHEDULED",
+      seriesFormat: "BO3",
+      scoreA: null,
+      scoreB: null,
+      winnerTeamId: null,
+      teamA: null,
+      teamB: null,
+      teamALabel: `Vencedor Quartas ${i * 2 + 1}`,
+      teamBLabel: `Vencedor Quartas ${i * 2 + 2}`,
+      isInvitedA: false,
+      isInvitedB: false,
+      scheduledAt: null,
+    }));
+  }
+  
+  // Criar match virtual para FINAL se não existir
+  if (finalMatches.length === 0) {
+    finalMatches = [{
+      id: "virtual-FINAL",
+      bracketPosition: "FINAL",
+      status: "SCHEDULED",
+      seriesFormat: "BO5",
+      scoreA: null,
+      scoreB: null,
+      winnerTeamId: null,
+      teamA: null,
+      teamB: null,
+      teamALabel: "Vencedor Semi 1",
+      teamBLabel: "Vencedor Semi 2",
+      isInvitedA: false,
+      isInvitedB: false,
+      scheduledAt: null,
+    }];
+  }
+  
   // Fases em ordem: RO16 (8 partidas), QF (4), SF (2), FINAL (1)
-  const phases = [data.ro16, data.qf, data.sf, data.final];
+  const phases = [
+    ro16Matches,
+    qfMatches,
+    sfMatches,
+    finalMatches
+  ];
   const counts = phases.map((p) => p.length);
 
   const { positions, totalHeight, colX } = computeLayout(counts);
@@ -276,18 +457,18 @@ export function PlayoffBracketView({ data }: { data: PlayoffBracketData }) {
   }
 
   return (
-    <div className="space-y-8">
+    <div className="space-y-6">
       {/* Status do bracket */}
       <div className="flex flex-wrap items-center gap-3">
         {data.swissFinalized ? (
           <span className="flex items-center gap-1.5 rounded-full border border-emerald-500/30 bg-emerald-500/10 px-3 py-1 text-xs font-semibold text-emerald-400">
             <Crown className="h-3 w-3" />
-            Swiss finalizado — Times definidos
+            Swiss finalizado — 12 classificados definidos
           </span>
         ) : (
-          <span className="flex items-center gap-1.5 rounded-full border border-[#1a3a6e] bg-[#0d1e3d]/60 px-3 py-1 text-xs font-semibold text-[#4d7ecf]">
+          <span className="flex items-center gap-1.5 rounded-full border border-blue-500/30 bg-blue-500/10 px-3 py-1 text-xs font-semibold text-blue-400">
             <Shield className="h-3 w-3" />
-            Swiss em andamento — Posições parciais
+            Classificação em andamento
           </span>
         )}
         {data.isGenerated && (
@@ -296,15 +477,22 @@ export function PlayoffBracketView({ data }: { data: PlayoffBracketData }) {
             Partidas confirmadas
           </span>
         )}
-        <span className="ml-auto rounded-full border border-[#b8973a] bg-[#2a1f06]/60 px-3 py-1 text-xs font-semibold text-gold">
-          <Star className="inline h-3 w-3 fill-gold mr-1" />
-          {data.invitedTeams.length} convidados
-        </span>
+        {data.invitedTeams.length > 0 && (
+          <span className="ml-auto rounded-full border border-[#b8973a] bg-[#2a1f06]/60 px-3 py-1 text-xs font-semibold text-gold">
+            <Star className="inline h-3 w-3 fill-gold mr-1" />
+            {data.invitedTeams.length} convidados
+          </span>
+        )}
+      </div>
+
+      {/* Dica de scroll em mobile */}
+      <div className="block sm:hidden text-center text-xs text-muted/50 -mb-2">
+        ← Deslize horizontalmente para ver todas as fases →
       </div>
 
       {/* Bracket SVG */}
-      <div className="overflow-x-auto pb-4 -mx-4 sm:mx-0">
-        <div className="min-w-fit px-4 sm:px-0">
+      <div className="overflow-x-auto overflow-y-visible pb-4 -mx-4 px-4 sm:mx-0 sm:px-0">
+        <div className="min-w-fit">
           <div className="relative" style={{ width: totalWidth, height: totalHeight }}>
             {/* Linhas de conexão */}
             <svg
@@ -345,15 +533,23 @@ export function PlayoffBracketView({ data }: { data: PlayoffBracketData }) {
 
           {/* Labels das fases */}
           <div className="mt-5 flex" style={{ width: totalWidth }}>
-            {phases.map((_, si) => (
-              <div
-                key={si}
-                className="text-center text-[10px] font-bold uppercase tracking-widest text-muted/50"
-                style={{ width: CARD_W + (si < phases.length - 1 ? COL_GAP : 0) }}
-              >
-                {PHASE_LABELS[si]}
-              </div>
-            ))}
+            {phases.map((phase, si) => {
+              const isLastPhase = si === phases.length - 1;
+              const colWidth = CARD_W + (isLastPhase ? 0 : COL_GAP);
+              return (
+                <div
+                  key={si}
+                  className="flex items-center justify-center text-[10px] font-bold uppercase tracking-widest text-muted/50"
+                  style={{ 
+                    width: colWidth,
+                    paddingLeft: isLastPhase ? 0 : COL_GAP / 2,
+                    paddingRight: isLastPhase ? 0 : COL_GAP / 2,
+                  }}
+                >
+                  <span className="text-center">{PHASE_LABELS[si]}</span>
+                </div>
+              );
+            })}
           </div>
         </div>
       </div>
@@ -390,23 +586,24 @@ export function InvitedTeamsPanel({
   const slots = [1, 2, 3, 4];
 
   return (
-    <div className="rounded-xl border border-[#b8973a]/30 bg-gradient-to-b from-[#2a1f06]/40 to-transparent p-5">
+    <div className="rounded-xl border border-[#b8973a]/30 bg-gradient-to-b from-[#2a1f06]/40 to-transparent p-4 sm:p-5">
       <div className="mb-4 flex items-center gap-2">
         <Trophy className="h-4 w-4 text-gold" />
-        <h3 className="font-display text-sm font-bold uppercase tracking-widest text-gold">
+        <h3 className="font-display text-xs sm:text-sm font-bold uppercase tracking-widest text-gold">
           Times Convidados — Classificação Direta
         </h3>
       </div>
 
-      <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+      <div className="grid grid-cols-2 gap-2.5 sm:gap-3 lg:grid-cols-4">
         {slots.map((slot) => {
           const entry = invitedTeams.find((i) => i.bracketSlot === slot);
+          const hasValidTeam = entry?.team;
           return (
             <div
               key={slot}
               className={cn(
-                "rounded-xl border p-3 text-center",
-                entry
+                "rounded-xl border p-2.5 sm:p-3 text-center",
+                hasValidTeam
                   ? "border-[#b8973a]/50 bg-[#1a1200]/60"
                   : "border-dashed border-border/40 bg-surface/20",
               )}
@@ -414,9 +611,9 @@ export function InvitedTeamsPanel({
               <p className="mb-2 text-[9px] font-bold uppercase tracking-widest text-gold/50">
                 {slotLabels[slot - 1]}
               </p>
-              {entry ? (
-                <div className="flex flex-col items-center gap-2">
-                  <div className="h-10 w-10 overflow-hidden rounded-full border border-[#b8973a]/60 bg-[#1a1200]">
+              {hasValidTeam ? (
+                <div className="flex flex-col items-center gap-1.5 sm:gap-2">
+                  <div className="h-8 w-8 sm:h-10 sm:w-10 overflow-hidden rounded-full border border-[#b8973a]/60 bg-[#1a1200]">
                     {entry.team.logoUrl ? (
                       // eslint-disable-next-line @next/next/no-img-element
                       <img
@@ -430,7 +627,7 @@ export function InvitedTeamsPanel({
                       </div>
                     )}
                   </div>
-                  <p className="text-[11px] font-bold uppercase tracking-tight text-paper line-clamp-2">
+                  <p className="text-[10px] sm:text-[11px] font-bold uppercase tracking-tight text-paper line-clamp-2">
                     {entry.team.name}
                   </p>
                   {entry.team.tag && (
@@ -438,9 +635,9 @@ export function InvitedTeamsPanel({
                   )}
                 </div>
               ) : (
-                <div className="flex flex-col items-center gap-2 py-1">
-                  <div className="h-10 w-10 rounded-full border-2 border-dashed border-border/30" />
-                  <p className="text-[11px] italic text-muted/40">Vaga aberta</p>
+                <div className="flex flex-col items-center gap-1.5 sm:gap-2 py-1">
+                  <div className="h-8 w-8 sm:h-10 sm:w-10 rounded-full border-2 border-dashed border-border/30" />
+                  <p className="text-[10px] sm:text-[11px] italic text-muted/40">Vaga aberta</p>
                 </div>
               )}
             </div>

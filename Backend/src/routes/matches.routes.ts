@@ -620,6 +620,48 @@ matchesRouter.post(
             `[Swiss] ${match.id}: ${winnerTeamId} VENCEU (${newWins}-${winner.losses}) | ` +
             `${loserId} PERDEU (${loser.wins}-${newLosses})`
           );
+
+          // ATUALIZAÇÃO AUTOMÁTICA: Recalcular posições de todos os classificados
+          // Busca todos que atingiram 3+ vitórias e atualiza suas posições finais
+          const allClassified = await tx.swissCampaign.findMany({
+            where: {
+              tournamentId: match.tournamentId,
+              wins: { gte: 3 },
+            },
+            include: {
+              team: { select: { id: true, name: true } },
+            },
+          });
+
+          // Ordenar por critérios oficiais: wins (desc), roundDiff (desc), losses (asc)
+          const sortedClassified = allClassified.sort((a, b) => {
+            if (b.wins !== a.wins) return b.wins - a.wins;
+            if (b.roundDiff !== a.roundDiff) return b.roundDiff - a.roundDiff;
+            if (a.losses !== b.losses) return a.losses - b.losses;
+            return a.teamId.localeCompare(b.teamId);
+          });
+
+          // Atualizar finalPosition para cada classificado
+          for (let i = 0; i < sortedClassified.length; i++) {
+            const campaign = sortedClassified[i]!;
+            const position = i + 1;
+            await tx.swissCampaign.update({
+              where: { id: campaign.id },
+              data: {
+                finalPosition: position,
+                isEliminated: false,
+              },
+            });
+          }
+
+          if (sortedClassified.length > 0) {
+            console.log(
+              `[Swiss] Posições atualizadas: ${sortedClassified.length} classificados`,
+              sortedClassified.slice(0, 3).map((c, i) => 
+                `${i + 1}º ${c.team.name} (${c.wins}-${c.losses})`
+              )
+            );
+          }
         }
 
         return updated;
