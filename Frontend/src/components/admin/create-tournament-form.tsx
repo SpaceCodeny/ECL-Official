@@ -174,14 +174,6 @@ export function CreateTournamentForm({ onSuccess, onCancel }: Props) {
     if (preset.config.bracket) {
       setValue("format", preset.config.bracket.format === "SINGLE_ELIMINATION" ? "SINGLE_ELIMINATION" : "DOUBLE_ELIMINATION");
     }
-
-    // Preencher pontuação do preset se disponível
-    if (preset.config.scoring) {
-      setValue("swissWin",   preset.config.scoring.swissWin   ?? 30);
-      setValue("swissLoss",  preset.config.scoring.swissLoss  ?? 0);
-      setValue("playoffWin", preset.config.scoring.playoffWin ?? 50);
-      setValue("playoffLoss",preset.config.scoring.playoffLoss ?? 0);
-    }
   };
 
   const mutation = useMutation({

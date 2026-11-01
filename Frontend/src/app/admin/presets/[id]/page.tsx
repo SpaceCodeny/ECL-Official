@@ -102,7 +102,7 @@ export default function PresetDetailPage({ params }: { params: Promise<{ id: str
             <p className="text-3xl font-bold">
               {preset.config.bracket.teamsCount} times
             </p>
-            {preset.config.bracket.invitedTeams > 0 && (
+            {preset.config.bracket.invitedTeams && preset.config.bracket.invitedTeams > 0 && (
               <p className="text-sm text-gray-400 mt-1">
                 {preset.config.bracket.invitedTeams} convidadas
               </p>

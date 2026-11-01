@@ -5,13 +5,47 @@ import { useRouter } from "next/navigation";
 import { ArrowLeft, Save, Plus, Trash2 } from "lucide-react";
 import { usePresetActions } from "@/hooks/use-presets";
 import { useAuthStore } from "@/stores/auth.store";
+import type { PresetPhase, PresetPhaseType } from "@/types/preset";
 
 export default function CreatePresetPage() {
   const router = useRouter();
   const { token } = useAuthStore();
   const { createPreset, loading } = usePresetActions(token);
 
-  const [formData, setFormData] = useState({
+  const [formData, setFormData] = useState<{
+    name: string;
+    slug: string;
+    description: string;
+    version: string;
+    isActive: boolean;
+    config: {
+      version: string;
+      totalTeams: number;
+      swiss: {
+        teamsCount: number;
+        roundsCount: number;
+        classifiedCount: number;
+        allowTiebreakers: boolean;
+        tiebreakCriteria: string[];
+      };
+      bracket: {
+        teamsCount: number;
+        format: "SINGLE_ELIMINATION" | "DOUBLE_ELIMINATION";
+        invitedTeams: number;
+        specialRules: {
+          perfect3_0_vs_invited: {
+            enabled: boolean;
+            invitedSlot: number;
+          };
+        };
+      };
+      phases: PresetPhase[];
+      classification: {
+        type: "ROUNDS_THEN_RANKING" | "ELIMINATION";
+        criteria: string[];
+      };
+    };
+  }>({
     name: "",
     slug: "",
     description: "",
@@ -29,7 +63,7 @@ export default function CreatePresetPage() {
       },
       bracket: {
         teamsCount: 16,
-        format: "SINGLE_ELIMINATION",
+        format: "SINGLE_ELIMINATION" as const,
         invitedTeams: 4,
         specialRules: {
           perfect3_0_vs_invited: {
@@ -41,50 +75,50 @@ export default function CreatePresetPage() {
       phases: [
         {
           name: "Fase Suíça",
-          type: "SWISS",
+          type: "SWISS" as PresetPhaseType,
           order: 1,
-          defaultSeriesFormat: "BO1",
+          defaultSeriesFormat: "BO1" as const,
           teamsCount: 20,
           roundsCount: 5,
           advancingTeams: 12,
         },
         {
           name: "Oitavas de Final",
-          type: "BRACKET",
+          type: "BRACKET" as PresetPhaseType,
           order: 2,
-          defaultSeriesFormat: "BO3",
+          defaultSeriesFormat: "BO3" as const,
           teamsCount: 16,
         },
         {
           name: "Quartas de Final",
-          type: "BRACKET",
+          type: "BRACKET" as PresetPhaseType,
           order: 3,
-          defaultSeriesFormat: "BO3",
+          defaultSeriesFormat: "BO3" as const,
           teamsCount: 8,
         },
         {
           name: "Semifinais",
-          type: "BRACKET",
+          type: "BRACKET" as PresetPhaseType,
           order: 4,
-          defaultSeriesFormat: "BO3",
+          defaultSeriesFormat: "BO3" as const,
           teamsCount: 4,
         },
         {
           name: "Grande Final",
-          type: "BRACKET",
+          type: "BRACKET" as PresetPhaseType,
           order: 5,
-          defaultSeriesFormat: "BO5",
+          defaultSeriesFormat: "BO5" as const,
           teamsCount: 2,
         },
       ],
       classification: {
-        type: "ROUNDS_THEN_RANKING",
+        type: "ROUNDS_THEN_RANKING" as const,
         criteria: ["wins", "roundDiff", "headToHead", "opponentsStrength"],
       },
     },
   });
 
-  const [phases, setPhases] = useState(formData.config.phases);
+  const [phases, setPhases] = useState<PresetPhase[]>(formData.config.phases);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -115,9 +149,9 @@ export default function CreatePresetPage() {
       ...phases,
       {
         name: `Fase ${phases.length + 1}`,
-        type: "BRACKET",
+        type: "BRACKET" as PresetPhaseType,
         order: phases.length + 1,
-        defaultSeriesFormat: "BO1",
+        defaultSeriesFormat: "BO1" as const,
         teamsCount: 8,
       },
     ]);
@@ -127,9 +161,9 @@ export default function CreatePresetPage() {
     setPhases(phases.filter((_, i) => i !== index));
   };
 
-  const updatePhase = (index: number, field: string, value: any) => {
+  const updatePhase = (index: number, field: keyof PresetPhase, value: any) => {
     const updated = [...phases];
-    updated[index] = { ...updated[index], [field]: value };
+    updated[index] = { ...updated[index], [field]: value } as PresetPhase;
     setPhases(updated);
   };
 
@@ -393,7 +427,10 @@ export default function CreatePresetPage() {
                     ...formData,
                     config: {
                       ...formData.config,
-                      bracket: { ...formData.config.bracket, format: e.target.value },
+                      bracket: { 
+                        ...formData.config.bracket, 
+                        format: e.target.value as typeof formData.config.bracket.format
+                      },
                     },
                   })}
                   className="w-full bg-gray-900 border border-gray-700 rounded-lg px-4 py-2 focus:outline-none focus:border-[#FF6B00]"
