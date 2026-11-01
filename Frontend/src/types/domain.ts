@@ -19,6 +19,7 @@ export interface RankingEntry {
   losses: number;
   matchesPlayed: number;
   titles: number;
+  lastPointsDelta?: number;
 }
 
 export type AnnouncementType =

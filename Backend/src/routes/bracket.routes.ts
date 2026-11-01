@@ -618,6 +618,13 @@ bracketRouter.patch(
         data: { status: "COMPLETED", winnerTeamId: winnerId, scoreA, scoreB },
       });
 
+      // Aplicar pontos de ranking
+      const { applyPlayoffMatchPoints, recalculateRankingPositions } = await import("../services/ranking-points.service");
+      const loserId = winnerId === match.teamAId ? match.teamBId : match.teamAId;
+      await applyPlayoffMatchPoints(tournamentId, winnerId, loserId, match.bracketPosition!);
+      const tournament = await prisma.tournament.findUnique({ where: { id: tournamentId }, select: { season: true } });
+      await recalculateRankingPositions(tournament?.season ?? new Date().getFullYear().toString());
+
       // Calcular próxima posição
       const pos = match.bracketPosition;
       let nextPos: string | null = null;

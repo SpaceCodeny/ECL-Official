@@ -30,6 +30,13 @@ const CreateTournamentSchema = z.object({
   mpPreferenceId: z.string().max(100).optional(),
   // Preset (opcional) — quando informado, copia presetConfig automaticamente
   presetId: z.string().uuid().optional(),
+  // Pontuação por partida — sobrescreve/complementa presetConfig.scoring
+  scoring: z.object({
+    swissWin:   z.number().int().min(0).default(30),
+    swissLoss:  z.number().int().min(-100).default(0),
+    playoffWin: z.number().int().min(0).default(50),
+    playoffLoss:z.number().int().min(-100).default(0),
+  }).optional(),
 });
 
 const UpdateTournamentSchema = CreateTournamentSchema.partial();
@@ -188,7 +195,15 @@ tournamentsRouter.post(
         presetConfig = preset.config as object;
       }
 
-      const { presetId, ...rest } = data;
+      // Mesclar scoring no presetConfig (sobrescreve ou adiciona)
+      if (data.scoring) {
+        presetConfig = {
+          ...(presetConfig ?? {}),
+          scoring: data.scoring,
+        };
+      }
+
+      const { presetId, scoring, ...rest } = data;
 
       const tournament = await prisma.tournament.create({
         data: {

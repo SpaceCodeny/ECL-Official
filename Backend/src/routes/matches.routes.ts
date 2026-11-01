@@ -674,6 +674,16 @@ matchesRouter.post(
 
       // APÓS A TRANSAÇÃO: automações pós-resultado Swiss
       if (match.swissRoundId) {
+        // 0. Aplicar pontos de ranking
+        const { applySwissMatchPoints, recalculateRankingPositions } = await import("../services/ranking-points.service");
+        const loserId = winnerTeamId === match.teamAId ? match.teamBId : match.teamAId;
+        await applySwissMatchPoints(match.tournamentId, winnerTeamId, loserId);
+        const { season: s } = await prisma.tournament.findUnique({
+          where: { id: match.tournamentId },
+          select: { season: true },
+        }) ?? { season: new Date().getFullYear().toString() };
+        await recalculateRankingPositions(s ?? new Date().getFullYear().toString());
+
         // 1. Verificar se podemos gerar partidas de playoff (12 classificados + 4 convidados)
         const { autoGeneratePlayoffMatches } = await import("../services/swiss-classification.service");
         const generated = await autoGeneratePlayoffMatches(match.tournamentId);

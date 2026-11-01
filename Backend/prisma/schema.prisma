@@ -620,16 +620,18 @@ model Standing {
 // ─────────────────────────────────────────────
 
 model RankingSnapshot {
-  id             String   @id @default(uuid())
-  teamId         String
-  season         String
-  position       Int
+  id               String   @id @default(uuid())
+  teamId           String
+  season           String
+  position         Int
   previousPosition Int?
-  points         Int
-  wins           Int
-  losses         Int
-  titles         Int
-  snapshotAt     DateTime @default(now())
+  points           Int
+  wins             Int
+  losses           Int
+  titles           Int
+  /// Variação de pontos na última atualização (+30, -0, etc.)
+  lastPointsDelta  Int      @default(0)
+  snapshotAt       DateTime @default(now())
 
   team Team @relation(fields: [teamId], references: [id])
 

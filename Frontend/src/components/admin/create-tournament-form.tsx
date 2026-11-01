@@ -4,7 +4,7 @@ import { useForm, useWatch } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { CreditCard, Info, Target } from "lucide-react";
+import { CreditCard, Info, Target, Trophy } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { api } from "@/lib/api-client";
@@ -30,6 +30,11 @@ const schema = z.object({
   mpPreferenceId: z.string().optional(),
   // Preset
   presetId: z.string().optional(),
+  // Pontuação por partida (ranking)
+  swissWin: z.coerce.number().int().min(0).default(30),
+  swissLoss: z.coerce.number().int().min(-100).default(0),
+  playoffWin: z.coerce.number().int().min(0).default(50),
+  playoffLoss: z.coerce.number().int().min(-100).default(0),
 });
 
 type FormData = z.infer<typeof schema>;
@@ -134,9 +139,13 @@ export function CreateTournamentForm({ onSuccess, onCancel }: Props) {
       format: "GROUP_STAGE_PLAYOFFS",
       seriesFormat: "BO3",
       maxTeams: 16,
-      autoApprove: false,       // aprovação manual por padrão
+      autoApprove: false,
       paymentRequired: false,
       presetId: undefined,
+      swissWin: 30,
+      swissLoss: 0,
+      playoffWin: 50,
+      playoffLoss: 0,
     },
   });
 
@@ -165,18 +174,28 @@ export function CreateTournamentForm({ onSuccess, onCancel }: Props) {
     if (preset.config.bracket) {
       setValue("format", preset.config.bracket.format === "SINGLE_ELIMINATION" ? "SINGLE_ELIMINATION" : "DOUBLE_ELIMINATION");
     }
+
+    // Preencher pontuação do preset se disponível
+    if (preset.config.scoring) {
+      setValue("swissWin",   preset.config.scoring.swissWin   ?? 30);
+      setValue("swissLoss",  preset.config.scoring.swissLoss  ?? 0);
+      setValue("playoffWin", preset.config.scoring.playoffWin ?? 50);
+      setValue("playoffLoss",preset.config.scoring.playoffLoss ?? 0);
+    }
   };
 
   const mutation = useMutation({
     mutationFn: (data: FormData) => {
+      const { swissWin, swissLoss, playoffWin, playoffLoss, ...rest } = data;
       const payload = {
-        ...data,
+        ...rest,
         startDate: data.startDate ? new Date(data.startDate + "T00:00:00").toISOString() : undefined,
         registrationDeadline: data.registrationDeadline ? new Date(data.registrationDeadline + "T23:59:59").toISOString() : undefined,
-        // Se pagamento obrigatório, força aprovação manual
         autoApprove: data.paymentRequired ? false : data.autoApprove,
         entryFeeAmount: data.paymentRequired ? (data.entryFeeAmount ?? 0) : undefined,
         mpPreferenceId: data.paymentRequired ? data.mpPreferenceId : undefined,
+        // Pontuação empacotada como objeto — será mesclada ao presetConfig no backend
+        scoring: { swissWin, swissLoss, playoffWin, playoffLoss },
       };
       return api.post("/tournaments", payload, true);
     },
@@ -315,6 +334,51 @@ export function CreateTournamentForm({ onSuccess, onCancel }: Props) {
             </div>
           </div>
         )}
+      </section>
+
+      <div className="h-px bg-gradient-to-r from-transparent via-border to-transparent" />
+
+      {/* Pontuação para o Ranking */}
+      <section className="space-y-4">
+        <div className="flex items-center gap-2">
+          <Trophy className="h-3.5 w-3.5 text-gold" />
+          <p className="text-[10px] font-bold uppercase tracking-widest text-muted">Pontuação para o Ranking</p>
+        </div>
+        <div className="rounded-xl border border-border/60 bg-ink/30 p-4 space-y-4">
+          <p className="text-xs text-muted">
+            Pontos atribuídos automaticamente ao ranking dos times após cada resultado.
+          </p>
+          <div className="grid grid-cols-2 gap-4">
+            <Input
+              {...register("swissWin")}
+              type="number"
+              label="Vitória — Fase Suíça"
+              placeholder="30"
+              error={errors.swissWin?.message}
+            />
+            <Input
+              {...register("swissLoss")}
+              type="number"
+              label="Derrota — Fase Suíça"
+              placeholder="0"
+              error={errors.swissLoss?.message}
+            />
+            <Input
+              {...register("playoffWin")}
+              type="number"
+              label="Vitória — Playoffs"
+              placeholder="50"
+              error={errors.playoffWin?.message}
+            />
+            <Input
+              {...register("playoffLoss")}
+              type="number"
+              label="Derrota — Playoffs"
+              placeholder="0"
+              error={errors.playoffLoss?.message}
+            />
+          </div>
+        </div>
       </section>
 
       <div className="h-px bg-gradient-to-r from-transparent via-border to-transparent" />

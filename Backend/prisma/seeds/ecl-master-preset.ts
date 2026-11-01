@@ -82,6 +82,13 @@ export async function seedECLMasterPreset() {
         perfect3_0_vs_invited: { enabled: true, invitedSlot: 1 },
       },
     },
+    // Pontuação por partida para o ranking
+    scoring: {
+      swissWin: 30,    // pontos por vitória na Fase Suíça
+      swissLoss: 0,    // pontos por derrota na Fase Suíça
+      playoffWin: 50,  // pontos por vitória nos Playoffs
+      playoffLoss: 0,  // pontos por derrota nos Playoffs
+    },
     totalTeams: 24,
   };
 

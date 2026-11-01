@@ -136,7 +136,19 @@ export function RankingsClient() {
                     <td className="hidden py-3 text-center lg:table-cell">
                       {e.titles > 0 ? <Badge variant="gold">{e.titles}</Badge> : <span className="text-muted/40">—</span>}
                     </td>
-                    <td className="py-3 pr-4 text-right font-display text-base font-bold tabular-nums text-gold">{e.points.toLocaleString("pt-BR")}</td>
+                    <td className="py-3 pr-4 text-right font-display text-base font-bold tabular-nums text-gold">
+                      <div className="flex flex-col items-end">
+                        <span>{e.points.toLocaleString("pt-BR")}</span>
+                        {e.lastPointsDelta !== undefined && e.lastPointsDelta !== 0 && (
+                          <span className={cn(
+                            "text-[10px] font-medium tabular-nums",
+                            e.lastPointsDelta > 0 ? "text-emerald-400" : "text-red-400"
+                          )}>
+                            {e.lastPointsDelta > 0 ? "+" : ""}{e.lastPointsDelta} pts
+                          </span>
+                        )}
+                      </div>
+                    </td>
                   </tr>
                 );
               })}

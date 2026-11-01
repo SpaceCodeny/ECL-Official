@@ -54,6 +54,7 @@ rankingsRouter.get(
         include: {
           team: { select: { id: true, name: true, slug: true, logoUrl: true, tag: true } },
         },
+        orderBy: { points: "desc" },
       });
 
       // Cria um Map para acesso rápido aos dados de ranking por teamId
