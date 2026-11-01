@@ -12,7 +12,7 @@
  */
 
 import { prisma } from "../database/prisma";
-import type { SeriesFormat } from "@prisma/client";
+import type { SeriesFormat, MatchStatus } from "@prisma/client";
 
 interface InvitedTeamData {
   teamId: string;
@@ -205,7 +205,7 @@ export async function createRoundOf16Matches(
           teamAId: match.teamAId,
           teamBId: match.teamBId,
           seriesFormat,
-          status: "SCHEDULED",
+          status: "SCHEDULED" as MatchStatus,
           bracketPosition: match.position,
         },
       });

@@ -9,6 +9,7 @@
  */
 
 import { prisma } from "../database/prisma";
+import { MatchStatus, SeriesFormat } from "@prisma/client";
 
 export const CLASSIFICATION_THRESHOLD = 3; // Vitórias necessárias para classificar
 
@@ -253,8 +254,8 @@ export async function autoGeneratePlayoffMatches(tournamentId: string): Promise<
       bracketPosition: `RO16-${pos}`,
       teamAId,
       teamBId,
-      status: "SCHEDULED",
-      seriesFormat: "BO3",
+      status: MatchStatus.SCHEDULED,
+      seriesFormat: SeriesFormat.BO3,
       scheduledAt: null,
     });
   }

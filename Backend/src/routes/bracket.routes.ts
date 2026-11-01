@@ -4,7 +4,7 @@ import { prisma } from "../database/prisma";
 import { authenticate } from "../middlewares/auth";
 import { authorize } from "../middlewares/authorize";
 import type { Request, Response, NextFunction } from "express";
-import type { SeriesFormat } from "@prisma/client";
+import type { SeriesFormat, MatchStatus } from "@prisma/client";
 
 export const bracketRouter = Router();
 
@@ -218,8 +218,8 @@ async function buildPlayoffBracket(tournamentId: string): Promise<PlayoffBracket
       ro16.push({
         id: `virtual-${posKey}`,
         bracketPosition: posKey,
-        status: "SCHEDULED",
-        seriesFormat: "BO3",
+        status: "SCHEDULED" as MatchStatus,
+        seriesFormat: "BO3" as SeriesFormat,
         scoreA: null,
         scoreB: null,
         winnerTeamId: null,
@@ -276,8 +276,8 @@ async function buildPlayoffBracket(tournamentId: string): Promise<PlayoffBracket
       qf.push({
         id: `virtual-${posKey}`,
         bracketPosition: posKey,
-        status: "SCHEDULED",
-        seriesFormat: "BO3",
+        status: "SCHEDULED" as MatchStatus,
+        seriesFormat: "BO3" as SeriesFormat,
         scoreA: null,
         scoreB: null,
         winnerTeamId: null,
@@ -333,8 +333,8 @@ async function buildPlayoffBracket(tournamentId: string): Promise<PlayoffBracket
       sf.push({
         id: `virtual-${posKey}`,
         bracketPosition: posKey,
-        status: "SCHEDULED",
-        seriesFormat: "BO3",
+        status: "SCHEDULED" as MatchStatus,
+        seriesFormat: "BO3" as SeriesFormat,
         scoreA: null,
         scoreB: null,
         winnerTeamId: null,
@@ -383,8 +383,8 @@ async function buildPlayoffBracket(tournamentId: string): Promise<PlayoffBracket
     finalMatches.push({
       id: "virtual-FINAL",
       bracketPosition: "FINAL",
-      status: "SCHEDULED",
-      seriesFormat: "BO5",
+      status: "SCHEDULED" as MatchStatus,
+      seriesFormat: "BO5" as SeriesFormat,
       scoreA: null,
       scoreB: null,
       winnerTeamId: null,
@@ -559,7 +559,7 @@ bracketRouter.post(
               teamAId: m.teamAId!,
               teamBId: m.teamBId!,
               seriesFormat: m.format,
-              status: "SCHEDULED",
+              status: "SCHEDULED" as MatchStatus,
               bracketPosition: m.pos,
             },
           })
@@ -697,7 +697,7 @@ bracketRouter.patch(
                 teamAId,
                 teamBId,
                 seriesFormat: nextFormat,
-                status: "SCHEDULED",
+                status: "SCHEDULED" as MatchStatus,
                 bracketPosition: nextPos,
               },
             });

@@ -755,7 +755,7 @@ matchesRouter.post(
                             teamAId: p.teamAId,
                             teamBId: p.teamBId,
                             seriesFormat: swissStage.seriesFormat,
-                            status: "SCHEDULED",
+                            status: MatchStatus.SCHEDULED,
                           },
                         })
                       )
