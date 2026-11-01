@@ -21,7 +21,10 @@ interface TeamListItem {
   _count: { memberships: number };
 }
 
-// Cores de accent por índice — rotaciona entre variações de dourado/azul
+interface TeamsResponse {
+  data: TeamListItem[];
+  pagination: { page: number; limit: number; total: number; pages: number };
+}
 const ACCENTS = [
   "from-gold/20 to-gold/5",
   "from-blue-500/15 to-blue-500/5",
@@ -45,13 +48,16 @@ export function TeamsListClient() {
   const { data, isLoading, isError, refetch } = useQuery({
     queryKey: ["teams", debounced],
     queryFn: () =>
-      api.get<{ data: TeamListItem[]; total: number }>("/teams", {
+      api.get<TeamsResponse>("/teams", {
         search: debounced || undefined,
-        pageSize: 40,
+        limit: 100,
       }),
   });
 
   const teams = data?.data ?? [];
+
+  // Calcular total para exibição
+  const totalTeams = data?.pagination?.total ?? teams.length;
 
   return (
     <div className="space-y-8">
@@ -69,7 +75,7 @@ export function TeamsListClient() {
         </div>
         {data && (
           <span className="text-sm text-muted whitespace-nowrap">
-            {data.total} equipe{data.total !== 1 ? "s" : ""}
+            {totalTeams} equipe{totalTeams !== 1 ? "s" : ""}
           </span>
         )}
       </div>
