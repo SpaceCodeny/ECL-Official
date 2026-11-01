@@ -143,7 +143,7 @@ export default function AboutPage() {
               <p>Quer saber mais sobre a ECL ou tem alguma dúvida? Entre em contato:</p>
               <ul className="ml-6 space-y-2">
                 <li>📧 <strong className="text-paper">E-mail:</strong> contato@ecl.gg</li>
-                <li>📱 <strong className="text-paper">Instagram:</strong> @elitechampionsleague</li>
+                <li>📱 <strong className="text-paper">Instagram:</strong> @ecl_standoff2</li>
                 <li>💬 <strong className="text-paper">Discord:</strong> [Em breve]</li>
               </ul>
             </div>

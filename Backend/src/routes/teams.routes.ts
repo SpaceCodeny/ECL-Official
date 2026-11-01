@@ -225,6 +225,23 @@ teamsRouter.get(
               },
             },
           },
+          // Inclui registros em campeonatos para exibir dados do líder/jogadores do fluxo público
+          registrationsA: {
+            where: {
+              status: { in: ["PENDING", "APPROVED"] },
+            },
+            orderBy: { submittedAt: "desc" },
+            take: 1,
+            select: {
+              id: true,
+              status: true,
+              notes: true,
+              submittedAt: true,
+              tournament: {
+                select: { id: true, name: true, slug: true },
+              },
+            },
+          },
         },
       });
 

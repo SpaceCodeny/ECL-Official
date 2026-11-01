@@ -27,7 +27,7 @@ export function RankingsClient() {
 
   const { data, isLoading, isError, refetch } = useQuery({
     queryKey: ["rankings", sortBy],
-    queryFn: () => getTeamRanking(50),
+    queryFn: () => getTeamRanking(200), // Busca até 200 times
   });
 
   let entries: RankingEntry[] = data ?? [];

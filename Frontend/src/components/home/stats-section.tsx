@@ -15,20 +15,20 @@ export function StatsSection() {
 
   return (
     <section className="border-t border-border bg-navy/30">
-      <div className="container-ecl py-16">
-        <div className="mb-8 flex items-center gap-3">
-          <h2 className="font-display text-2xl font-bold uppercase tracking-tight text-paper sm:text-3xl">
+      <div className="container-ecl py-12 sm:py-16">
+        <div className="mb-6 sm:mb-8 flex flex-col sm:flex-row items-start sm:items-center gap-2 sm:gap-3">
+          <h2 className="font-display text-xl sm:text-2xl md:text-3xl font-bold uppercase tracking-tight text-paper">
             A organização
           </h2>
           {isDemo ? <DemoBadge /> : null}
         </div>
 
         {isLoading ? (
-          <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
-            {Array.from({ length: 4 }).map((_, i) => <Skeleton key={i} className="h-32 rounded-lg" />)}
+          <div className="grid grid-cols-2 gap-3 sm:gap-4 lg:grid-cols-4">
+            {Array.from({ length: 4 }).map((_, i) => <Skeleton key={i} className="h-28 sm:h-32 rounded-lg" />)}
           </div>
         ) : (
-          <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
+          <div className="grid grid-cols-2 gap-3 sm:gap-4 lg:grid-cols-4">
             <StatCard
               icon={Trophy}
               value={stats.tournamentsHeld}

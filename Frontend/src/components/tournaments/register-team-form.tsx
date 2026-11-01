@@ -10,6 +10,7 @@ import { Avatar } from "@/components/ui/avatar";
 import { LoadingState } from "@/components/ui/loading-state";
 import { ErrorState } from "@/components/ui/error-state";
 import { EmptyState } from "@/components/ui/empty-state";
+import { PixPaymentModal } from "./pix-payment-modal";
 import { api } from "@/lib/api-client";
 import { cn } from "@/lib/utils";
 
@@ -26,13 +27,17 @@ interface Team {
 interface Props {
   tournamentId: string;
   tournamentSlug: string;
+  tournamentName: string;
+  paymentRequired?: boolean;
+  entryFeeAmount?: number;
 }
 
-export function RegisterTeamForm({ tournamentId, tournamentSlug }: Props) {
+export function RegisterTeamForm({ tournamentId, tournamentSlug, tournamentName, paymentRequired, entryFeeAmount }: Props) {
   const router = useRouter();
   const queryClient = useQueryClient();
   const [search, setSearch] = useState("");
   const [selectedTeamIds, setSelectedTeamIds] = useState<Set<string>>(new Set());
+  const [pixModal, setPixModal] = useState<{ registrationId: string; teamName: string } | null>(null);
 
   // Buscar times
   const { data, isLoading, isError, refetch } = useQuery({
@@ -49,15 +54,29 @@ export function RegisterTeamForm({ tournamentId, tournamentSlug }: Props) {
         )
       );
       
-      const successes = results.filter((r) => r.status === "fulfilled").length;
-      const failures = results.filter((r) => r.status === "rejected").length;
+      const successes = results.filter((r) => r.status === "fulfilled");
+      const failures = results.filter((r) => r.status === "rejected");
+
+      // Se houver pagamento e apenas 1 time inscrito com sucesso, abre o modal PIX
+      if (paymentRequired && successes.length === 1 && teamIds.length === 1) {
+        const result = successes[0] as PromiseFulfilledResult<any>;
+        const registration = result.value;
+        const selectedTeam = teams.find((t) => t.id === teamIds[0]);
+        
+        if (registration?.id && selectedTeam) {
+          setPixModal({
+            registrationId: registration.id,
+            teamName: selectedTeam.name,
+          });
+        }
+      }
       
-      return { successes, failures, results };
+      return { successes: successes.length, failures: failures.length, results };
     },
     onSuccess: (data) => {
       queryClient.invalidateQueries({ queryKey: ["tournament", tournamentSlug] });
       
-      if (data.failures === 0) {
+      if (data.failures === 0 && !paymentRequired) {
         router.push(`/tournaments/${tournamentSlug}`);
       }
     },
@@ -191,10 +210,12 @@ export function RegisterTeamForm({ tournamentId, tournamentSlug }: Props) {
       )}
 
       {/* Ações */}
-      <div className="flex items-center justify-between border-t border-border pt-6">
+      <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 border-t border-border pt-6">
         <Button
           type="button"
           variant="secondary"
+          size="lg"
+          className="w-full sm:w-auto"
           onClick={() => router.push(`/tournaments/${tournamentSlug}`)}
           disabled={registerMutation.isPending}
         >
@@ -203,12 +224,15 @@ export function RegisterTeamForm({ tournamentId, tournamentSlug }: Props) {
         <Button
           variant="primary"
           size="lg"
+          className="w-full sm:w-auto"
           disabled={selectedTeamIds.size === 0 || registerMutation.isPending}
           onClick={() => registerMutation.mutate(Array.from(selectedTeamIds))}
         >
           {registerMutation.isPending
             ? `Inscrevendo ${selectedTeamIds.size}...`
-            : `Inscrever ${selectedTeamIds.size} ${selectedTeamIds.size === 1 ? "equipe" : "equipes"}`}
+            : paymentRequired
+              ? `Pagar`
+              : `Inscrever ${selectedTeamIds.size} ${selectedTeamIds.size === 1 ? "equipe" : "equipes"}`}
         </Button>
       </div>
 
@@ -260,6 +284,21 @@ export function RegisterTeamForm({ tournamentId, tournamentSlug }: Props) {
               : "Erro ao inscrever equipes. Tente novamente."}
           </p>
         </div>
+      )}
+
+      {/* Modal de pagamento PIX */}
+      {pixModal && paymentRequired && entryFeeAmount && (
+        <PixPaymentModal
+          open={!!pixModal}
+          onClose={() => {
+            setPixModal(null);
+            router.push(`/tournaments/${tournamentSlug}`);
+          }}
+          registrationId={pixModal.registrationId}
+          tournamentName={tournamentName}
+          teamName={pixModal.teamName}
+          amountCents={entryFeeAmount}
+        />
       )}
     </div>
   );

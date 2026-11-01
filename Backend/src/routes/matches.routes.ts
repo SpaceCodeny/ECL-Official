@@ -500,10 +500,49 @@ matchesRouter.post(
   validate(MatchResultSchema),
   async (req: Request, res: Response, next: NextFunction) => {
     try {
-      const match = await prisma.match.findUnique({ where: { id: getParam(req.params, "id") } });
+      const match = await prisma.match.findUnique({
+        where: { id: getParam(req.params, "id") },
+        include: {
+          swissRound: true,
+        },
+      });
+      
       if (!match) throw AppError.notFound("Partida não encontrada");
       if (match.status === MatchStatus.COMPLETED) {
         throw AppError.badRequest("Partida já foi finalizada");
+      }
+
+      // Proteção Swiss: verificar se algum dos times já foi classificado/eliminado
+      // (não deveria acontecer, mas evita inconsistências em casos extremos)
+      if (match.swissRoundId) {
+        const [campA, campB] = await Promise.all([
+          prisma.swissCampaign.findUnique({
+            where: { tournamentId_teamId: { tournamentId: match.tournamentId, teamId: match.teamAId } },
+          }),
+          prisma.swissCampaign.findUnique({
+            where: { tournamentId_teamId: { tournamentId: match.tournamentId, teamId: match.teamBId } },
+          }),
+        ]);
+        if (campA && campA.wins >= 3) {
+          throw AppError.badRequest(
+            `Time já classificado não pode jogar partidas adicionais (${campA.wins} vitórias)`
+          );
+        }
+        if (campA && campA.losses >= 3) {
+          throw AppError.badRequest(
+            `Time já eliminado não pode jogar partidas adicionais (${campA.losses} derrotas)`
+          );
+        }
+        if (campB && campB.wins >= 3) {
+          throw AppError.badRequest(
+            `Time já classificado não pode jogar partidas adicionais (${campB.wins} vitórias)`
+          );
+        }
+        if (campB && campB.losses >= 3) {
+          throw AppError.badRequest(
+            `Time já eliminado não pode jogar partidas adicionais (${campB.losses} derrotas)`
+          );
+        }
       }
 
       const { scoreA, scoreB, winnerTeamId, maps } = req.body as z.infer<typeof MatchResultSchema>;
@@ -513,16 +552,73 @@ matchesRouter.post(
       }
 
       const updated = await prisma.$transaction(async (tx) => {
+        // Atualiza a partida
         const updated = await tx.match.update({
           where: { id: getParam(req.params, "id") },
           data: { scoreA, scoreB, winnerTeamId, status: MatchStatus.COMPLETED },
         });
 
+        // Se tem mapas, cria/atualiza
         if (maps && maps.length > 0) {
           await tx.matchMap.deleteMany({ where: { matchId: getParam(req.params, "id") } });
           await tx.matchMap.createMany({
             data: maps.map((m) => ({ ...m, matchId: getParam(req.params, "id")!, played: true })),
           });
+        }
+
+        // Se é partida da fase suíça, atualiza campanhas automaticamente
+        // Partida Swiss: atualiza campanhas dentro da mesma transação (regra: 3W=classif, 3L=elim)
+        if (match.swissRoundId) {
+          const loserId = winnerTeamId === match.teamAId ? match.teamBId : match.teamAId;
+          const diff = Math.abs((scoreA ?? 0) - (scoreB ?? 0));
+
+          // Vencedor
+          const winner = await tx.swissCampaign.findUnique({
+            where: { tournamentId_teamId: { tournamentId: match.tournamentId, teamId: winnerTeamId } },
+          });
+          if (!winner) throw new Error(`Campanha do vencedor ${winnerTeamId} não encontrada`);
+
+          const newWins = winner.wins + 1;
+          await tx.swissCampaign.update({
+            where: { tournamentId_teamId: { tournamentId: match.tournamentId, teamId: winnerTeamId } },
+            data: {
+              wins: newWins,
+              roundsPlayed: winner.roundsPlayed + 1,
+              roundDiff: winner.roundDiff + diff,
+              opponentsIds: { push: loserId },
+            },
+          });
+
+          if (newWins >= 3) {
+            console.log(`[Swiss] ${winnerTeamId} CLASSIFICADO: ${newWins}-${winner.losses}`);
+          }
+
+          // Perdedor
+          const loser = await tx.swissCampaign.findUnique({
+            where: { tournamentId_teamId: { tournamentId: match.tournamentId, teamId: loserId } },
+          });
+          if (!loser) throw new Error(`Campanha do perdedor ${loserId} não encontrada`);
+
+          const newLosses = loser.losses + 1;
+          await tx.swissCampaign.update({
+            where: { tournamentId_teamId: { tournamentId: match.tournamentId, teamId: loserId } },
+            data: {
+              losses: newLosses,
+              roundsPlayed: loser.roundsPlayed + 1,
+              roundDiff: loser.roundDiff - diff,
+              opponentsIds: { push: winnerTeamId },
+              isEliminated: newLosses >= 3,
+            },
+          });
+
+          if (newLosses >= 3) {
+            console.log(`[Swiss] ${loserId} ELIMINADO: ${loser.wins}-${newLosses}`);
+          }
+
+          console.log(
+            `[Swiss] ${match.id}: ${winnerTeamId} VENCEU (${newWins}-${winner.losses}) | ` +
+            `${loserId} PERDEU (${loser.wins}-${newLosses})`
+          );
         }
 
         return updated;
@@ -579,17 +675,26 @@ matchesRouter.post(
         seriesFormat: match.seriesFormat,
       };
 
-      const response = await fetch(`${PICKS_BANS_API}/api/sessions/from-match`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          "x-ecl-secret": WEBHOOK_SECRET,
-        },
-        body: JSON.stringify(payload),
-      });
+      let response;
+      try {
+        response = await fetch(`${PICKS_BANS_API}/api/sessions/from-match`, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            "x-ecl-secret": WEBHOOK_SECRET,
+          },
+          body: JSON.stringify(payload),
+        });
+      } catch (fetchError) {
+        console.error("Erro ao conectar no serviço Picks & Bans:", fetchError);
+        throw AppError.serviceUnavailable(
+          `Serviço de Picks & Bans indisponível. Verifique se está rodando em ${PICKS_BANS_API}`
+        );
+      }
 
       if (!response.ok) {
         const err = await response.text();
+        console.error("Erro na resposta do Picks & Bans:", err);
         throw AppError.badRequest(`Erro ao criar sessão de picks & bans: ${err}`);
       }
 

@@ -20,22 +20,20 @@ export function UpcomingMatchesSection() {
 
   return (
     <section className="border-t border-border">
-      <div className="container-ecl py-16">
-        <div className="mb-6 flex items-end justify-between">
-          <div className="flex items-end gap-4">
-            <SectionHeader
-              title="Próximas Partidas"
-              description="Ao vivo e agendadas"
-              href="/matches"
-            />
-            {useDemo ? <DemoBadge /> : null}
-          </div>
+      <div className="container-ecl py-12 sm:py-16">
+        <div className="mb-4 sm:mb-6 flex flex-col sm:flex-row items-start sm:items-end gap-2 sm:gap-4">
+          <SectionHeader
+            title="Próximas Partidas"
+            description="Ao vivo e agendadas"
+            href="/matches"
+          />
+          {useDemo ? <DemoBadge /> : null}
         </div>
 
         {isLoading ? (
-          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
+          <div className="grid grid-cols-1 gap-3 sm:gap-4 sm:grid-cols-2 lg:grid-cols-3">
             {Array.from({ length: 3 }).map((_, i) => (
-              <Skeleton key={i} className="h-40 w-full rounded-lg" />
+              <Skeleton key={i} className="h-36 sm:h-40 w-full rounded-lg" />
             ))}
           </div>
         ) : isError ? (
@@ -47,7 +45,7 @@ export function UpcomingMatchesSection() {
             description="As próximas partidas aparecerão aqui quando forem criadas."
           />
         ) : (
-          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
+          <div className="grid grid-cols-1 gap-3 sm:gap-4 sm:grid-cols-2 lg:grid-cols-3">
             {matches.map((m) => (
               <MatchCard key={m.id} match={m} />
             ))}

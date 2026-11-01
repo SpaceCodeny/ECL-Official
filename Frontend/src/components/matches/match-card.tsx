@@ -10,12 +10,12 @@ import type { Match, MatchTeam } from "@/types/match";
 function TeamRow({ team, alignRight, highlight }: { team: MatchTeam; alignRight?: boolean; highlight?: boolean }) {
   return (
     <div className={cn("flex flex-1 items-center gap-2 min-w-0 sm:gap-3", alignRight && "flex-row-reverse text-right")}>
-      <Avatar name={team.name} src={team.logoUrl} size="sm" className="shrink-0 sm:h-10 sm:w-10" />
+      <Avatar name={team.name} src={team.logoUrl} size="sm" className="shrink-0 h-8 w-8 sm:h-10 sm:w-10" />
       <div className={cn("min-w-0 flex-1", alignRight && "items-end")}>
-        <p className={cn("truncate font-display text-xs font-semibold uppercase tracking-tight sm:text-sm", highlight ? "text-gold" : "text-paper")}>
+        <p className={cn("truncate font-display text-sm font-semibold uppercase tracking-tight sm:text-sm", highlight ? "text-gold" : "text-paper")}>
           {team.name}
         </p>
-        {team.tag ? <p className="text-[10px] text-muted sm:text-xs">{team.tag}</p> : null}
+        {team.tag ? <p className="text-xs text-muted sm:text-xs">{team.tag}</p> : null}
       </div>
     </div>
   );
@@ -48,9 +48,9 @@ export function MatchCard({ match, isLive = false }: { match: Match; isLive?: bo
           : "group-hover:border-gold/40"
       )}>
         <div className="flex items-center justify-between border-b border-border bg-ink/40 px-3 py-2 sm:px-4 sm:py-2.5">
-          <span className="truncate text-[10px] uppercase tracking-widest text-muted sm:text-xs">{tournamentName}</span>
+          <span className="truncate text-xs uppercase tracking-widest text-muted sm:text-xs">{tournamentName}</span>
           {isLive ? (
-            <span className="flex items-center gap-1.5 rounded bg-red-600 px-2 py-1 text-[10px] font-bold uppercase tracking-wide text-white">
+            <span className="flex items-center gap-1.5 rounded bg-red-600 px-2 py-1 text-xs font-bold uppercase tracking-wide text-white">
               <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-white" />
               AO VIVO
             </span>
@@ -70,15 +70,15 @@ export function MatchCard({ match, isLive = false }: { match: Match; isLive?: bo
             ) : (
               <span className="font-display text-xs uppercase tracking-widest text-muted">VS</span>
             )}
-            <span className="rounded bg-surface px-1.5 py-0.5 text-[10px] font-medium uppercase text-muted">
+            <span className="rounded bg-surface px-1.5 py-0.5 text-xs font-medium uppercase text-muted">
               {seriesFormatLabel[match.seriesFormat]}
             </span>
           </div>
           <TeamRow team={match.teamB} alignRight highlight={winnerB} />
         </div>
-        <div className="flex flex-col gap-1 border-t border-border px-3 py-2 text-[10px] text-muted sm:px-4 sm:py-2.5 sm:text-xs">
+        <div className="flex flex-col gap-1 border-t border-border px-3 py-2 text-xs text-muted sm:px-4 sm:py-2.5 sm:text-xs">
           <span className="flex items-center gap-1.5 sm:gap-2">
-            <CalendarDays className="h-3 w-3 text-gold/70 sm:h-3.5 sm:w-3.5" aria-hidden />
+            <CalendarDays className="h-3.5 w-3.5 text-gold/70 sm:h-3.5 sm:w-3.5" aria-hidden />
             <span className="truncate">{match.scheduledAt ? formatDateTime(match.scheduledAt) : "Horário a definir"}</span>
           </span>
           <div className="flex items-center justify-between gap-2">

@@ -32,8 +32,8 @@ const FOOTER_LINKS: { title: string; links: { href: string; label: string }[] }[
 export function Footer() {
   return (
     <footer className="border-t border-border bg-ink">
-      <div className="container-ecl grid grid-cols-2 gap-8 py-12 sm:grid-cols-3 lg:grid-cols-5">
-        <div className="col-span-2 space-y-3 lg:col-span-2">
+      <div className="container-ecl grid grid-cols-1 gap-6 sm:grid-cols-2 py-8 sm:py-12 md:grid-cols-3 lg:grid-cols-5 lg:gap-8">
+        <div className="col-span-1 sm:col-span-2 md:col-span-3 lg:col-span-2 space-y-3">
           <Logo size="md" />
           <p className="max-w-xs text-sm text-muted">
             A plataforma oficial de torneios competitivos de Standoff 2. The Road to Glory.
@@ -57,7 +57,7 @@ export function Footer() {
         ))}
       </div>
       <div className="border-t border-border">
-        <div className="container-ecl flex flex-col items-center justify-between gap-2 py-5 text-xs text-muted/70 sm:flex-row">
+        <div className="container-ecl flex flex-col items-center justify-between gap-2 py-4 sm:py-5 text-xs text-muted/70 sm:flex-row">
           <p>© {new Date().getFullYear()} Elite Champions League. Todos os direitos reservados.</p>
           <p className="uppercase tracking-widest">The Road to Glory</p>
         </div>

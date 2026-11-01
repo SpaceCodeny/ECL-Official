@@ -23,6 +23,11 @@ const CreateTournamentSchema = z.object({
   autoApprove: z.boolean().default(false),
   prizePool: z.string().max(100).optional(),
   rules: z.string().max(5000).optional(),
+  // Pagamento
+  paymentRequired: z.boolean().default(false),
+  entryFeeAmount: z.number().int().min(0).optional(),
+  entryFeeCurrency: z.string().length(3).default("BRL").optional(),
+  mpPreferenceId: z.string().max(100).optional(),
 });
 
 const UpdateTournamentSchema = CreateTournamentSchema.partial();
@@ -538,12 +543,19 @@ tournamentsRouter.post(
 // Retorna as fases do torneio com suas partidas para montar o chaveamento.
 // Fases de grupo (type=GROUP) incluem standings; fases eliminatórias incluem
 // o bracket tradicional de mata-mata.
+// NOTA: Exclui partidas da fase SWISS (mostradas separadamente)
 tournamentsRouter.get(
   "/:id/bracket",
   async (req: Request, res: Response, next: NextFunction) => {
     try {
+      const tournamentId = getParam(req.params, "id");
+
+      // Busca stages excluindo SWISS
       const stages = await prisma.tournamentStage.findMany({
-        where: { tournamentId: getParam(req.params, "id") },
+        where: {
+          tournamentId,
+          type: { not: "SWISS" }, // Exclui fase suíça
+        },
         orderBy: { order: "asc" },
         include: {
           groups: {
@@ -569,7 +581,25 @@ tournamentsRouter.get(
         },
       });
 
-      res.json(stages);
+      // Busca times convidados para adicionar ao bracket
+      const invitedTeams = await prisma.invitedTeam.findMany({
+        where: { tournamentId },
+        include: {
+          team: {
+            select: { id: true, name: true, slug: true, logoUrl: true, tag: true },
+          },
+        },
+        orderBy: { bracketSlot: "asc" },
+      });
+
+      res.json({
+        stages,
+        invitedTeams: invitedTeams.map((inv) => ({
+          ...inv.team,
+          bracketSlot: inv.bracketSlot,
+          isInvited: true,
+        })),
+      });
     } catch (error) {
       next(error);
     }

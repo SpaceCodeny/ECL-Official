@@ -25,10 +25,17 @@ export function useUpcomingMatches(limit = 6) {
 }
 
 export function useHomeTournaments() {
-  return useQuery({ queryKey: homeKeys.tournaments, queryFn: () => getTournaments({ limit: 8 }) });
+  return useQuery({
+    queryKey: homeKeys.tournaments,
+    queryFn: () =>
+      getTournaments({
+        limit: 8,
+        status: "PUBLISHED,REGISTRATION_OPEN,REGISTRATION_CLOSED,IN_PROGRESS,COMPLETED",
+      }),
+  });
 }
 
-export function useTeamRanking(limit = 5) {
+export function useTeamRanking(limit?: number) {
   return useQuery({ queryKey: homeKeys.ranking, queryFn: () => getTeamRanking(limit) });
 }
 

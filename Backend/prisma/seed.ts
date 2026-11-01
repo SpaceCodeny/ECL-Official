@@ -17,6 +17,7 @@ import {
   AnnouncementType,
 } from "@prisma/client";
 import * as argon2 from "argon2";
+import { seedECLMasterPreset } from "./seeds/ecl-master-preset";
 
 const prisma = new PrismaClient();
 
@@ -270,6 +271,10 @@ async function seedAnnouncements(organizerId: string) {
 
 async function main() {
   console.log("[seed] Iniciando seed da Elite Champions League...");
+  
+  // Seed do preset ECL MASTER EDITION
+  await seedECLMasterPreset();
+  
   const admin = await seedAdmin();
   const players = await seedDemoPlayers();
   const teamIds = await seedDemoTeams(players);

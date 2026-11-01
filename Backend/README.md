@@ -211,6 +211,25 @@ npm run test:cov
 npm run test:watch
 ```
 
+## 🛠️ Scripts úteis
+
+```bash
+# Inicializar o ranking vazio
+npx tsx scripts/init-ranking.ts
+
+# Resetar todo o ranking
+npx tsx scripts/reset-ranking.ts
+
+# Adicionar retroativamente times já inscritos ao ranking
+npx tsx scripts/backfill-ranking-entries.ts
+
+# Aprovar todas as inscrições pendentes (desenvolvimento)
+npx tsx scripts/approve-pending-registrations.ts
+
+# Testar integração Mercado Pago
+npx tsx scripts/test-mercadopago.ts
+```
+
 ## 📄 Licença
 
 Privado - Elite Champions League © 2024

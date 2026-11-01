@@ -20,8 +20,8 @@ export function TournamentsSection() {
 
   return (
     <section className="border-t border-border">
-      <div className="container-ecl py-16">
-        <div className="mb-6 flex items-end gap-4">
+      <div className="container-ecl py-12 sm:py-16">
+        <div className="mb-4 sm:mb-6 flex flex-col sm:flex-row items-start sm:items-end gap-2 sm:gap-4">
           <SectionHeader
             title="Campeonatos"
             description="Abertos, em andamento e encerrados"
@@ -31,9 +31,9 @@ export function TournamentsSection() {
         </div>
 
         {isLoading ? (
-          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
+          <div className="grid grid-cols-1 gap-3 sm:gap-4 sm:grid-cols-2 lg:grid-cols-4">
             {Array.from({ length: 4 }).map((_, i) => (
-              <Skeleton key={i} className="h-56 w-full rounded-lg" />
+              <Skeleton key={i} className="h-52 sm:h-56 w-full rounded-lg" />
             ))}
           </div>
         ) : isError ? (
@@ -45,7 +45,7 @@ export function TournamentsSection() {
             description="Os campeonatos criados aparecem aqui."
           />
         ) : (
-          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
+          <div className="grid grid-cols-1 gap-3 sm:gap-4 sm:grid-cols-2 lg:grid-cols-4">
             {tournaments.map((t) => (
               <TournamentCard key={t.id} tournament={t} />
             ))}

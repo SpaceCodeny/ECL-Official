@@ -22,6 +22,7 @@ interface AuthState {
   user: AuthUser | null;
   status: AuthStatus;
   error: string | null;
+  token: string | null; // Adicionado
 
   login: (dto: LoginRequest) => Promise<void>;
   register: (dto: RegisterRequest) => Promise<{ message: string }>;
@@ -70,23 +71,24 @@ export const useAuthStore = create<AuthState>((set, get) => ({
   user: null,
   status: "idle",
   error: null,
+  token: null, // Adicionado
 
   hydrate: () => {
     const token = getAccessToken();
     if (!token) {
-      set({ status: "unauthenticated" });
+      set({ status: "unauthenticated", token: null });
       return;
     }
     // Token presente — tenta validar via /auth/me.
-    set({ status: "loading" });
+    set({ status: "loading", token });
     // Garante que o cookie de sessão existe (caso tenha sido perdido num reload).
     document.cookie = `${SESSION_COOKIE}=1; path=/; SameSite=Lax`;
     authService
       .me(token)
-      .then((user) => set({ user, status: "authenticated" }))
+      .then((user) => set({ user, status: "authenticated", token }))
       .catch(() => {
         clearTokens();
-        set({ user: null, status: "unauthenticated" });
+        set({ user: null, status: "unauthenticated", token: null });
       });
   },
 
@@ -95,10 +97,10 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     try {
       const res = await authService.login(dto);
       saveTokens(res.accessToken, res.refreshToken);
-      set({ user: res.user, status: "authenticated", error: null });
+      set({ user: res.user, status: "authenticated", error: null, token: res.accessToken });
     } catch (e) {
       const msg = e instanceof Error ? e.message : "Erro ao fazer login";
-      set({ status: "unauthenticated", error: msg });
+      set({ status: "unauthenticated", error: msg, token: null });
       throw e;
     }
   },
@@ -122,7 +124,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       try { await authService.logout(refreshToken); } catch { /* silencioso */ }
     }
     clearTokens();
-    set({ user: null, status: "unauthenticated", error: null });
+    set({ user: null, status: "unauthenticated", error: null, token: null });
   },
 
   clearError: () => set({ error: null }),

@@ -4,7 +4,7 @@ import { useQuery } from "@tanstack/react-query";
 import Link from "next/link";
 import {
   ArrowLeft, Users, Crown, User as UserIcon,
-  Calendar, Shield, Swords,
+  Calendar, Shield, Swords, Phone, TrendingUp,
 } from "lucide-react";
 import { Avatar } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
@@ -13,6 +13,8 @@ import { ErrorState } from "@/components/ui/error-state";
 import { EmptyState } from "@/components/ui/empty-state";
 import { api } from "@/lib/api-client";
 import { formatDate, cn } from "@/lib/utils";
+import { useAuthStore } from "@/stores/auth.store";
+import type { RankingEntry } from "@/types/domain";
 
 // ─── Interfaces ───────────────────────────────────────────────────────────────
 
@@ -31,6 +33,18 @@ interface TeamMember {
   };
 }
 
+interface RegistrationInfo {
+  id: string;
+  status: string;
+  notes: string | null;
+  submittedAt: string;
+  tournament: {
+    id: string;
+    name: string;
+    slug: string;
+  };
+}
+
 interface TeamDetail {
   id: string;
   slug: string;
@@ -41,6 +55,7 @@ interface TeamDetail {
   createdAt: string;
   isActive: boolean;
   memberships: TeamMember[];
+  registrationsA?: RegistrationInfo[];
 }
 
 const ROLE_CONFIG: Record<
@@ -52,13 +67,74 @@ const ROLE_CONFIG: Record<
   SUBSTITUTE: { label: "Reserva", icon: UserIcon, badge: "neutral" },
 };
 
+// ─── Parsear notes do fluxo público ──────────────────────────────────────────
+// Formato do campo notes:
+//   🎯 Líder: João Silva
+//   📱 Telefone: (11) 99999-9999
+//   👥 Titulares: nick1, nick2, nick3, nick4, nick5
+//   🔄 Reservas: nick6, nick7
+
+interface ParsedRegistrationNotes {
+  leader: string | null;
+  phone: string | null;
+  players: string[];
+  substitutes: string[];
+}
+
+function parseRegistrationNotes(notes: string | null): ParsedRegistrationNotes {
+  if (!notes) return { leader: null, phone: null, players: [], substitutes: [] };
+
+  const result: ParsedRegistrationNotes = { leader: null, phone: null, players: [], substitutes: [] };
+
+  for (const line of notes.split("\n")) {
+    const trimmed = line.trim();
+    // Líder
+    if (trimmed.includes("Líder:")) {
+      result.leader = trimmed.replace(/.*Líder:\s*/, "").trim();
+    }
+    // Telefone
+    else if (trimmed.includes("Telefone:")) {
+      result.phone = trimmed.replace(/.*Telefone:\s*/, "").trim();
+    }
+    // Titulares
+    else if (trimmed.includes("Titulares:")) {
+      const raw = trimmed.replace(/.*Titulares:\s*/, "").trim();
+      result.players = raw.split(",").map((n) => n.trim()).filter(Boolean);
+    }
+    // Reservas
+    else if (trimmed.includes("Reservas:")) {
+      const raw = trimmed.replace(/.*Reservas:\s*/, "").trim();
+      result.substitutes = raw.split(",").map((n) => n.trim()).filter(Boolean);
+    }
+  }
+
+  return result;
+}
+
 // ─── Componente principal ─────────────────────────────────────────────────────
 
 export function TeamDetailClient({ slug }: { slug: string }) {
+  const { user } = useAuthStore();
+  const isAdmin = user?.role === "SUPER_ADMIN" || user?.role === "ADMINISTRATOR" || user?.role === "TOURNAMENT_ORGANIZER";
+
   const { data: team, isLoading, isError, refetch } = useQuery({
     queryKey: ["team", slug],
     queryFn: () => api.get<TeamDetail>(`/teams/${slug}`),
   });
+
+  // Buscar o ranking do time
+  const { data: rankingData } = useQuery({
+    queryKey: ["team-ranking", team?.id],
+    queryFn: async () => {
+      const response = await api.get<{ data: RankingEntry[]; season: string | null }>("/rankings", { limit: 200 });
+      return response;
+    },
+    enabled: Boolean(team?.id),
+  });
+
+  // Encontrar a posição do time no ranking
+  const teamRanking = rankingData?.data.find((r) => r.team.id === team?.id);
+  const rankingPosition = teamRanking?.position ?? null;
 
   if (isLoading) return <LoadingState label="Carregando equipe…" className="min-h-[60vh]" />;
   if (isError || !team) return <ErrorState onRetry={() => void refetch()} className="min-h-[60vh]" />;
@@ -67,11 +143,19 @@ export function TeamDetailClient({ slug }: { slug: string }) {
   const players = team.memberships.filter((m) => m.role === "PLAYER");
   const substitutes = team.memberships.filter((m) => m.role === "SUBSTITUTE");
 
+  // Dados do registro público (se não há memberships, usa o campo notes)
+  const latestReg = team.registrationsA?.[0] ?? null;
+  const parsedNotes = parseRegistrationNotes(latestReg?.notes ?? null);
+  const hasMemberships = team.memberships.length > 0;
+  const hasPublicData =
+    !hasMemberships &&
+    latestReg?.notes != null &&
+    (parsedNotes.leader !== null || parsedNotes.players.length > 0);
+
   return (
     <div>
       {/* ── Banner hero ── */}
       <div className="relative overflow-hidden border-b border-border bg-navy/50">
-        {/* Glow de fundo */}
         <div
           aria-hidden
           className="pointer-events-none absolute -left-20 -top-20 h-80 w-80 rounded-full bg-gold/10 blur-[120px]"
@@ -96,7 +180,7 @@ export function TeamDetailClient({ slug }: { slug: string }) {
           </Link>
 
           <div className="flex flex-col gap-8 sm:flex-row sm:items-end">
-            {/* Logo grande */}
+            {/* Logo */}
             <div className="relative">
               <div className="absolute inset-0 rounded-2xl bg-gold/20 blur-xl opacity-60" aria-hidden />
               <Avatar
@@ -115,9 +199,13 @@ export function TeamDetailClient({ slug }: { slug: string }) {
                     {team.tag}
                   </span>
                 )}
-                {!team.isActive && (
-                  <Badge variant="neutral">Inativa</Badge>
+                {rankingPosition && (
+                  <span className="flex items-center gap-1.5 rounded-md border border-gold/40 bg-gold/10 px-3 py-1 font-display text-xs font-bold uppercase tracking-[0.2em] text-gold">
+                    <TrendingUp className="h-3 w-3" />
+                    #{rankingPosition} Ranking
+                  </span>
                 )}
+                {!team.isActive && <Badge variant="neutral">Inativa</Badge>}
               </div>
               <h1 className="font-display text-4xl font-bold uppercase tracking-tight text-paper sm:text-5xl">
                 {team.name}
@@ -127,25 +215,52 @@ export function TeamDetailClient({ slug }: { slug: string }) {
                   <Calendar className="h-3.5 w-3.5 text-gold/60" />
                   Fundada em {formatDate(team.createdAt)}
                 </span>
-                <span className="flex items-center gap-1.5">
-                  <Users className="h-3.5 w-3.5 text-gold/60" />
-                  {team.memberships.length} membro{team.memberships.length !== 1 ? "s" : ""}
-                </span>
+                {hasMemberships && (
+                  <span className="flex items-center gap-1.5">
+                    <Users className="h-3.5 w-3.5 text-gold/60" />
+                    {team.memberships.length} membro{team.memberships.length !== 1 ? "s" : ""}
+                  </span>
+                )}
+                {hasPublicData && parsedNotes.players.length > 0 && (
+                  <span className="flex items-center gap-1.5">
+                    <Users className="h-3.5 w-3.5 text-gold/60" />
+                    {parsedNotes.players.length + parsedNotes.substitutes.length} jogador{parsedNotes.players.length + parsedNotes.substitutes.length !== 1 ? "es" : ""}
+                  </span>
+                )}
               </div>
               {team.description && (
-                <p className="max-w-xl text-sm text-muted/80 leading-relaxed">
-                  {team.description}
-                </p>
+                <p className="max-w-xl text-sm text-muted/80 leading-relaxed">{team.description}</p>
+              )}
+
+              {/* Campeonato inscrito (se vier do registro) */}
+              {latestReg && (
+                <Link
+                  href={`/tournaments/${latestReg.tournament.slug}?tab=teams`}
+                  className="inline-flex items-center gap-1.5 text-xs text-gold/70 transition-colors hover:text-gold"
+                >
+                  <Shield className="h-3 w-3" />
+                  Inscrito em: {latestReg.tournament.name}
+                </Link>
               )}
             </div>
 
             {/* Stat chips */}
-            <div className="ml-auto hidden gap-3 sm:flex">
-              <StatChip label="Jogadores" value={players.length} icon={Swords} />
-              {substitutes.length > 0 && (
-                <StatChip label="Reservas" value={substitutes.length} icon={Shield} />
-              )}
-            </div>
+            {hasMemberships && (
+              <div className="ml-auto hidden gap-3 sm:flex">
+                <StatChip label="Jogadores" value={players.length} icon={Swords} />
+                {substitutes.length > 0 && (
+                  <StatChip label="Reservas" value={substitutes.length} icon={Shield} />
+                )}
+              </div>
+            )}
+            {hasPublicData && (
+              <div className="ml-auto hidden gap-3 sm:flex">
+                <StatChip label="Titulares" value={parsedNotes.players.length} icon={Swords} />
+                {parsedNotes.substitutes.length > 0 && (
+                  <StatChip label="Reservas" value={parsedNotes.substitutes.length} icon={Shield} />
+                )}
+              </div>
+            )}
           </div>
         </div>
       </div>
@@ -153,43 +268,94 @@ export function TeamDetailClient({ slug }: { slug: string }) {
       {/* ── Corpo ── */}
       <div className="container-ecl py-10 space-y-12">
 
-        {/* Capitão */}
-        {captain && (
-          <section>
-            <SectionTitle icon={Crown} label="Capitão" />
-            <div className="mt-4 max-w-xs">
-              <MemberCard member={captain} featured />
-            </div>
-          </section>
+        {/* ── Cenário 1: time com memberships reais (fluxo autenticado) ── */}
+        {hasMemberships && (
+          <>
+            {captain && (
+              <section>
+                <SectionTitle icon={Crown} label="Capitão" />
+                <div className="mt-4 max-w-xs">
+                  <MemberCard member={captain} featured />
+                </div>
+              </section>
+            )}
+
+            {players.length > 0 && (
+              <section>
+                <SectionTitle icon={Swords} label={`Elenco (${players.length})`} />
+                <div className="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+                  {players.map((m) => (
+                    <MemberCard key={m.id} member={m} />
+                  ))}
+                </div>
+              </section>
+            )}
+
+            {substitutes.length > 0 && (
+              <section>
+                <SectionTitle icon={Shield} label={`Reservas (${substitutes.length})`} />
+                <div className="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+                  {substitutes.map((m) => (
+                    <MemberCard key={m.id} member={m} />
+                  ))}
+                </div>
+              </section>
+            )}
+          </>
         )}
 
-        {/* Elenco principal */}
-        {players.length > 0 && (
-          <section>
-            <SectionTitle icon={Swords} label={`Elenco (${players.length})`} />
-            <div className="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-              {players.map((m) => (
-                <MemberCard key={m.id} member={m} />
-              ))}
-            </div>
-          </section>
+        {/* ── Cenário 2: time do fluxo público (dados do notes do registro) ── */}
+        {hasPublicData && (
+          <>
+            {/* Líder */}
+            {parsedNotes.leader && (
+              <section>
+                <SectionTitle icon={Crown} label="Líder" />
+                <div className="mt-4 max-w-sm">
+                  <PublicMemberCard
+                    nick={parsedNotes.leader}
+                    role="CAPTAIN"
+                    featured
+                    phone={parsedNotes.phone ?? undefined}
+                    showPhone={isAdmin}
+                  />
+                </div>
+              </section>
+            )}
+
+            {/* Titulares */}
+            {parsedNotes.players.length > 0 && (
+              <section>
+                <SectionTitle icon={Swords} label={`Elenco (${parsedNotes.players.length})`} />
+                <div className="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+                  {parsedNotes.players.map((nick, i) => (
+                    <PublicMemberCard key={i} nick={nick} role="PLAYER" />
+                  ))}
+                </div>
+              </section>
+            )}
+
+            {/* Reservas */}
+            {parsedNotes.substitutes.length > 0 && (
+              <section>
+                <SectionTitle icon={Shield} label={`Reservas (${parsedNotes.substitutes.length})`} />
+                <div className="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+                  {parsedNotes.substitutes.map((nick, i) => (
+                    <PublicMemberCard key={i} nick={nick} role="SUBSTITUTE" />
+                  ))}
+                </div>
+              </section>
+            )}
+          </>
         )}
 
-        {/* Reservas */}
-        {substitutes.length > 0 && (
-          <section>
-            <SectionTitle icon={Shield} label={`Reservas (${substitutes.length})`} />
-            <div className="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-              {substitutes.map((m) => (
-                <MemberCard key={m.id} member={m} />
-              ))}
-            </div>
-          </section>
-        )}
-
-        {/* Vazio */}
-        {team.memberships.length === 0 && (
-          <EmptyState icon={Users} title="Sem membros" description="Esta equipe ainda não tem jogadores cadastrados." />
+        {/* Sem dados disponíveis */}
+        {!hasMemberships && !hasPublicData && (
+          <EmptyState
+            icon={Users}
+            title="Sem membros"
+            description="Esta equipe ainda não tem jogadores cadastrados."
+          />
         )}
       </div>
     </div>
@@ -230,6 +396,7 @@ function StatChip({
   );
 }
 
+// Card para membros com conta (fluxo autenticado)
 function MemberCard({ member, featured = false }: { member: TeamMember; featured?: boolean }) {
   const config = ROLE_CONFIG[member.role] ?? ROLE_CONFIG.PLAYER!;
   const { user } = member.player;
@@ -244,13 +411,10 @@ function MemberCard({ member, featured = false }: { member: TeamMember; featured
           : "border-border bg-surface hover:border-gold/40 hover:shadow-sm hover:shadow-gold/5",
       )}
     >
-      {/* Linha superior dourada para o capitão */}
       {featured && (
         <div className="absolute inset-x-0 top-0 h-0.5 bg-gradient-to-r from-transparent via-gold/60 to-transparent" aria-hidden />
       )}
-
       <div className="flex items-center gap-4 p-4">
-        {/* Avatar com glow no hover */}
         <div className="relative shrink-0">
           <div
             className={cn(
@@ -266,8 +430,6 @@ function MemberCard({ member, featured = false }: { member: TeamMember; featured
             className="relative border border-border/60"
           />
         </div>
-
-        {/* Dados */}
         <div className="min-w-0 flex-1">
           <p
             className={cn(
@@ -279,12 +441,81 @@ function MemberCard({ member, featured = false }: { member: TeamMember; featured
           </p>
           <p className="text-xs text-muted/70">@{user.username}</p>
         </div>
-
-        {/* Badge de papel */}
         <Badge variant={config.badge} className="shrink-0 text-[10px] px-1.5 py-0.5">
           {config.label}
         </Badge>
       </div>
     </Link>
+  );
+}
+
+// Card para membros do fluxo público (sem conta, dados do notes)
+function PublicMemberCard({
+  nick,
+  role,
+  featured = false,
+  phone,
+  showPhone = false,
+}: {
+  nick: string;
+  role: "CAPTAIN" | "PLAYER" | "SUBSTITUTE";
+  featured?: boolean;
+  phone?: string;
+  showPhone?: boolean;
+}) {
+  const config = ROLE_CONFIG[role] ?? ROLE_CONFIG.PLAYER!;
+  const Icon = config.icon;
+
+  return (
+    <div
+      className={cn(
+        "relative overflow-hidden rounded-xl border transition-all duration-300",
+        featured
+          ? "border-gold/40 bg-gradient-to-br from-gold/10 via-surface to-surface"
+          : "border-border bg-surface",
+      )}
+    >
+      {featured && (
+        <div className="absolute inset-x-0 top-0 h-0.5 bg-gradient-to-r from-transparent via-gold/60 to-transparent" aria-hidden />
+      )}
+      <div className="flex items-center gap-4 p-4">
+        {/* Avatar placeholder */}
+        <div className="relative shrink-0">
+          <div
+            className={cn(
+              "flex h-10 w-10 items-center justify-center rounded-full border",
+              featured ? "border-gold/40 bg-gold/10" : "border-border/60 bg-surface/80",
+            )}
+          >
+            <Icon className={cn("h-5 w-5", featured ? "text-gold" : "text-muted/70")} />
+          </div>
+        </div>
+
+        {/* Dados */}
+        <div className="min-w-0 flex-1">
+          <p
+            className={cn(
+              "truncate font-display text-sm font-bold uppercase tracking-tight",
+              featured ? "text-gold" : "text-paper",
+            )}
+          >
+            {nick}
+          </p>
+          {phone && featured && showPhone && (
+            <p className="mt-0.5 flex items-center gap-1 text-xs text-muted/70">
+              <Phone className="h-3 w-3" />
+              {phone}
+            </p>
+          )}
+          {!featured && (
+            <p className="text-xs text-muted/50">Nick no jogo</p>
+          )}
+        </div>
+
+        <Badge variant={config.badge} className="shrink-0 text-[10px] px-1.5 py-0.5">
+          {config.label}
+        </Badge>
+      </div>
+    </div>
   );
 }

@@ -52,6 +52,19 @@ export function formatDateTime(iso: string | Date | null | undefined): string {
 }
 
 /**
+ * Formata apenas a hora em pt-BR.
+ */
+export function formatTime(iso: string | Date | null | undefined): string {
+  if (!iso) return "—";
+  const date = typeof iso === "string" ? new Date(iso) : iso;
+  if (Number.isNaN(date.getTime())) return "—";
+  return new Intl.DateTimeFormat("pt-BR", {
+    hour: "2-digit",
+    minute: "2-digit",
+  }).format(date);
+}
+
+/**
  * Formata placar agregado (ex: "2 - 1").
  */
 export function formatScore(a: number | null | undefined, b: number | null | undefined): string {

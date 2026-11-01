@@ -18,7 +18,11 @@
     "prisma:migrate": "prisma migrate dev",
     "prisma:migrate:deploy": "prisma migrate deploy",
     "prisma:studio": "prisma studio",
-    "prisma:seed": "tsx prisma/seed.ts"
+    "prisma:seed": "tsx prisma/seed.ts",
+    "seed:swiss": "tsx scripts/setup-swiss-complete.ts",
+    "fix:swiss-stage": "tsx scripts/fix-swiss-stage.ts",
+    "check:tournament": "tsx scripts/check-tournament-status.ts",
+    "fix:swiss-stage": "tsx scripts/fix-swiss-stage.ts"
   },
   "dependencies": {
     "@prisma/client": "^6.1.0",

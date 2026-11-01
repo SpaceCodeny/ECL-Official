@@ -40,6 +40,10 @@ export class AppError extends Error {
   static internal(message: string = "Erro interno do servidor"): AppError {
     return new AppError(message, 500, "InternalServerError");
   }
+
+  static serviceUnavailable(message: string = "Serviço temporariamente indisponível"): AppError {
+    return new AppError(message, 503, "ServiceUnavailable");
+  }
 }
 
 /**

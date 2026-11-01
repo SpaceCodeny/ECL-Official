@@ -32,17 +32,17 @@ function TickerCard({ match }: { match: Match }) {
     <Link
       href={`/matches/${match.id}`}
       className={cn(
-        "group relative mx-1.5 flex shrink-0 items-center gap-2 rounded-lg px-3 py-2 transition-all",
+        "group relative mx-1 sm:mx-1.5 flex shrink-0 items-center gap-1.5 sm:gap-2 rounded-lg px-2 sm:px-3 py-1.5 sm:py-2 transition-all",
         isLive
           ? "border-2 border-red-500/60 bg-red-500/10 shadow-lg shadow-red-500/20 hover:border-red-500/80"
           : "border-2 border-gold/40 bg-white/5 shadow-md shadow-gold/10 hover:border-gold/60 hover:shadow-gold/20",
       )}
-      style={{ minWidth: "260px", maxWidth: "300px" }}
+      style={{ minWidth: "220px", maxWidth: "300px" }}
     >
       {/* Equipe A */}
-      <div className="flex min-w-0 flex-1 items-center gap-2">
-        <Avatar name={match.teamA.name} src={match.teamA.logoUrl} size="sm" className="h-7 w-7 shrink-0" />
-        <span className="truncate font-display text-[11px] font-bold uppercase tracking-tight text-paper">
+      <div className="flex min-w-0 flex-1 items-center gap-1.5 sm:gap-2">
+        <Avatar name={match.teamA.name} src={match.teamA.logoUrl} size="sm" className="h-6 w-6 sm:h-7 sm:w-7 shrink-0" />
+        <span className="truncate font-display text-[10px] sm:text-[11px] font-bold uppercase tracking-tight text-paper">
           {match.teamA.name}
         </span>
       </div>
@@ -50,33 +50,33 @@ function TickerCard({ match }: { match: Match }) {
       {/* Meio: placar ou VS + formato */}
       <div className="flex shrink-0 flex-col items-center gap-0.5">
         {hasScore ? (
-          <span className="font-display text-sm font-bold text-paper">
+          <span className="font-display text-xs sm:text-sm font-bold text-paper">
             {match.scoreA} <span className="text-white/30">·</span> {match.scoreB}
           </span>
         ) : (
-          <span className="font-display text-[10px] font-bold uppercase tracking-widest text-white/40">VS</span>
+          <span className="font-display text-[9px] sm:text-[10px] font-bold uppercase tracking-widest text-white/40">VS</span>
         )}
-        <span className="rounded bg-white/10 px-1 py-px text-[9px] font-medium uppercase tracking-wide text-white/50">
+        <span className="rounded bg-white/10 px-1 py-px text-[8px] sm:text-[9px] font-medium uppercase tracking-wide text-white/50">
           {match.seriesFormat}
         </span>
       </div>
 
       {/* Equipe B */}
-      <div className="flex min-w-0 flex-1 flex-row-reverse items-center gap-2">
-        <Avatar name={match.teamB.name} src={match.teamB.logoUrl} size="sm" className="h-7 w-7 shrink-0" />
-        <span className="truncate text-right font-display text-[11px] font-bold uppercase tracking-tight text-paper">
+      <div className="flex min-w-0 flex-1 flex-row-reverse items-center gap-1.5 sm:gap-2">
+        <Avatar name={match.teamB.name} src={match.teamB.logoUrl} size="sm" className="h-6 w-6 sm:h-7 sm:w-7 shrink-0" />
+        <span className="truncate text-right font-display text-[10px] sm:text-[11px] font-bold uppercase tracking-tight text-paper">
           {match.teamB.name}
         </span>
       </div>
 
       {/* Badge AO VIVO ou data */}
       {isLive ? (
-        <span className="ml-1 flex shrink-0 items-center gap-1 rounded-full bg-emerald-500 px-2 py-0.5 text-[9px] font-bold uppercase tracking-widest text-white">
+        <span className="ml-1 flex shrink-0 items-center gap-1 rounded-full bg-emerald-500 px-1.5 sm:px-2 py-0.5 text-[8px] sm:text-[9px] font-bold uppercase tracking-widest text-white">
           <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-white" />
           AO VIVO
         </span>
       ) : match.scheduledAt ? (
-        <span className="ml-1 flex shrink-0 flex-col items-end text-[9px] leading-tight text-white/40">
+        <span className="ml-1 hidden sm:flex shrink-0 flex-col items-end text-[9px] leading-tight text-white/40">
           <CalendarDays className="mb-0.5 h-3 w-3" />
           {formatDateTime(match.scheduledAt)}
         </span>
@@ -125,10 +125,10 @@ export function MatchesTicker() {
 
   if (isLoading) {
     return (
-      <div className="flex h-16 items-center border-b border-border bg-navy/60">
-        <div className="flex gap-3 px-4">
+      <div className="flex h-14 sm:h-16 items-center border-b border-border bg-navy/60 overflow-hidden">
+        <div className="flex gap-2 sm:gap-3 px-2 sm:px-4">
           {Array.from({ length: 4 }).map((_, i) => (
-            <div key={i} className="h-11 w-72 animate-pulse rounded-xl bg-surfaceHover" />
+            <div key={i} className="h-9 sm:h-11 w-56 sm:w-72 animate-pulse rounded-xl bg-surfaceHover" />
           ))}
         </div>
       </div>

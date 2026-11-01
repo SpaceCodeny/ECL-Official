@@ -25,7 +25,11 @@ import { adminRouter } from "./routes/admin.routes";
 import { notificationsRouter } from "./routes/notifications.routes";
 import { uploadsRouter } from "./routes/uploads.routes";
 import { playersRouter } from "./routes/players.routes";
-
+import { paymentsRouter } from "./routes/payments.routes";
+import { presetsRouter } from "./routes/presets.routes";
+import { swissRouter } from "./routes/swiss.routes";
+import { invitedRouter } from "./routes/invited.routes";
+import { bracketRouter } from "./routes/bracket.routes";
 export function createApp(): Express {
   const app = express();
 
@@ -55,6 +59,9 @@ export function createApp(): Express {
   }));
 
   // ─── Body parsing ───────────────────────────────────────────────────────────
+  // O webhook do Mercado Pago (/api/v1/payments/webhook/mercadopago) não precisa
+  // de body raw: a assinatura HMAC é calculada sobre o template
+  // "id:{data.id};request-id:{x-request-id};ts:{ts};" usando headers e query.
   app.use(express.json({ limit: "1mb" }));
   app.use(express.urlencoded({ extended: true, limit: "1mb" }));
 
@@ -147,6 +154,11 @@ export function createApp(): Express {
   apiRouter.use("/notifications", notificationsRouter);
   apiRouter.use("/uploads", uploadsRouter);
   apiRouter.use("/players", playersRouter);
+  apiRouter.use("/payments", paymentsRouter);
+  apiRouter.use("/presets", presetsRouter);
+  apiRouter.use("/tournaments", swissRouter); // Swiss usa /:id/swiss/...
+  apiRouter.use("/tournaments", invitedRouter); // Invited usa /:tournamentId/invited/...
+  apiRouter.use("/tournaments", bracketRouter); // Bracket usa /:tournamentId/bracket/...
 
   app.use("/api/v1", apiRouter);
 

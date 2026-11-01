@@ -43,8 +43,8 @@ export function Header() {
       className={cn(
         "sticky top-0 z-50 w-full transition-colors duration-300",
         scrolled
-          ? "border-b border-white/10 bg-black/70 backdrop-blur-md"
-          : "border-b border-transparent bg-black/30 backdrop-blur-sm",
+          ? "border-b-0 bg-black/70 backdrop-blur-md"
+          : "border-b-0 bg-black/30 backdrop-blur-sm",
       )}
     >
       {/* ── Linha principal: logo + nav + auth ── */}
@@ -91,16 +91,7 @@ export function Header() {
                 Sair
               </button>
             </>
-          ) : (
-            <>
-              <Link href="/login" className={buttonVariants({ variant: "ghost", size: "sm" })}>
-                Entrar
-              </Link>
-              <Link href="/register" className={buttonVariants({ variant: "primary", size: "sm" })}>
-                Criar conta
-              </Link>
-            </>
-          )}
+          ) : null}
         </div>
 
         {/* Toggle mobile */}
@@ -152,16 +143,7 @@ export function Header() {
                     Sair
                   </button>
                 </>
-              ) : (
-                <>
-                  <Link href="/login" className={buttonVariants({ variant: "secondary", size: "md" })}>
-                    Entrar
-                  </Link>
-                  <Link href="/register" className={buttonVariants({ variant: "primary", size: "md" })}>
-                    Criar conta
-                  </Link>
-                </>
-              )}
+              ) : null}
             </div>
           </nav>
         </div>

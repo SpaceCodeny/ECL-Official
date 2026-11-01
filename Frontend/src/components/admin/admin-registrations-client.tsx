@@ -88,6 +88,9 @@ export function AdminRegistrationsClient() {
         },
       ),
     enabled: Boolean(activeTournamentId),
+    // Polling automático: atualiza a lista a cada 5s para refletir pagamentos
+    // confirmados em tempo real (sem precisar recarregar a página).
+    refetchInterval: 5000,
   });
 
   const approveMutation = useMutation({

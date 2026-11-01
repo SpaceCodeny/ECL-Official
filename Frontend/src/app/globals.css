@@ -53,6 +53,15 @@
   .animate-pulse-border {
     animation: pulse-border 2s ease-in-out infinite;
   }
+
+  .scrollbar-hide {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+  }
+
+  .scrollbar-hide::-webkit-scrollbar {
+    display: none;
+  }
 }
 
 /* Respeita a preferência por movimento reduzido */

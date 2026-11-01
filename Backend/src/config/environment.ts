@@ -58,6 +58,22 @@ const envSchema = z.object({
 
   // ─── Serverless flag ────────────────────────────────────────────────────────
   SERVERLESS: z.string().optional().transform(v => v === "true"),
+
+  // ─── Mercado Pago Gateway ──────────────────────────────────────────────────
+  /**
+   * Access Token do Mercado Pago (APP_USR-... em produção, TEST-... em sandbox).
+   * Obtido em: Mercado Pago Developers → Suas integrações → Credenciais.
+   */
+  MERCADOPAGO_ACCESS_TOKEN: z.string().optional(),
+  /**
+   * Base URL da API. Padrão: https://api.mercadopago.com
+   */
+  MERCADOPAGO_API_URL: z.string().url().optional(),
+  /**
+   * Secret para verificar a assinatura HMAC dos webhooks do Mercado Pago.
+   * Configurado em: Suas integrações → Webhooks → Configurar notificação.
+   */
+  MERCADOPAGO_WEBHOOK_SECRET: z.string().optional(),
 });
 
 export type EnvConfig = z.infer<typeof envSchema>;

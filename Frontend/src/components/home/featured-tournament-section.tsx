@@ -15,35 +15,35 @@ function FeaturedContent({ t, demo }: { t: FeaturedTournament; demo: boolean }) 
   return (
     <div className="card-ecl relative overflow-hidden">
       <div aria-hidden className="pointer-events-none absolute -right-20 -top-20 h-64 w-64 rounded-full bg-gold/10 blur-3xl" />
-      <div className="relative z-10 flex flex-col gap-6 p-6 sm:p-8 lg:flex-row lg:items-center lg:justify-between">
-        <div className="flex flex-col gap-4">
-          <div className="flex items-center gap-3">
+      <div className="relative z-10 flex flex-col gap-4 sm:gap-6 p-4 sm:p-6 md:p-8 lg:flex-row lg:items-center lg:justify-between">
+        <div className="flex flex-col gap-3 sm:gap-4">
+          <div className="flex flex-wrap items-center gap-2 sm:gap-3">
             <TournamentStatusBadge status={t.status as never} />
             {demo ? <DemoBadge /> : null}
           </div>
           <div>
-            <h2 className="font-display text-3xl font-bold uppercase tracking-tight text-paper sm:text-4xl">
+            <h2 className="font-display text-2xl sm:text-3xl md:text-4xl font-bold uppercase tracking-tight text-paper">
               {t.name}
             </h2>
-            <p className="text-sm uppercase tracking-widest text-gold">{t.season}</p>
+            <p className="text-xs sm:text-sm uppercase tracking-widest text-gold">{t.season}</p>
           </div>
-          {t.description ? <p className="max-w-xl text-sm text-muted">{t.description}</p> : null}
-          <div className="flex flex-wrap gap-x-6 gap-y-2 text-sm text-muted">
-            <span className="flex items-center gap-2">
-              <Calendar className="h-4 w-4 text-gold/70" aria-hidden />
+          {t.description ? <p className="max-w-xl text-xs sm:text-sm text-muted">{t.description}</p> : null}
+          <div className="flex flex-wrap gap-x-4 sm:gap-x-6 gap-y-2 text-xs sm:text-sm text-muted">
+            <span className="flex items-center gap-1.5 sm:gap-2">
+              <Calendar className="h-3.5 w-3.5 sm:h-4 sm:w-4 text-gold/70" aria-hidden />
               {t.startDate ? formatDate(t.startDate) : "Data a definir"}
             </span>
-            <span className="flex items-center gap-2">
-              <Layers className="h-4 w-4 text-gold/70" aria-hidden />
+            <span className="flex items-center gap-1.5 sm:gap-2">
+              <Layers className="h-3.5 w-3.5 sm:h-4 sm:w-4 text-gold/70" aria-hidden />
               {tournamentFormatLabel[t.format as keyof typeof tournamentFormatLabel] ?? t.format}
             </span>
-            <span className="flex items-center gap-2">
-              <Users className="h-4 w-4 text-gold/70" aria-hidden />
+            <span className="flex items-center gap-1.5 sm:gap-2">
+              <Users className="h-3.5 w-3.5 sm:h-4 sm:w-4 text-gold/70" aria-hidden />
               {t.registeredTeams}/{t.maxTeams} equipes
             </span>
             {t.prizePool ? (
-              <span className="flex items-center gap-2 text-gold">
-                <Trophy className="h-4 w-4" aria-hidden />
+              <span className="flex items-center gap-1.5 sm:gap-2 text-gold">
+                <Trophy className="h-3.5 w-3.5 sm:h-4 sm:w-4" aria-hidden />
                 {t.prizePool}
               </span>
             ) : null}
@@ -64,7 +64,7 @@ export function FeaturedTournamentSection() {
   const tournament = useDemo ? demoFeaturedTournament : (data as FeaturedTournament);
 
   return (
-    <section className="container-ecl py-16">
+    <section className="container-ecl py-12 sm:py-16">
       <FeaturedContent t={tournament} demo={useDemo} />
     </section>
   );

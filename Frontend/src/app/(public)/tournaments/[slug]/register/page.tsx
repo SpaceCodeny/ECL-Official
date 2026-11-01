@@ -104,7 +104,13 @@ export default async function RegisterTeamPage({ params }: Props) {
 
       {/* Formulário */}
       <div className="mx-auto max-w-4xl">
-        <RegisterTeamForm tournamentId={tournament.id} tournamentSlug={slug} />
+        <RegisterTeamForm
+          tournamentId={tournament.id}
+          tournamentSlug={slug}
+          tournamentName={tournament.name}
+          paymentRequired={tournament.paymentRequired}
+          entryFeeAmount={tournament.entryFeeAmount ?? undefined}
+        />
       </div>
     </div>
   );

@@ -81,18 +81,18 @@ function BracketMatchCard({ match }: { match: BracketStageData["matches"][0] }) 
   function TeamSlot({ team, score, winner, side }: { team: BracketStageData["matches"][0]["teamA"]; score: number | null; winner: boolean; side: "top" | "bot" }) {
     return (
       <div className={cn(
-        "flex items-center justify-between gap-2 px-3 py-2.5",
+        "flex items-center justify-between gap-1.5 sm:gap-2 px-2 sm:px-3 py-2",
         winner && "bg-gold/10",
         side === "top" ? "border-b border-border/40" : "",
       )}>
-        <div className="flex min-w-0 items-center gap-2">
+        <div className="flex min-w-0 items-center gap-1.5 sm:gap-2">
           {team ? (
-            <Avatar name={team.name} src={team.logoUrl} size="sm" className="h-6 w-6 shrink-0 text-[9px]" />
+            <Avatar name={team.name} src={team.logoUrl} size="sm" className="h-5 w-5 sm:h-6 sm:w-6 shrink-0 text-[8px] sm:text-[9px]" />
           ) : (
-            <div className="h-6 w-6 shrink-0 rounded-full border border-dashed border-border/60" />
+            <div className="h-5 w-5 sm:h-6 sm:w-6 shrink-0 rounded-full border border-dashed border-border/60" />
           )}
           <span className={cn(
-            "truncate text-xs font-semibold",
+            "truncate text-[11px] sm:text-xs font-semibold",
             !team && "italic text-muted/50",
             team && winner ? "text-gold" : "text-paper/80",
           )}>
@@ -100,7 +100,7 @@ function BracketMatchCard({ match }: { match: BracketStageData["matches"][0] }) 
           </span>
         </div>
         {hasScore && score !== null ? (
-          <span className={cn("shrink-0 min-w-[1.25rem] text-center font-display text-sm font-bold", winner ? "text-gold" : "text-muted")}>
+          <span className={cn("shrink-0 min-w-[1.25rem] text-center font-display text-xs sm:text-sm font-bold", winner ? "text-gold" : "text-muted")}>
             {score}
           </span>
         ) : null}
@@ -115,18 +115,18 @@ function BracketMatchCard({ match }: { match: BracketStageData["matches"][0] }) 
       !tbd && "hover:border-gold/40 hover:shadow-gold/10",
     )}>
       {/* Status pill */}
-      <div className="flex items-center justify-between border-b border-border/60 bg-ink/60 px-3 py-1">
+      <div className="flex items-center justify-between border-b border-border/60 bg-ink/60 px-2 sm:px-3 py-1">
         {isLive ? (
-          <span className="flex items-center gap-1 text-[9px] font-bold uppercase text-red-400">
+          <span className="flex items-center gap-1 text-[10px] sm:text-[9px] font-bold uppercase text-red-400">
             <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-red-400" />
             Ao Vivo
           </span>
         ) : (
-          <span className="text-[9px] text-muted/60 uppercase tracking-wide">
+          <span className="text-[10px] sm:text-[9px] text-muted/60 uppercase tracking-wide">
             {match.status === "COMPLETED" ? "Finalizado" : match.status === "SCHEDULED" ? "Agendado" : match.status}
           </span>
         )}
-        <span className="text-[9px] text-muted/40">{match.seriesFormat}</span>
+        <span className="text-[10px] sm:text-[9px] text-muted/40">{match.seriesFormat}</span>
       </div>
       <TeamSlot team={match.teamA} score={match.scoreA} winner={winnerA} side="top" />
       <TeamSlot team={match.teamB} score={match.scoreB} winner={winnerB} side="bot" />
@@ -144,10 +144,10 @@ function BracketMatchCard({ match }: { match: BracketStageData["matches"][0] }) 
 
 // ─── Bracket eliminatório — renderização SVG matemática ──────────────────────
 
-// Dimensões fixas do card (px)
-const CARD_W = 200;
+// Dimensões fixas do card (px) - responsivas baseadas no viewport
+const CARD_W = typeof window !== 'undefined' && window.innerWidth < 640 ? 160 : 200;
 const CARD_H = 92; // header(26) + row(33) + row(33) = 92
-const COL_GAP = 56; // espaço horizontal entre colunas
+const COL_GAP = typeof window !== 'undefined' && window.innerWidth < 640 ? 40 : 56; // espaço horizontal entre colunas
 const CONNECTOR_W = COL_GAP; // comprimento das linhas horizontais
 
 /**
@@ -238,70 +238,72 @@ function EliminationBracket({ stages }: { stages: BracketStageData[] }) {
   }
 
   return (
-    <div className="overflow-x-auto pb-4">
-      <div
-        className="relative"
-        style={{ width: totalWidth, height: totalHeight, minWidth: totalWidth }}
-      >
-        {/* SVG único com todas as linhas — fica atrás dos cards */}
-        <svg
-          className="pointer-events-none absolute inset-0"
-          width={totalWidth}
-          height={totalHeight}
-          aria-hidden
+    <div className="overflow-x-auto pb-4 -mx-4 sm:mx-0">
+      <div className="min-w-fit px-4 sm:px-0">
+        <div
+          className="relative"
+          style={{ width: totalWidth, height: totalHeight, minWidth: totalWidth }}
         >
-          {lines.map((l, i) => (
-            <line
-              key={i}
-              x1={l.x1} y1={l.y1}
-              x2={l.x2} y2={l.y2}
-              stroke="rgba(212,175,55,0.25)"
-              strokeWidth={1.5}
-              strokeLinecap="round"
-            />
-          ))}
-        </svg>
-
-        {/* Cards posicionados absolutamente */}
-        {stages.map((stage, si) => (
-          <div key={stage.id}>
-            {/* Label da fase */}
-            <div
-              className="absolute text-center"
-              style={{ left: colX[si], top: 0, width: CARD_W }}
-            >
-              {/* apenas mostrar se for a primeira linha */}
-            </div>
-
-            {stage.matches.map((match, mi) => {
-              const cy = positions[si]?.[mi] ?? 0;
-              const top = cy - CARD_H / 2;
-
-              return (
-                <div
-                  key={match.id}
-                  className="absolute"
-                  style={{ left: colX[si], top, width: CARD_W }}
-                >
-                  <BracketMatchCard match={match} />
-                </div>
-              );
-            })}
-          </div>
-        ))}
-      </div>
-
-      {/* Labels das fases abaixo do bracket */}
-      <div className="mt-4 flex" style={{ width: totalWidth, minWidth: totalWidth }}>
-        {stages.map((stage, si) => (
-          <div
-            key={stage.id}
-            className="text-center text-[10px] font-semibold uppercase tracking-widest text-muted/60 sm:text-xs"
-            style={{ width: CARD_W + (si < stages.length - 1 ? COL_GAP : 0), paddingLeft: 0 }}
+          {/* SVG único com todas as linhas — fica atrás dos cards */}
+          <svg
+            className="pointer-events-none absolute inset-0"
+            width={totalWidth}
+            height={totalHeight}
+            aria-hidden
           >
-            {stage.name}
-          </div>
-        ))}
+            {lines.map((l, i) => (
+              <line
+                key={i}
+                x1={l.x1} y1={l.y1}
+                x2={l.x2} y2={l.y2}
+                stroke="rgba(212,175,55,0.25)"
+                strokeWidth={1.5}
+                strokeLinecap="round"
+              />
+            ))}
+          </svg>
+
+          {/* Cards posicionados absolutamente */}
+          {stages.map((stage, si) => (
+            <div key={stage.id}>
+              {/* Label da fase */}
+              <div
+                className="absolute text-center"
+                style={{ left: colX[si], top: 0, width: CARD_W }}
+              >
+                {/* apenas mostrar se for a primeira linha */}
+              </div>
+
+              {stage.matches.map((match, mi) => {
+                const cy = positions[si]?.[mi] ?? 0;
+                const top = cy - CARD_H / 2;
+
+                return (
+                  <div
+                    key={match.id}
+                    className="absolute"
+                    style={{ left: colX[si], top, width: CARD_W }}
+                  >
+                    <BracketMatchCard match={match} />
+                  </div>
+                );
+              })}
+            </div>
+          ))}
+        </div>
+
+        {/* Labels das fases abaixo do bracket */}
+        <div className="mt-4 flex" style={{ width: totalWidth, minWidth: totalWidth }}>
+          {stages.map((stage, si) => (
+            <div
+              key={stage.id}
+              className="text-center text-xs font-semibold uppercase tracking-widest text-muted/60 sm:text-xs"
+              style={{ width: CARD_W + (si < stages.length - 1 ? COL_GAP : 0), paddingLeft: 0 }}
+            >
+              {stage.name}
+            </div>
+          ))}
+        </div>
       </div>
     </div>
   );

@@ -64,4 +64,10 @@ export interface Tournament extends TournamentListItem {
   rules: string | null;
   organizerId: string;
   createdAt: string;
+  // Pagamento
+  paymentRequired: boolean;
+  entryFeeAmount: number | null;
+  entryFeeCurrency: string | null;
+  mpPreferenceId: string | null;
+  whatsappGroupUrl: string | null;
 }

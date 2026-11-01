@@ -65,6 +65,15 @@ enum RegistrationStatus {
   WITHDRAWN
 }
 
+/// Status do pagamento de uma inscrição em torneio pago.
+enum PaymentStatus {
+  NOT_REQUIRED   // torneio gratuito
+  PENDING        // aguardando pagamento
+  PAID           // pago e confirmado
+  REFUNDED       // reembolsado
+  FAILED         // falha no pagamento
+}
+
 enum MatchStatus {
   SCHEDULED
   READY
@@ -232,13 +241,15 @@ model Team {
   updatedAt   DateTime @updatedAt
   deletedAt   DateTime?
 
-  memberships   TeamMembership[]
-  invitations   TeamInvitation[]
-  registrationsA TournamentRegistration[] @relation("TeamRegistrations")
-  matchesA       Match[]                  @relation("TeamAMatches")
-  matchesB       Match[]                  @relation("TeamBMatches")
-  wonMatches     Match[]                  @relation("WinnerMatches")
-  standings      Standing[]
+  memberships      TeamMembership[]
+  invitations      TeamInvitation[]
+  registrationsA   TournamentRegistration[] @relation("TeamRegistrations")
+  invitedTo        InvitedTeam[]            @relation("InvitedTeams")
+  swissCampaigns   SwissCampaign[]
+  matchesA         Match[]                  @relation("TeamAMatches")
+  matchesB         Match[]                  @relation("TeamBMatches")
+  wonMatches       Match[]                  @relation("WinnerMatches")
+  standings        Standing[]
   rankingSnapshots RankingSnapshot[]
 
   @@index([slug])
@@ -282,6 +293,31 @@ model TeamInvitation {
 }
 
 // ─────────────────────────────────────────────
+// Presets de Campeonatos
+// ─────────────────────────────────────────────
+
+/// Define modelos reutilizáveis de competições (ex: ECL Master Edition)
+model TournamentPreset {
+  id          String   @id @default(uuid())
+  slug        String   @unique
+  name        String
+  description String?
+  version     String   @default("1.0")
+  isActive    Boolean  @default(true)
+  
+  // Configurações padrão
+  config      Json     // Schema flexível para regras específicas de cada preset
+  
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  tournaments Tournament[]
+
+  @@index([slug])
+  @@index([isActive])
+}
+
+// ─────────────────────────────────────────────
 // Campeonatos
 // ─────────────────────────────────────────────
 
@@ -303,30 +339,85 @@ model Tournament {
   prizePool            String?
   rules                String?
   organizerId          String
+
+  // ── Preset ─────────────────────────────────────────────────────────────────
+  /// Referência ao preset usado (ex: ECL Master Edition)
+  presetId             String?
+  /// Snapshot das configurações do preset no momento da criação
+  presetConfig         Json?
+  // ───────────────────────────────────────────────────────────────────────────
+
+  // ── Pagamento ──────────────────────────────────────────────────────────────
+  /// Habilita cobrança de taxa de inscrição neste torneio.
+  paymentRequired      Boolean          @default(false)
+  /// Valor em centavos (ex: 2000 = R$ 20,00). Null quando paymentRequired = false.
+  entryFeeAmount       Int?
+  /// Moeda ISO-4217. Padrão "BRL".
+  entryFeeCurrency     String?          @default("BRL")
+  // ─── Mercado Pago ───────────────────────────────────────────────────────────
+  /// ID da preferência/plano criado no Mercado Pago para este torneio (opcional).
+  mpPreferenceId       String?
+  /// Link do grupo do WhatsApp do campeonato (exibido após pagamento confirmado).
+  whatsappGroupUrl     String?
+  // ────────────────────────────────────────────────────────────────────────────
+
   createdAt            DateTime         @default(now())
   updatedAt            DateTime         @updatedAt
   deletedAt            DateTime?
 
-  registrations TournamentRegistration[]
-  stages        TournamentStage[]
-  announcements Announcement[]
-  rankingPoints TournamentRankingPoints[]
+  preset              TournamentPreset?          @relation(fields: [presetId], references: [id])
+  registrations       TournamentRegistration[]
+  invitedTeams        InvitedTeam[]
+  stages              TournamentStage[]
+  swissRounds         SwissRound[]
+  announcements       Announcement[]
+  rankingPoints       TournamentRankingPoints[]
 
   @@index([status])
   @@index([slug])
   @@index([startDate])
   @@index([deletedAt])
+  @@index([presetId])
+}
+
+/// Equipes convidadas com classificação direta para playoffs
+model InvitedTeam {
+  id            String   @id @default(uuid())
+  tournamentId  String
+  teamId        String
+  /// Quadrante reservado no bracket (1-4)
+  bracketSlot   Int
+  /// Adversário reservado (ex: "Classificado 3-0")
+  reservedOpponent String?
+  createdAt     DateTime @default(now())
+
+  tournament Tournament @relation(fields: [tournamentId], references: [id], onDelete: Cascade)
+  team       Team       @relation("InvitedTeams", fields: [teamId], references: [id])
+
+  @@unique([tournamentId, teamId])
+  @@unique([tournamentId, bracketSlot])
+  @@index([tournamentId])
+  @@index([teamId])
 }
 
 model TournamentRegistration {
-  id          String             @id @default(uuid())
-  tournamentId String
-  teamId      String
-  status      RegistrationStatus @default(PENDING)
-  submittedAt DateTime           @default(now())
-  reviewedAt  DateTime?
-  reviewedById String?
-  notes       String?
+  id            String             @id @default(uuid())
+  tournamentId  String
+  teamId        String
+  status        RegistrationStatus @default(PENDING)
+  submittedAt   DateTime           @default(now())
+  reviewedAt    DateTime?
+  reviewedById  String?
+  notes         String?
+
+  // ── Pagamento ──────────────────────────────────────────────────────────────
+  paymentStatus      PaymentStatus @default(NOT_REQUIRED)
+  /// ID do pagamento gerado no Mercado Pago (payment.id).
+  mpPaymentId        String?
+  /// URL da página de checkout do Mercado Pago para o time acessar.
+  paymentUrl         String?
+  paidAt             DateTime?
+  // ────────────────────────────────────────────────────────────────────────────
 
   tournament Tournament @relation(fields: [tournamentId], references: [id], onDelete: Cascade)
   team       Team       @relation("TeamRegistrations", fields: [teamId], references: [id])
@@ -335,6 +426,52 @@ model TournamentRegistration {
   @@index([tournamentId])
   @@index([teamId])
   @@index([status])
+  @@index([paymentStatus])
+}
+
+// ─────────────────────────────────────────────
+// Sistema Suíço
+// ─────────────────────────────────────────────
+
+/// Rodada do sistema suíço
+model SwissRound {
+  id           String   @id @default(uuid())
+  tournamentId String
+  roundNumber  Int
+  startDate    DateTime?
+  endDate      DateTime?
+  isComplete   Boolean  @default(false)
+  createdAt    DateTime @default(now())
+
+  tournament Tournament @relation(fields: [tournamentId], references: [id], onDelete: Cascade)
+  matches    Match[]    @relation("SwissMatches")
+
+  @@unique([tournamentId, roundNumber])
+  @@index([tournamentId])
+}
+
+/// Campanha de um time no sistema suíço (ex: 3-1, 2-2)
+model SwissCampaign {
+  id            String   @id @default(uuid())
+  tournamentId  String
+  teamId        String
+  wins          Int      @default(0)
+  losses        Int      @default(0)
+  roundsPlayed  Int      @default(0)
+  roundDiff     Int      @default(0) // Saldo de rounds
+  /// Times já enfrentados (histórico para evitar confrontos repetidos)
+  opponentsIds  String[] @default([])
+  isEliminated  Boolean  @default(false)
+  /// Posição final após classificação (1-12 para classificados)
+  finalPosition Int?
+  updatedAt     DateTime @updatedAt
+
+  team Team @relation(fields: [teamId], references: [id])
+
+  @@unique([tournamentId, teamId])
+  @@index([tournamentId])
+  @@index([teamId])
+  @@index([wins, losses])
 }
 
 // ─────────────────────────────────────────────
@@ -346,7 +483,7 @@ model TournamentStage {
   tournamentId String
   name         String
   order        Int
-  type         String   // GROUP | BRACKET | ROUND_ROBIN
+  type         String   // GROUP | BRACKET | ROUND_ROBIN | SWISS
   seriesFormat SeriesFormat @default(BO3)
   startDate    DateTime?
   endDate      DateTime?
@@ -381,6 +518,8 @@ model Match {
   tournamentId String
   stageId      String
   groupId      String?
+  /// Para sistema suíço
+  swissRoundId String?
   round        String?
   teamAId      String
   teamBId      String
@@ -392,23 +531,28 @@ model Match {
   scoreB       Int?
   streamUrl    String?
   notes        String?
+  /// Para playoffs: posição no bracket (ex: "QF1", "SF1", "FINAL")
+  bracketPosition String?
   createdAt    DateTime    @default(now())
   updatedAt    DateTime    @updatedAt
 
-  stage    TournamentStage @relation(fields: [stageId], references: [id])
-  group    Group?          @relation(fields: [groupId], references: [id])
-  teamA    Team            @relation("TeamAMatches",  fields: [teamAId], references: [id])
-  teamB    Team            @relation("TeamBMatches",  fields: [teamBId], references: [id])
-  winner   Team?           @relation("WinnerMatches", fields: [winnerTeamId], references: [id])
-  maps     MatchMap[]
-  disputes MatchDispute[]
+  stage      TournamentStage @relation(fields: [stageId], references: [id])
+  group      Group?          @relation(fields: [groupId], references: [id])
+  swissRound SwissRound?     @relation("SwissMatches", fields: [swissRoundId], references: [id])
+  teamA      Team            @relation("TeamAMatches",  fields: [teamAId], references: [id])
+  teamB      Team            @relation("TeamBMatches",  fields: [teamBId], references: [id])
+  winner     Team?           @relation("WinnerMatches", fields: [winnerTeamId], references: [id])
+  maps       MatchMap[]
+  disputes   MatchDispute[]
 
   @@index([tournamentId])
   @@index([stageId])
+  @@index([swissRoundId])
   @@index([status])
   @@index([scheduledAt])
   @@index([teamAId])
   @@index([teamBId])
+  @@index([bracketPosition])
 }
 
 model MatchMap {
