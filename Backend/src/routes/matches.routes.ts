@@ -106,7 +106,12 @@ matchesRouter.get(
           where,
           skip,
           take: limit,
-          orderBy: { scheduledAt: "asc" },
+          // Ordenação: partidas sem data agendada vêm primeiro (pendentes de agendamento),
+          // depois por data crescente, e null por último
+          orderBy: [
+            { scheduledAt: "asc" }, // null vem primeiro no PostgreSQL com ASC NULLS FIRST
+            { createdAt: "desc" }, // Empate: mais recentes primeiro
+          ],
           include: {
             teamA: { select: { id: true, name: true, slug: true, logoUrl: true, tag: true } },
             teamB: { select: { id: true, name: true, slug: true, logoUrl: true, tag: true } },
@@ -666,6 +671,16 @@ matchesRouter.post(
 
         return updated;
       });
+
+      // APÓS A TRANSAÇÃO: Verificar se podemos gerar as partidas de playoff automaticamente
+      // (apenas se for partida Swiss)
+      if (match.swissRoundId) {
+        const { autoGeneratePlayoffMatches } = await import("../services/swiss-classification.service");
+        const generated = await autoGeneratePlayoffMatches(match.tournamentId);
+        if (generated) {
+          console.log(`[Swiss] ✅ Partidas de playoffs geradas automaticamente após classificação!`);
+        }
+      }
 
       res.json(updated);
     } catch (error) {

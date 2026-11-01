@@ -250,6 +250,8 @@ export function PlayoffBracketView({ data }: { data: PlayoffBracketData }) {
     invitedTeamsCount: data.invitedTeams?.length ?? 0,
     invitedTeams: data.invitedTeams,
     ro16Count: data.ro16?.length ?? 0,
+    ro16Raw: data.ro16, // ADDED: ver estrutura completa
+    dataKeys: Object.keys(data), // ADDED: ver todas as keys do response
   });
 
   // SEMPRE montar 8 matches das oitavas, mesmo que o backend não tenha gerado ainda

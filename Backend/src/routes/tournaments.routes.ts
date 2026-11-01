@@ -28,6 +28,8 @@ const CreateTournamentSchema = z.object({
   entryFeeAmount: z.number().int().min(0).optional(),
   entryFeeCurrency: z.string().length(3).default("BRL").optional(),
   mpPreferenceId: z.string().max(100).optional(),
+  // Preset (opcional) — quando informado, copia presetConfig automaticamente
+  presetId: z.string().uuid().optional(),
 });
 
 const UpdateTournamentSchema = CreateTournamentSchema.partial();
@@ -178,15 +180,27 @@ tournamentsRouter.post(
       });
       if (existing) throw AppError.conflict("Já existe um torneio com este nome");
 
+      // Se informado presetId, carrega e snapshot o presetConfig
+      let presetConfig: object | undefined;
+      if (data.presetId) {
+        const preset = await prisma.tournamentPreset.findUnique({ where: { id: data.presetId } });
+        if (!preset) throw AppError.notFound("Preset não encontrado");
+        presetConfig = preset.config as object;
+      }
+
+      const { presetId, ...rest } = data;
+
       const tournament = await prisma.tournament.create({
         data: {
-          ...data,
+          ...rest,
           slug,
           organizerId: req.user!.sub,
           startDate: data.startDate ? new Date(data.startDate) : undefined,
           endDate: data.endDate ? new Date(data.endDate) : undefined,
           registrationDeadline: data.registrationDeadline ? new Date(data.registrationDeadline) : undefined,
+          ...(presetId && { presetId, presetConfig }),
         },
+        include: { preset: { select: { id: true, name: true, slug: true } } },
       });
 
       res.status(201).json(tournament);
@@ -533,73 +547,6 @@ tournamentsRouter.post(
       });
 
       res.json(updated);
-    } catch (error) {
-      next(error);
-    }
-  }
-);
-
-// ─── GET /tournaments/:id/bracket ────────────────────────────────────────────
-// Retorna as fases do torneio com suas partidas para montar o chaveamento.
-// Fases de grupo (type=GROUP) incluem standings; fases eliminatórias incluem
-// o bracket tradicional de mata-mata.
-// NOTA: Exclui partidas da fase SWISS (mostradas separadamente)
-tournamentsRouter.get(
-  "/:id/bracket",
-  async (req: Request, res: Response, next: NextFunction) => {
-    try {
-      const tournamentId = getParam(req.params, "id");
-
-      // Busca stages excluindo SWISS
-      const stages = await prisma.tournamentStage.findMany({
-        where: {
-          tournamentId,
-          type: { not: "SWISS" }, // Exclui fase suíça
-        },
-        orderBy: { order: "asc" },
-        include: {
-          groups: {
-            orderBy: { order: "asc" },
-            include: {
-              standings: {
-                orderBy: { points: "desc" },
-                include: {
-                  team: { select: { id: true, name: true, slug: true, logoUrl: true, tag: true } },
-                },
-              },
-            },
-          },
-          matches: {
-            orderBy: { scheduledAt: "asc" },
-            include: {
-              teamA: { select: { id: true, name: true, slug: true, logoUrl: true, tag: true } },
-              teamB: { select: { id: true, name: true, slug: true, logoUrl: true, tag: true } },
-              winner: { select: { id: true, name: true, slug: true } },
-              group: { select: { id: true, name: true } },
-            },
-          },
-        },
-      });
-
-      // Busca times convidados para adicionar ao bracket
-      const invitedTeams = await prisma.invitedTeam.findMany({
-        where: { tournamentId },
-        include: {
-          team: {
-            select: { id: true, name: true, slug: true, logoUrl: true, tag: true },
-          },
-        },
-        orderBy: { bracketSlot: "asc" },
-      });
-
-      res.json({
-        stages,
-        invitedTeams: invitedTeams.map((inv) => ({
-          ...inv.team,
-          bracketSlot: inv.bracketSlot,
-          isInvited: true,
-        })),
-      });
     } catch (error) {
       next(error);
     }

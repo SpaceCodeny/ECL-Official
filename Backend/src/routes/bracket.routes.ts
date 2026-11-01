@@ -129,6 +129,9 @@ async function buildPlayoffBracket(tournamentId: string): Promise<PlayoffBracket
     orderBy: { finalPosition: "asc" },
   });
 
+  console.log('[Bracket Debug] Campaigns com finalPosition:', campaigns.length);
+  campaigns.forEach(c => console.log(`  - ${c.team.name}: finalPosition=${c.finalPosition}`));
+
   const swissFinalized = campaigns.length >= 12;
 
   // Mapa seed → time (convidados + classificados)
@@ -153,6 +156,7 @@ async function buildPlayoffBracket(tournamentId: string): Promise<PlayoffBracket
     const idx = (camp.finalPosition ?? 99) - 1;
     const seed = swissSeeds[idx];
     if (seed !== undefined) {
+      console.log(`[Bracket Debug] Adicionando ${camp.team.name} (pos ${camp.finalPosition}) no seed ${seed}`);
       teamBySeed.set(seed, {
         team: camp.team,
         isInvited: false,
@@ -160,6 +164,10 @@ async function buildPlayoffBracket(tournamentId: string): Promise<PlayoffBracket
       });
     }
   }
+
+  console.log('[Bracket Debug] teamBySeed final:', Array.from(teamBySeed.entries()).map(([seed, entry]) => 
+    `seed ${seed}: ${entry.team.name} (${entry.isInvited ? 'convidado' : 'classificado'})`
+  ));
 
   // 3. Verificar se partidas reais existem no banco
   const realMatches = await prisma.match.findMany({
@@ -206,6 +214,7 @@ async function buildPlayoffBracket(tournamentId: string): Promise<PlayoffBracket
         scheduledAt: real.scheduledAt?.toISOString() ?? null,
       });
     } else {
+      // Match virtual - usar dados do teamBySeed se disponível
       ro16.push({
         id: `virtual-${posKey}`,
         bracketPosition: posKey,
@@ -216,8 +225,8 @@ async function buildPlayoffBracket(tournamentId: string): Promise<PlayoffBracket
         winnerTeamId: null,
         teamA: entryA?.team ?? null,
         teamB: entryB?.team ?? null,
-        teamALabel: !entryA ? swissPlaceholder(seedA) : null,
-        teamBLabel: !entryB ? swissPlaceholder(seedB) : null,
+        teamALabel: entryA?.team ? null : (entryA?.label ?? swissPlaceholder(seedA)),
+        teamBLabel: entryB?.team ? null : (entryB?.label ?? swissPlaceholder(seedB)),
         isInvitedA: entryA?.isInvited ?? false,
         isInvitedB: entryB?.isInvited ?? false,
         scheduledAt: null,
@@ -420,6 +429,13 @@ bracketRouter.get(
       if (!tournament) return res.status(404).json({ message: "Torneio não encontrado" });
 
       const bracket = await buildPlayoffBracket(tournamentId);
+      console.log('[Bracket Endpoint] Retornando:', {
+        keys: Object.keys(bracket),
+        ro16Count: bracket.ro16.length,
+        qfCount: bracket.qf.length,
+        sfCount: bracket.sf.length,
+        finalCount: bracket.final.length,
+      });
       res.json(bracket);
     } catch (error) {
       next(error);

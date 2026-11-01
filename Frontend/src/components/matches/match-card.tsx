@@ -21,6 +21,20 @@ function TeamRow({ team, alignRight, highlight }: { team: MatchTeam; alignRight?
   );
 }
 
+/**
+ * Converte bracketPosition para nome da fase em português
+ */
+function getPlayoffPhaseName(bracketPosition: string | null): string | null {
+  if (!bracketPosition) return null;
+  
+  if (bracketPosition.startsWith("RO16-")) return "Oitavas de Final";
+  if (bracketPosition.startsWith("QF-")) return "Quartas de Final";
+  if (bracketPosition.startsWith("SF-")) return "Semifinal";
+  if (bracketPosition === "FINAL") return "Final";
+  
+  return null;
+}
+
 export function MatchCard({ match, isLive = false }: { match: Match; isLive?: boolean }) {
   // O backend retorna scoreA/scoreB
   const scoreA = match.scoreA ?? null;
@@ -30,7 +44,10 @@ export function MatchCard({ match, isLive = false }: { match: Match; isLive?: bo
   const winnerB = Boolean(match.winnerTeamId && match.winnerTeamId === match.teamB.id);
 
   // O backend retorna stage como objeto { name, tournament }
-  const stageName = typeof match.stage === "string" ? match.stage : (match.stage?.name ?? "");
+  const stageNameRaw = typeof match.stage === "string" ? match.stage : (match.stage?.name ?? "");
+  const playoffPhase = getPlayoffPhaseName(match.bracketPosition ?? null);
+  const stageName = playoffPhase || stageNameRaw; // Usar fase específica se disponível
+  
   const tournamentName =
     typeof match.stage === "object" ? (match.stage?.tournament?.name ?? "") : "";
   const tournamentSlug = 
