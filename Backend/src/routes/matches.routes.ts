@@ -672,13 +672,95 @@ matchesRouter.post(
         return updated;
       });
 
-      // APÓS A TRANSAÇÃO: Verificar se podemos gerar as partidas de playoff automaticamente
-      // (apenas se for partida Swiss)
+      // APÓS A TRANSAÇÃO: automações pós-resultado Swiss
       if (match.swissRoundId) {
+        // 1. Verificar se podemos gerar partidas de playoff (12 classificados + 4 convidados)
         const { autoGeneratePlayoffMatches } = await import("../services/swiss-classification.service");
         const generated = await autoGeneratePlayoffMatches(match.tournamentId);
         if (generated) {
           console.log(`[Swiss] ✅ Partidas de playoffs geradas automaticamente após classificação!`);
+        }
+
+        // 2. Verificar se TODAS as partidas da rodada atual estão concluídas
+        //    Se sim, gerar a próxima rodada automaticamente
+        const currentRound = await prisma.swissRound.findUnique({
+          where: { id: match.swissRoundId },
+          include: { matches: { select: { id: true, status: true } } },
+        });
+
+        if (currentRound) {
+          const allDone = currentRound.matches.every((m) => m.status === "COMPLETED");
+
+          if (allDone && !currentRound.isComplete) {
+            // Marcar rodada como completa
+            await prisma.swissRound.update({
+              where: { id: currentRound.id },
+              data: { isComplete: true },
+            });
+            console.log(`[Swiss] Rodada ${currentRound.roundNumber} marcada como completa automaticamente.`);
+
+            // Verificar se há mais rodadas a gerar
+            const presetConfig = await prisma.tournament
+              .findUnique({ where: { id: match.tournamentId }, select: { presetConfig: true } })
+              .then((t) => (t?.presetConfig as any)?.swiss);
+            const totalRounds: number = presetConfig?.roundsCount ?? 5;
+
+            if (currentRound.roundNumber < totalRounds) {
+              // Verificar se ainda existem times sem 3W nem 3D (ainda precisam jogar)
+              const activeCampaigns = await prisma.swissCampaign.count({
+                where: {
+                  tournamentId: match.tournamentId,
+                  wins: { lt: 3 },
+                  isEliminated: false,
+                },
+              });
+
+              if (activeCampaigns >= 2) {
+                // Gerar próxima rodada via import dinâmico da lógica de pairings
+                const { generateSwissPairings } = await import("../services/swiss-pairing.service");
+                const nextRoundNumber = currentRound.roundNumber + 1;
+                const pairings = await generateSwissPairings(match.tournamentId, nextRoundNumber);
+
+                const swissStage = await prisma.tournamentStage.findFirst({
+                  where: { tournamentId: match.tournamentId, type: "SWISS" },
+                });
+
+                if (swissStage && pairings.length > 0) {
+                  await prisma.$transaction(async (tx) => {
+                    const nextRound = await tx.swissRound.create({
+                      data: {
+                        tournamentId: match.tournamentId,
+                        roundNumber: nextRoundNumber,
+                        isComplete: false,
+                      },
+                    });
+
+                    await Promise.all(
+                      pairings.map((p) =>
+                        tx.match.create({
+                          data: {
+                            tournamentId: match.tournamentId,
+                            stageId: swissStage.id,
+                            swissRoundId: nextRound.id,
+                            teamAId: p.teamAId,
+                            teamBId: p.teamBId,
+                            seriesFormat: swissStage.seriesFormat,
+                            status: "SCHEDULED",
+                          },
+                        })
+                      )
+                    );
+                  });
+
+                  console.log(`[Swiss] ✅ Rodada ${nextRoundNumber} gerada automaticamente com ${pairings.length} partidas!`);
+                }
+              } else {
+                console.log(`[Swiss] Menos de 2 times ativos — sem próxima rodada.`);
+              }
+            } else {
+              console.log(`[Swiss] Todas as ${totalRounds} rodadas concluídas.`);
+            }
+          }
         }
       }
 

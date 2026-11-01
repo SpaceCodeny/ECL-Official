@@ -51,7 +51,7 @@ export function SwissAdminPanel({ tournamentId, onUpdate }: SwissAdminPanelProps
   };
 
   const handleFinalize = async () => {
-    if (!confirm("Deseja finalizar a fase suíça? Isso calculará as posições finais e permitirá gerar o bracket de playoffs.")) {
+    if (!confirm("Deseja finalizar a fase suíça? Isso calculará as posições finais para os times que não atingiram 3V ou 3D.")) {
       return;
     }
 
@@ -149,7 +149,7 @@ export function SwissAdminPanel({ tournamentId, onUpdate }: SwissAdminPanelProps
 
       {isComplete && (
         <div className="mt-4 bg-green-500/10 border border-green-500 text-green-400 px-4 py-2 rounded text-sm">
-          ✓ Todas as rodadas foram concluídas. Finalize a fase suíça para gerar o bracket de playoffs.
+          ✓ Todas as rodadas foram concluídas. Use "Finalizar" para fechar posições de times que não atingiram 3V/3D. O bracket de playoffs é gerado automaticamente conforme os classificados são definidos.
         </div>
       )}
     </div>

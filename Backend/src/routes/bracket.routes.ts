@@ -632,48 +632,76 @@ bracketRouter.patch(
         nextPos = "FINAL";
       }
 
-      // Avançar vencedor
+      // Avançar vencedor para a próxima fase
       if (nextPos) {
         const matchNum = parseInt(pos.split("-").pop() ?? "1");
-        const isTeamA = matchNum % 2 === 1;
+        const isTeamA = matchNum % 2 === 1; // ímpares vão pro lado A, pares pro lado B
 
-        let nextMatch = await prisma.match.findFirst({
+        // Descobrir qual é a posição "parceira" que também alimenta a próxima fase
+        // Ex: RO16-1 e RO16-2 → QF-1; RO16-3 e RO16-4 → QF-2
+        let partnerPos: string | null = null;
+        if (pos.startsWith("RO16-")) {
+          const n = parseInt(pos.split("-")[1]!);
+          partnerPos = isTeamA ? `RO16-${n + 1}` : `RO16-${n - 1}`;
+        } else if (pos.startsWith("QF-")) {
+          const n = parseInt(pos.split("-")[1]!);
+          partnerPos = isTeamA ? `QF-${n + 1}` : `QF-${n - 1}`;
+        } else if (pos.startsWith("SF-")) {
+          partnerPos = pos === "SF-1" ? "SF-2" : "SF-1";
+        }
+
+        // Verificar se a partida parceira já tem vencedor
+        const partnerMatch = partnerPos
+          ? await prisma.match.findFirst({
+              where: { tournamentId, bracketPosition: partnerPos },
+            })
+          : null;
+
+        const partnerWinnerId = partnerMatch?.winnerTeamId ?? null;
+
+        const existingNextMatch = await prisma.match.findFirst({
           where: { tournamentId, bracketPosition: nextPos },
         });
 
-        // Se partida da próxima fase não existe ainda, criar
-        if (!nextMatch) {
-          const playoffStage = await prisma.tournamentStage.findFirst({
-            where: { tournamentId, type: "BRACKET" },
+        if (existingNextMatch) {
+          // Partida já existe — só preencher o slot vazio
+          await prisma.match.update({
+            where: { id: existingNextMatch.id },
+            data: isTeamA ? { teamAId: winnerId } : { teamBId: winnerId },
           });
+          console.log(`[Bracket] ${nextPos} atualizada: slot ${isTeamA ? "A" : "B"} = ${winnerId}`);
+        } else if (partnerWinnerId) {
+          // Ambos os vencedores disponíveis — criar a partida completa agora
+          const playoffStage = await prisma.tournamentStage.findFirst({
+            where: { tournamentId, type: { in: ["PLAYOFF", "BRACKET"] } },
+          });
+
           if (playoffStage) {
-            // Formato da próxima fase
             let nextFormat: SeriesFormat = "BO3";
             if (nextPos === "FINAL") nextFormat = "BO5";
 
-            nextMatch = await prisma.match.create({
+            const teamAId = isTeamA ? winnerId : partnerWinnerId;
+            const teamBId = isTeamA ? partnerWinnerId : winnerId;
+
+            await prisma.match.create({
               data: {
                 tournamentId,
                 stageId: playoffStage.id,
-                teamAId: isTeamA ? winnerId : "placeholder",
-                teamBId: isTeamA ? "placeholder" : winnerId,
+                teamAId,
+                teamBId,
                 seriesFormat: nextFormat,
                 status: "SCHEDULED",
                 bracketPosition: nextPos,
               },
             });
-
-            // Corrigir placeholder
-            await prisma.match.update({
-              where: { id: nextMatch.id },
-              data: isTeamA ? { teamAId: winnerId } : { teamBId: winnerId },
-            });
+            console.log(`[Bracket] ✅ ${nextPos} criada automaticamente: ${teamAId} vs ${teamBId}`);
           }
         } else {
-          await prisma.match.update({
-            where: { id: nextMatch.id },
-            data: isTeamA ? { teamAId: winnerId } : { teamBId: winnerId },
-          });
+          // Só um dos vencedores disponível — guardar em uma partida "pendente"
+          // Criamos a partida com os dois slots iguais e marcamos para atualização depois
+          // NÃO: o schema exige FK válida em ambos os slots
+          // Então apenas logamos e aguardamos o parceiro
+          console.log(`[Bracket] ${nextPos} aguardando vencedor de ${partnerPos} para criar a partida.`);
         }
       }
 
