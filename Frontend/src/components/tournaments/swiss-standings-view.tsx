@@ -84,7 +84,7 @@ export function SwissStandingsView({ tournamentId }: SwissStandingsViewProps) {
       <div className="flex items-center justify-between">
         <h3 className="text-2xl font-bold flex items-center gap-2">
           <Trophy className="w-6 h-6 text-[#FF6B00]" />
-          Classificação Swiss System
+          Classificação Fase Suíça
         </h3>
         <div className="text-sm text-gray-400">
           Rodada {standings.currentRound} de {standings.totalRounds}

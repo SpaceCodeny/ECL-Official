@@ -38,7 +38,7 @@ const TABS: { id: Tab; label: string; icon: React.ElementType }[] = [
   { id: "overview", label: "Visão geral", icon: List },
   { id: "teams", label: "Equipes", icon: Users },
   { id: "matches", label: "Partidas", icon: Calendar },
-  { id: "swiss", label: "Swiss System", icon: Target },
+  { id: "swiss", label: "Fase Suíça", icon: Target },
   { id: "bracket", label: "Playoffs", icon: GitBranch },
   { id: "rules", label: "Regras", icon: FileText },
 ];

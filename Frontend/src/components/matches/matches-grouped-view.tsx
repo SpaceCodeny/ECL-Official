@@ -60,7 +60,7 @@ function getGroupInfo(match: Match): GroupInfo {
     const roundNum = swissRoundNum ?? 0;
     return {
       key: `swiss-${roundNum.toString().padStart(3, "0")}`,
-      label: "Swiss System",
+      label: "Fase Suíça",
       sublabel: `Rodada ${roundNum}`,
       type: "swiss",
       sortOrder: roundNum,
