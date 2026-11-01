@@ -478,7 +478,7 @@ swissRouter.post(
       const classifiedByResult = alreadyClassified.length;
       const classifiedByRanking = classifiedByRankingTeams.length;
       const eliminatedByResult = alreadyEliminated.length;
-      const eliminatedByRanking = eliminatedByRankingTeams.length - alreadyEliminated.length;
+      const eliminatedByRanking = eliminatedTeams.length - alreadyEliminated.length;
 
       console.log(
         `[Swiss] Finalizado: ${classifiedCount} classificados ` +

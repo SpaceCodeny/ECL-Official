@@ -6,16 +6,16 @@ import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import {
   Calendar, Users, Trophy, Layers, FileText,
-  GitBranch, List, ArrowLeft, TrendingUp, Target, UserPlus, Clock,
+  GitBranch, List, ArrowLeft, Target, Clock,
 } from "lucide-react";
 import { buttonVariants } from "@/components/ui/button";
 import { LoadingState } from "@/components/ui/loading-state";
 import { ErrorState } from "@/components/ui/error-state";
 import { TournamentStatusBadge } from "./status-badge";
-import { BracketView } from "@/components/matches/bracket-view";
 import { MatchCard } from "@/components/matches/match-card";
+import { PlayoffBracketView, InvitedTeamsPanel } from "./playoff-bracket-view";
+import type { PlayoffBracketData } from "./playoff-bracket-view";
 import { MatchesGroupedView } from "@/components/matches/matches-grouped-view";
-import { Avatar } from "@/components/ui/avatar";
 import { EmptyState } from "@/components/ui/empty-state";
 import { getTournamentBySlug } from "@/services/tournaments.service";
 import { api } from "@/lib/api-client";
@@ -30,10 +30,9 @@ import { SwissMatchesView } from "./swiss-matches-view";
 import { SwissRoundsBracket } from "./swiss-rounds-bracket";
 import { SwissSystemBracket } from "./swiss-system-bracket";
 import { SwissBracketHLTV } from "./swiss-bracket-hltv";
-import { InvitedTeamsManager } from "./invited-teams-manager";
 import { TournamentTeamsView } from "./tournament-teams-view";
 
-type Tab = "overview" | "teams" | "matches" | "swiss" | "bracket" | "invited" | "rules";
+type Tab = "overview" | "teams" | "matches" | "swiss" | "bracket" | "rules";
 
 const TABS: { id: Tab; label: string; icon: React.ElementType }[] = [
   { id: "overview", label: "Visão geral", icon: List },
@@ -41,7 +40,6 @@ const TABS: { id: Tab; label: string; icon: React.ElementType }[] = [
   { id: "matches", label: "Partidas", icon: Calendar },
   { id: "swiss", label: "Swiss System", icon: Target },
   { id: "bracket", label: "Playoffs", icon: GitBranch },
-  { id: "invited", label: "Convidados", icon: UserPlus },
   { id: "rules", label: "Regras", icon: FileText },
 ];
 
@@ -72,21 +70,11 @@ export function TournamentDetailClient({ slug }: { slug: string }) {
     enabled: Boolean(tournament?.id) && activeTab === "matches",
   });
 
-  const { data: bracketStages, isLoading: isLoadingBracket } = useQuery({
+  const { data: bracketData, isLoading: isLoadingBracket, refetch: refetchBracket } = useQuery({
     queryKey: ["tournament-bracket", tournament?.id],
-    queryFn: () => api.get<{
-      stages: BracketStageData[];
-      invitedTeams: Array<{
-        id: string;
-        name: string;
-        slug: string;
-        logoUrl: string | null;
-        tag: string | null;
-        bracketSlot: number;
-        isInvited: true;
-      }>;
-    }>(`/tournaments/${tournament!.id}/bracket`),
+    queryFn: () => api.get<PlayoffBracketData>(`/tournaments/${tournament!.id}/bracket`),
     enabled: Boolean(tournament?.id) && activeTab === "bracket",
+    refetchInterval: activeTab === "bracket" ? 10000 : false,
   });
 
   // Buscar partidas da fase suíça separadamente
@@ -140,11 +128,11 @@ export function TournamentDetailClient({ slug }: { slug: string }) {
     queryFn: () => api.get<{ data: Array<{ teamId: string; position: number }> }>("/rankings"),
   });
 
-  // Buscar equipes convidadas
-  const { data: invitedTeams, isLoading: isLoadingInvited, refetch: refetchInvited } = useQuery({
+  // Buscar equipes convidadas (usadas na aba Equipes)
+  const { data: invitedTeams, isLoading: isLoadingInvited } = useQuery({
     queryKey: ["invited-teams", tournament?.id],
     queryFn: () => api.get<Array<{ id: string; team: { id: string; name: string; tag: string | null; slug: string; logoUrl: string | null }; bracketSlot: number; createdAt: string }>>(`/tournaments/${tournament!.id}/invited`),
-    enabled: Boolean(tournament?.id) && (activeTab === "invited" || activeTab === "teams" || isAdmin),
+    enabled: Boolean(tournament?.id) && (activeTab === "teams" || isAdmin),
   });
 
   if (isLoading) return <LoadingState label="Carregando campeonato…" className="min-h-[60vh]" />;
@@ -296,50 +284,31 @@ export function TournamentDetailClient({ slug }: { slug: string }) {
         {activeTab === "bracket" && (
           <div className="space-y-6">
             <h2 className="font-display text-xl font-bold uppercase tracking-tight text-paper">
-              Playoffs - Chaveamento Eliminatório
+              Playoffs — Chaveamento
             </h2>
-            
+
             {isLoadingBracket ? (
               <LoadingState label="Carregando chaveamento…" />
-            ) : bracketStages ? (
-              <>
-                {bracketStages.invitedTeams && bracketStages.invitedTeams.length > 0 && (
-                  <div className="bg-gradient-to-br from-gold/10 to-purple-600/10 border border-gold/30 rounded-lg p-6">
-                    <h3 className="font-bold text-lg mb-4 flex items-center gap-2">
-                      <Trophy className="w-5 h-5 text-gold" />
-                      Times com Classificação Direta
-                    </h3>
-                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-                      {bracketStages.invitedTeams.map((team) => (
-                        <div
-                          key={team.id}
-                          className="bg-gray-900/50 border border-gold/30 rounded-lg p-4 flex items-center gap-3"
-                        >
-                          <div className="w-10 h-10 rounded-lg bg-gold/10 border border-gold/30 flex items-center justify-center shrink-0">
-                            <span className="font-bold text-gold">#{team.bracketSlot}</span>
-                          </div>
-                          <Avatar
-                            name={team.name}
-                            src={team.logoUrl}
-                            size="md"
-                          />
-                          <div className="min-w-0 flex-1">
-                            <p className="font-bold truncate">{team.tag || team.name}</p>
-                            <p className="text-xs text-gray-400">Convidado</p>
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                )}
-                <BracketView stages={bracketStages.stages} invitedTeams={bracketStages.invitedTeams} />
-              </>
+            ) : bracketData ? (
+              <div className="space-y-6">
+                <InvitedTeamsPanel
+                  invitedTeams={bracketData.invitedTeams}
+                  tournamentId={tournament.id}
+                  isAdmin={isAdmin}
+                  onUpdate={() => void refetchBracket()}
+                />
+                <PlayoffBracketView data={bracketData} />
+              </div>
             ) : (
-              <EmptyState
-                icon={GitBranch}
-                title="Chaveamento não disponível"
-                description="O chaveamento será gerado após a conclusão da fase suíça"
-              />
+              <div className="rounded-xl border border-border bg-surface/40 p-12 text-center">
+                <GitBranch className="mx-auto mb-4 h-12 w-12 text-muted/30" />
+                <p className="font-display text-lg font-bold uppercase text-muted/60">
+                  Chaveamento não disponível
+                </p>
+                <p className="mt-2 text-sm text-muted/40">
+                  Configure as equipes convidadas para visualizar o bracket
+                </p>
+              </div>
             )}
           </div>
         )}
@@ -400,103 +369,6 @@ export function TournamentDetailClient({ slug }: { slug: string }) {
 
             {/* Tabela de classificação */}
             <SwissStandingsView tournamentId={tournament.id} />
-          </div>
-        )}
-
-        {activeTab === "invited" && (
-          <div className="space-y-6">
-            {isAdmin && (
-              <InvitedTeamsManager
-                tournamentId={tournament.id}
-                maxInvited={4}
-                onUpdate={() => {
-                  void refetchInvited();
-                  void refetch();
-                }}
-              />
-            )}
-
-            <div>
-              <div className="mb-6 flex items-center justify-between">
-                <h2 className="font-display text-xl font-bold uppercase tracking-tight text-paper">
-                  Equipes Convidadas
-                </h2>
-                {invitedTeams && (
-                  <span className="rounded-full bg-gold/10 px-3 py-1 text-sm font-semibold text-gold">
-                    {invitedTeams.length} convidadas
-                  </span>
-                )}
-              </div>
-
-              {isLoadingInvited ? (
-                <LoadingState label="Carregando convidados…" />
-              ) : !invitedTeams || invitedTeams.length === 0 ? (
-                <EmptyState
-                  icon={UserPlus}
-                  title="Nenhuma equipe convidada"
-                  description="Equipes convidadas recebem classificação direta para os playoffs."
-                />
-              ) : (
-                <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
-                  {invitedTeams.map((invited) => {
-                    const rankingPosition = rankingMap.get(invited.team.id);
-                    
-                    return (
-                      <Link
-                        key={invited.id}
-                        href={`/teams/${invited.team.slug}`}
-                        className="group relative overflow-hidden rounded-xl border border-gold/30 bg-gradient-to-br from-gold/10 to-transparent transition-all hover:border-gold/60 hover:shadow-lg hover:shadow-gold/20"
-                      >
-                        {/* Badge de convidado */}
-                        <div className="absolute right-3 top-3 flex items-center gap-1.5 rounded-full bg-gold px-2.5 py-1">
-                          <Trophy className="h-3 w-3 text-ink" />
-                          <span className="text-xs font-bold text-ink">Slot #{invited.bracketSlot}</span>
-                        </div>
-
-                        <div className="p-5">
-                          <div className="mb-4 flex items-center gap-4">
-                            <div className="relative">
-                              <Avatar
-                                name={invited.team.name}
-                                src={invited.team.logoUrl}
-                                size="lg"
-                                className="ring-2 ring-gold/40 transition-colors group-hover:ring-gold"
-                              />
-                              {rankingPosition && rankingPosition <= 3 && (
-                                <div className="absolute -right-1 -top-1 flex h-6 w-6 items-center justify-center rounded-full bg-gold text-[10px] font-bold text-ink">
-                                  {rankingPosition}
-                                </div>
-                              )}
-                            </div>
-                            <div className="min-w-0 flex-1">
-                              <h3 className="truncate font-display text-base font-bold uppercase tracking-tight text-paper transition-colors group-hover:text-gold">
-                                {invited.team.name}
-                              </h3>
-                              {invited.team.tag && (
-                                <p className="text-xs uppercase tracking-wide text-muted">{invited.team.tag}</p>
-                              )}
-                            </div>
-                          </div>
-
-                          {/* Informações adicionais */}
-                          <div className="flex items-center justify-between border-t border-gold/20 pt-3">
-                            {rankingPosition && (
-                              <div className="flex items-center gap-1.5 text-xs text-muted">
-                                <TrendingUp className="h-3.5 w-3.5 text-gold/70" />
-                                <span>Ranking: <span className="font-semibold text-paper">#{rankingPosition}</span></span>
-                              </div>
-                            )}
-                            <span className="text-xs text-gold opacity-0 transition-opacity group-hover:opacity-100">
-                              Ver perfil →
-                            </span>
-                          </div>
-                        </div>
-                      </Link>
-                    );
-                  })}
-                </div>
-              )}
-            </div>
           </div>
         )}
 
