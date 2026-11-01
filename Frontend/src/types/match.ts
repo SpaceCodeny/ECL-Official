@@ -24,6 +24,7 @@ export interface MatchTeam {
 
 export interface MatchStage {
   name: string;
+  type?: string; // GROUP | BRACKET | ROUND_ROBIN | SWISS
   order?: number;
   tournament: {
     id: string;
@@ -44,6 +45,12 @@ export interface Match {
   scoreA?: number | null;
   scoreB?: number | null;
   notes?: string | null;
+  /** Para playoffs: posição no bracket (ex: "QF1", "SF1", "FINAL") */
+  bracketPosition?: string | null;
+  /** ID da rodada suíça (preenchido quando a partida pertence a uma SwissRound) */
+  swissRoundId?: string | null;
+  /** Objeto da rodada suíça com o número canônico */
+  swissRound?: { id: string; roundNumber: number } | null;
   /** O backend retorna stage como objeto com nome e torneio. */
   stage: string | MatchStage;
   teamA: MatchTeam;

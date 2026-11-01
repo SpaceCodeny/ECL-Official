@@ -14,6 +14,7 @@ import { ErrorState } from "@/components/ui/error-state";
 import { TournamentStatusBadge } from "./status-badge";
 import { BracketView } from "@/components/matches/bracket-view";
 import { MatchCard } from "@/components/matches/match-card";
+import { MatchesGroupedView } from "@/components/matches/matches-grouped-view";
 import { Avatar } from "@/components/ui/avatar";
 import { EmptyState } from "@/components/ui/empty-state";
 import { getTournamentBySlug } from "@/services/tournaments.service";
@@ -30,6 +31,7 @@ import { SwissRoundsBracket } from "./swiss-rounds-bracket";
 import { SwissSystemBracket } from "./swiss-system-bracket";
 import { SwissBracketHLTV } from "./swiss-bracket-hltv";
 import { InvitedTeamsManager } from "./invited-teams-manager";
+import { TournamentTeamsView } from "./tournament-teams-view";
 
 type Tab = "overview" | "teams" | "matches" | "swiss" | "bracket" | "invited" | "rules";
 
@@ -141,8 +143,8 @@ export function TournamentDetailClient({ slug }: { slug: string }) {
   // Buscar equipes convidadas
   const { data: invitedTeams, isLoading: isLoadingInvited, refetch: refetchInvited } = useQuery({
     queryKey: ["invited-teams", tournament?.id],
-    queryFn: () => api.get<Array<{ id: string; team: { id: string; name: string; tag: string | null; slug: string; logoUrl: string | null }; slot: number; createdAt: string }>>(`/invited-teams/${tournament!.id}`),
-    enabled: Boolean(tournament?.id) && (activeTab === "invited" || isAdmin),
+    queryFn: () => api.get<Array<{ id: string; team: { id: string; name: string; tag: string | null; slug: string; logoUrl: string | null }; bracketSlot: number; createdAt: string }>>(`/tournaments/${tournament!.id}/invited`),
+    enabled: Boolean(tournament?.id) && (activeTab === "invited" || activeTab === "teams" || isAdmin),
   });
 
   if (isLoading) return <LoadingState label="Carregando campeonato…" className="min-h-[60vh]" />;
@@ -270,71 +272,12 @@ export function TournamentDetailClient({ slug }: { slug: string }) {
         )}
 
         {activeTab === "teams" && (
-          <div>
-            <div className="mb-6 flex items-center justify-between">
-              <h2 className="font-display text-xl font-bold uppercase tracking-tight text-paper">
-                Equipes Inscritas
-              </h2>
-              <span className="rounded-full bg-gold/10 px-3 py-1 text-sm font-semibold text-gold">
-                {registrations.length} {registrations.length === 1 ? "equipe" : "equipes"}
-              </span>
-            </div>
-            {registrations.length === 0 ? (
-              <EmptyState icon={Users} title="Nenhuma equipe inscrita" description="As equipes aprovadas aparecerão aqui." />
-            ) : (
-              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
-                {registrations.map((r, index) => {
-                  const rankingPosition = rankingMap.get(r.team.id) ?? index + 1;
-                  
-                  return (
-                    <Link
-                      key={r.team.id}
-                      href={`/teams/${r.team.slug}`}
-                      className="group relative overflow-hidden rounded-xl border border-border bg-surface transition-all hover:border-gold/40 hover:shadow-lg hover:shadow-gold/10"
-                    >
-                      {/* Número de inscrição */}
-                      <div className="absolute right-3 top-3 flex h-8 w-8 items-center justify-center rounded-full bg-ink/80 backdrop-blur">
-                        <span className="font-display text-sm font-bold text-muted">#{index + 1}</span>
-                      </div>
-
-                      <div className="p-5">
-                        <div className="mb-4 flex items-center gap-4">
-                          <div className="relative">
-                            <Avatar name={r.team.name} src={r.team.logoUrl} size="lg" className="ring-2 ring-border transition-colors group-hover:ring-gold/40" />
-                            {/* Indicador de ranking top 3 */}
-                            {rankingPosition <= 3 && (
-                              <div className="absolute -right-1 -top-1 flex h-6 w-6 items-center justify-center rounded-full bg-gold text-[10px] font-bold text-ink">
-                                {rankingPosition}
-                              </div>
-                            )}
-                          </div>
-                          <div className="min-w-0 flex-1">
-                            <h3 className="truncate font-display text-base font-bold uppercase tracking-tight text-paper transition-colors group-hover:text-gold">
-                              {r.team.name}
-                            </h3>
-                            {r.team.tag && (
-                              <p className="text-xs uppercase tracking-wide text-muted">{r.team.tag}</p>
-                            )}
-                          </div>
-                        </div>
-
-                        {/* Informações adicionais */}
-                        <div className="flex items-center justify-between border-t border-border/50 pt-3">
-                          <div className="flex items-center gap-1.5 text-xs text-muted">
-                            <TrendingUp className="h-3.5 w-3.5 text-gold/70" />
-                            <span>Ranking: <span className="font-semibold text-paper">#{rankingPosition}</span></span>
-                          </div>
-                          <span className="text-xs text-gold opacity-0 transition-opacity group-hover:opacity-100">
-                            Ver perfil →
-                          </span>
-                        </div>
-                      </div>
-                    </Link>
-                  );
-                })}
-              </div>
-            )}
-          </div>
+          <TournamentTeamsView
+            registrations={registrations}
+            invitedTeams={invitedTeams ?? []}
+            rankingMap={rankingMap}
+            isLoadingInvited={isLoadingInvited}
+          />
         )}
 
         {activeTab === "matches" && (
@@ -345,11 +288,7 @@ export function TournamentDetailClient({ slug }: { slug: string }) {
             ) : !matchesData?.data.length ? (
               <EmptyState icon={Calendar} title="Nenhuma partida" description="As partidas serão exibidas quando criadas." />
             ) : (
-              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
-                {(matchesData.data as Parameters<typeof MatchCard>[0]["match"][]).map((m) => (
-                  <MatchCard key={(m as { id: string }).id} match={m} />
-                ))}
-              </div>
+              <MatchesGroupedView matches={matchesData.data as Parameters<typeof MatchCard>[0]["match"][]} />
             )}
           </div>
         )}
@@ -511,7 +450,7 @@ export function TournamentDetailClient({ slug }: { slug: string }) {
                         {/* Badge de convidado */}
                         <div className="absolute right-3 top-3 flex items-center gap-1.5 rounded-full bg-gold px-2.5 py-1">
                           <Trophy className="h-3 w-3 text-ink" />
-                          <span className="text-xs font-bold text-ink">Slot #{invited.slot}</span>
+                          <span className="text-xs font-bold text-ink">Slot #{invited.bracketSlot}</span>
                         </div>
 
                         <div className="p-5">

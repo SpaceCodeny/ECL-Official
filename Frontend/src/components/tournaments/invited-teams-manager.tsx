@@ -249,7 +249,7 @@ export function InvitedTeamsManager({
       ) : (
         <div className="space-y-3">
           {invitedTeams
-            .sort((a, b) => a.slot - b.slot)
+            .sort((a, b) => a.bracketSlot - b.bracketSlot)
             .map((invited) => (
               <div
                 key={invited.id}
@@ -260,7 +260,7 @@ export function InvitedTeamsManager({
                     {/* Slot badge */}
                     <div className="flex items-center gap-2 shrink-0">
                       <div className="w-10 h-10 rounded-lg bg-gold/10 border border-gold/30 flex items-center justify-center">
-                        <span className="font-bold text-gold">#{invited.slot}</span>
+                        <span className="font-bold text-gold">#{invited.bracketSlot}</span>
                       </div>
                     </div>
 
